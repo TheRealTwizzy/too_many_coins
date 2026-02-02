@@ -14,6 +14,7 @@ import (
 
 type BuyStarRequest struct {
 	SeasonID string `json:"seasonId"`
+	PlayerID string `json:"playerId"`
 }
 
 type BuyStarResponse struct {
@@ -234,25 +235,63 @@ func main() {
 			economy.CoinsInCirculation(),
 			int64(remaining.Seconds()),
 		)
-
-		if !playerStore.CanAfford(price) {
+		if req.PlayerID == "" {
 			json.NewEncoder(w).Encode(BuyStarResponse{
 				OK:    false,
-				Error: "NOT_ENOUGH_COINS",
+				Error: "MISSING_PLAYER_ID",
 			})
 			return
 		}
 
-		playerStore.ApplyPurchase(price)
+		player, err := LoadOrCreatePlayer(db, req.PlayerID)
+		if err != nil {
+			log.Println("Failed to load player:", err)
+			json.NewEncoder(w).Encode(BuyStarResponse{
+				OK:    false,
+				Error: "PLAYER_LOAD_FAILED",
+			})
+			return
+		}
+
+		if player.Coins < int64(price) {
+			json.NewEncoder(w).Encode(BuyStarResponse{
+				OK:          false,
+				Error:       "NOT_ENOUGH_COINS",
+				PlayerCoins: int(player.Coins),
+				PlayerStars: int(player.Stars),
+			})
+			return
+		}
+
+		// Apply purchase
+		player.Coins -= int64(price)
+		player.Stars += 1
+
+		err = UpdatePlayerBalances(
+			db,
+			player.PlayerID,
+			player.Coins,
+			player.Stars,
+		)
+		if err != nil {
+			log.Println("Failed to update player:", err)
+			json.NewEncoder(w).Encode(BuyStarResponse{
+				OK:    false,
+				Error: "PLAYER_UPDATE_FAILED",
+			})
+			return
+		}
+
+		// Update global economy
 		economy.IncrementStars()
-		coins, stars := playerStore.Get()
 
 		json.NewEncoder(w).Encode(BuyStarResponse{
 			OK:            true,
 			StarPricePaid: price,
-			PlayerCoins:   coins,
-			PlayerStars:   stars,
+			PlayerCoins:   int(player.Coins),
+			PlayerStars:   int(player.Stars),
 		})
+
 	})
 
 	port := os.Getenv("PORT")
