@@ -4,71 +4,130 @@
 	<meta charset="UTF-8" />
 	<title>Too Many Coins</title>
 	<style>
+	:root {
+		color-scheme: dark;
+	}
 	body {
 		font-family: system-ui, sans-serif;
 		background: #0f1220;
 		color: #eaeaf0;
 		padding: 2rem;
+		max-width: 960px;
+		margin: 0 auto;
 	}
-	.season {
+	header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1.5rem;
+	}
+	.badge {
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 999px;
+		background: #1f2544;
+		border: 1px solid #2a2f55;
+	}
+	nav a {
+		color: #c5cae9;
+		text-decoration: none;
+		margin-left: 0.75rem;
+		font-size: 0.85rem;
+	}
+	.card {
 		border: 1px solid #2a2f55;
 		padding: 1rem;
 		margin-bottom: 1rem;
-		border-radius: 8px;
+		border-radius: 10px;
+		background: #141a2e;
 	}
 	.recommended {
 		border-color: #ffd166;
-		background: rgba(255, 209, 102, 0.1);
+		background: rgba(255, 209, 102, 0.08);
 	}
 	.label {
 		font-size: 0.8rem;
 		color: #aaa;
 	}
+	input, textarea, button {
+		background: #0f1220;
+		border: 1px solid #2a2f55;
+		color: #eaeaf0;
+		padding: 0.5rem 0.75rem;
+		border-radius: 8px;
+	}
+	button {
+		cursor: pointer;
+	}
+	button.primary {
+		background: #3b82f6;
+		border-color: #3b82f6;
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 1rem;
+	}
 	</style>
 </head>
 <body>
-	<h1>Too Many Coins</h1>
-	<p class="label">Earn coins, buy stars, climb the season.</p>
+	<header>
+		<div>
+			<h1>Too Many Coins</h1>
+			<div class="label">Earn coins, buy stars, climb the season.</div>
+		</div>
+		<div>
+			<span class="badge">ALPHA 1</span>
+			<nav>
+				<a href="/about.html">About</a>
+				<a href="/playtest.html">Playtest</a>
+			</nav>
+		</div>
+	</header>
 
-	<div class="season" id="auth-card">
+	<div class="card" id="auth-card">
 		<div id="auth-status" class="label">Checking session…</div>
 		<div id="auth-forms">
 			<input id="username" placeholder="Username" />
 			<input id="password" type="password" placeholder="Password" />
 			<input id="display-name" placeholder="Display name (signup)" />
 			<div style="margin-top: 0.5rem;">
-				<button id="login-btn">Log in</button>
+				<button class="primary" id="login-btn">Log in</button>
 				<button id="signup-btn">Sign up</button>
 			</div>
 		</div>
 		<button id="logout-btn" style="display:none;">Log out</button>
 	</div>
 
-	<div class="season" id="profile-card" style="display:none;">
-		<div class="label">Profile</div>
-		<div id="profile-name"></div>
-		<input id="profile-display" placeholder="Display name" />
-		<button id="profile-save">Save</button>
+	<div class="grid">
+		<div class="card" id="profile-card" style="display:none;">
+			<div class="label">Profile</div>
+			<div id="profile-name"></div>
+			<input id="profile-display" placeholder="Display name" />
+			<button id="profile-save">Save</button>
+		</div>
+
+		<div class="card" id="player-stats" style="display:none;">
+			<div class="label">Your stats</div>
+			<div id="player-coins" class="label"></div>
+			<div id="player-stars" class="label"></div>
+		</div>
 	</div>
 
-	<div class="season" id="onboarding" style="display:none;">
+	<div class="card" id="onboarding" style="display:none;">
 		<div class="label">Quick start</div>
 		<div>Play a season. Earn coins over time. Spend them on stars.</div>
 		<button id="dismiss-hint">Got it</button>
 	</div>
 
-	<div class="season" id="player-stats" style="display:none;">
-		<div id="player-coins" class="label"></div>
-		<div id="player-stars" class="label"></div>
-	</div>
-
-	<div class="season" id="feedback-card" style="display:none;">
+	<div class="card" id="feedback-card" style="display:none;">
 		<div class="label">Playtest feedback</div>
 		<textarea id="feedback-text" rows="3" style="width:100%;"></textarea>
 		<button id="feedback-send">Send</button>
 	</div>
 
-	<div id="seasons">Loading seasons…</div>
+	<div id="locked-message" class="label"></div>
+	<div id="seasons" class="grid">Loading seasons…</div>
 
 	<script>
 const authStatus = document.getElementById("auth-status");
@@ -120,6 +179,8 @@ async function loadAuth() {
 		profileCard.style.display = "none";
 		playerStats.style.display = "none";
 		feedbackCard.style.display = "none";
+		document.getElementById("seasons").style.display = "none";
+		document.getElementById("locked-message").innerText = "Log in to access seasons.";
 		return;
 	}
 
@@ -132,6 +193,8 @@ async function loadAuth() {
 	profileDisplay.value = data.displayName;
 	playerStats.style.display = "block";
 	feedbackCard.style.display = "block";
+	document.getElementById("seasons").style.display = "grid";
+	document.getElementById("locked-message").innerText = "";
 }
 
 async function refreshPlayer() {
@@ -158,7 +221,7 @@ async function loadSeasons() {
 		const hoursLeft = Math.floor(season.secondsRemaining / 3600);
 		const starPrice = season.currentStarPrice;
 
-		div.className = "season";
+		div.className = "card";
 		if (isJoined && !isThisSeasonJoined) {
 			div.style.opacity = "0.5";
 		}
@@ -289,7 +352,15 @@ if (localStorage.getItem("dismissedHint") !== "true") {
 
 loadAuth().then(async () => {
 	await refreshPlayer();
-	await loadSeasons();
+	if (currentUser) {
+		await loadSeasons();
+		setInterval(() => {
+			refreshPlayer();
+		}, 10000);
+		setInterval(() => {
+			loadSeasons();
+		}, 15000);
+	}
 });
 	</script>
 </body>

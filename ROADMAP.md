@@ -221,11 +221,15 @@ The project follows a principle of **server authority first**, with the frontend
 - [x] Add feedback capture endpoint (survey + freeform)
 
 ### Step 16.B — Alpha Test Execution
-- [ ] Define Alpha 1 test goals and metrics
+- [ ] Define Alpha 1 test goals and metrics (core loop clarity, faucet pacing, price curve, UI clarity, auth stability)
 - [ ] Recruit 8–15 testers (friends/family ok)
 - [ ] Run 1–2 week test cycle
 - [ ] Daily/weekly review of economy metrics
 - [ ] Compile feedback + prioritized fixes
+
+### Step 16.C — Alpha vs Beta Scope
+- [ ] Alpha focus: core loop, auth stability, faucet pacing, star purchase flow, basic UI clarity
+- [ ] Beta focus: multi-season support, market pressure, daily caps/tasks, anti-abuse expansions, real-time updates
 
 ---
 
