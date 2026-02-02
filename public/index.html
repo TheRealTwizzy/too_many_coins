@@ -38,7 +38,7 @@
 	const params = new URLSearchParams(window.location.search);
 	const devMinutes = parseInt(params.get("devMinutes"), 10) || 0;
 	const IS_DEV = window.__DEV_MODE__ === true;
-	console.log("devMinutes =", devMinutes, "isLocal =", isLocal);
+	console.log("devMinutes =", devMinutes, "IS_DEV =", IS_DEV);
 	const joinedSeasonId = localStorage.getItem("joinedSeasonId");
 	let playerCoins = parseInt(localStorage.getItem("playerCoins"), 10);
 	const coinsDiv = document.getElementById("player-coins");
