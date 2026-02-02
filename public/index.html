@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Too Many Coins</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f1220;
+      color: #eaeaf0;
+      padding: 2rem;
+    }
+    .season {
+      border: 1px solid #2a2f55;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+    .recommended {
+      border-color: #ffd166;
+      background: rgba(255, 209, 102, 0.1);
+    }
+    .label {
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h1>Too Many Coins</h1>
+  <p>Select a season. Time and inflation are always moving.</p>
+
+  <div id="seasons">Loading seasons…</div>
+
+  <script>
+    fetch("/seasons")
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById("seasons");
+        container.innerHTML = "";
+
+        data.seasons.forEach(season => {
+          const div = document.createElement("div");
+          div.className = "season";
+
+          if (season.seasonId === data.recommendedSeasonId) {
+            div.classList.add("recommended");
+          }
+
+          div.innerHTML = `
+            <strong>${season.seasonId}</strong>
+            ${season.seasonId === data.recommendedSeasonId ? "<span class='label'>(recommended)</span>" : ""}
+            <div class="label">Coins in circulation: ${season.coinsInCirculation}</div>
+            <div class="label">Emission / minute: ${season.coinEmissionPerMinute.toFixed(2)}</div>
+            <div class="label">Time remaining: ${Math.floor(season.secondsRemaining / 3600)} hours</div>
+          `;
+
+          container.appendChild(div);
+        });
+      })
+      .catch(err => {
+        document.getElementById("seasons").innerText = "Failed to load seasons.";
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
