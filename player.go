@@ -99,6 +99,25 @@ func LoadOrCreatePlayer(
 	}, nil
 }
 
+func LoadPlayer(db *sql.DB, playerID string) (*Player, error) {
+	var p Player
+
+	err := db.QueryRow(`
+		SELECT player_id, coins, stars, last_coin_grant_at
+		FROM players
+		WHERE player_id = $1
+	`, playerID).Scan(&p.PlayerID, &p.Coins, &p.Stars, &p.LastCoinGrantAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &p, nil
+}
+
 func UpdatePlayerBalances(
 	db *sql.DB,
 	playerID string,

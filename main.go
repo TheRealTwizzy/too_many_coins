@@ -105,10 +105,10 @@ func main() {
    ====================== */
 
 func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
-	mux.HandleFunc("/", serveIndex(devMode))
+	mux.HandleFunc("/", serveIndex)
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/player", playerHandler(db))
-	mux.HandleFunc("/seasons", seasonsHandler(db, devMode))
+	mux.HandleFunc("/seasons", seasonsHandler(db))
 	mux.HandleFunc("/buy-star", buyStarHandler(db))
 }
 
