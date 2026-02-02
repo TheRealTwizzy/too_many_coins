@@ -102,3 +102,29 @@ func (e *EconomyState) EmissionPerMinute() float64 {
 	return float64(e.dailyEmissionTarget) / (24 * 60)
 }
 
+func ComputeStarPrice(
+	coinsInCirculation int64,
+	secondsRemaining int64,
+) int {
+
+	const (
+		baseStarPrice  = 10
+		inflationScale = 1000
+		seasonSeconds  = 28 * 24 * 3600
+	)
+
+	progress := 1 - (float64(secondsRemaining) / float64(seasonSeconds))
+	if progress < 0 {
+		progress = 0
+	}
+	if progress > 1 {
+		progress = 1
+	}
+
+	timeMultiplier := 1 + progress
+
+	price := float64(baseStarPrice) *
+		(1 + (float64(coinsInCirculation)/inflationScale)*timeMultiplier)
+
+	return int(price + 0.9999) // ceil without math.Ceil
+}
