@@ -57,6 +57,10 @@ func playerHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if ip := getClientIP(r); ip != "" {
+			log.Printf("IP association: ip=%s playerId=%s", ip, playerID)
+		}
+
 		player, err := LoadOrCreatePlayer(db, playerID)
 		if err != nil {
 			log.Println("Failed to load/create player:", err)
@@ -148,6 +152,10 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 				OK: false, Error: "INVALID_PLAYER_ID",
 			})
 			return
+		}
+
+		if ip := getClientIP(r); ip != "" {
+			log.Printf("IP association: ip=%s playerId=%s", ip, req.PlayerID)
 		}
 
 		player, err := LoadPlayer(db, req.PlayerID)
