@@ -34,16 +34,24 @@ func (e *EconomyState) persist(seasonID string, db *sql.DB) {
 	defer e.mu.Unlock()
 
 	_, err := db.Exec(`
-		INSERT INTO season_economy (season_id, global_coin_pool, emission_remainder, last_updated)
-		VALUES ($1, $2, $3, NOW())
+		INSERT INTO season_economy (
+			season_id,
+			global_coin_pool,
+			global_stars_purchased,
+			emission_remainder,
+			last_updated
+		)
+		VALUES ($1, $2, $3, $4, NOW())
 		ON CONFLICT (season_id)
 		DO UPDATE SET
 			global_coin_pool = EXCLUDED.global_coin_pool,
+			global_stars_purchased = EXCLUDED.global_stars_purchased,
 			emission_remainder = EXCLUDED.emission_remainder,
 			last_updated = NOW()
 	`,
 		seasonID,
 		e.globalCoinPool,
+		e.globalStarsPurchased,
 		e.emissionRemainder,
 	)
 
@@ -69,15 +77,16 @@ func (e *EconomyState) load(seasonID string, db *sql.DB) error {
 	defer e.mu.Unlock()
 
 	row := db.QueryRow(`
-		SELECT global_coin_pool, emission_remainder
+		SELECT global_coin_pool, global_stars_purchased, emission_remainder
 		FROM season_economy
 		WHERE season_id = $1
 	`, seasonID)
 
 	var pool int64
+	var stars int64
 	var remainder float64
 
-	err := row.Scan(&pool, &remainder)
+	err := row.Scan(&pool, &stars, &remainder)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Println("Economy: no existing state, starting fresh")
@@ -87,22 +96,49 @@ func (e *EconomyState) load(seasonID string, db *sql.DB) error {
 	}
 
 	e.globalCoinPool = int(pool)
+	e.globalStarsPurchased = int(stars)
 	e.emissionRemainder = remainder
 
-	log.Println("Economy: loaded state, pool", e.globalCoinPool)
+	log.Println(
+		"Economy: loaded state",
+		"coins =", e.globalCoinPool,
+		"stars =", e.globalStarsPurchased,
+	)
+
 	return nil
 }
 
 func ensureSchema(db *sql.DB) error {
+
+	// 1️⃣ season_economy table
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS season_economy (
 			season_id TEXT PRIMARY KEY,
 			global_coin_pool BIGINT NOT NULL,
+			global_stars_purchased BIGINT NOT NULL,
 			emission_remainder DOUBLE PRECISION NOT NULL,
 			last_updated TIMESTAMPTZ NOT NULL
 		);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 2️⃣ players table (ADDED HERE)
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS players (
+			player_id TEXT PRIMARY KEY,
+			coins BIGINT NOT NULL,
+			stars BIGINT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			last_active_at TIMESTAMPTZ NOT NULL
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *EconomyState) CoinsInCirculation() int64 {

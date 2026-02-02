@@ -169,6 +169,13 @@
 						const data = await res.json();
 
 						if (!data.ok) {
+							if (data.playerCoins !== undefined) {
+								playerCoins = data.playerCoins;
+								playerStars = data.playerStars;
+
+								localStorage.setItem("playerCoins", playerCoins.toString());
+								localStorage.setItem("playerStars", playerStars.toString());
+							}
 							alert(data.error || "Purchase failed");
 							return;
 						}
@@ -180,7 +187,6 @@
 						localStorage.setItem("playerCoins", playerCoins.toString());
 						localStorage.setItem("playerStars", playerStars.toString());
 
-						location.reload();
 					} catch (err) {
 						console.error(err);
 						alert("Network error while purchasing star");
