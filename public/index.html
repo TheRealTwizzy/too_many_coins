@@ -28,6 +28,11 @@
 		background: #1f2544;
 		border: 1px solid #2a2f55;
 	}
+	.badge.accent {
+		background: rgba(59, 130, 246, 0.15);
+		border-color: rgba(59, 130, 246, 0.5);
+		color: #93c5fd;
+	}
 	nav a {
 		color: #c5cae9;
 		text-decoration: none;
@@ -63,6 +68,36 @@
 		background: #3b82f6;
 		border-color: #3b82f6;
 	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+	.stack {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.toast {
+		padding: 0.6rem 0.8rem;
+		border-radius: 8px;
+		background: #11162b;
+		border: 1px solid #2a2f55;
+		font-size: 0.85rem;
+	}
+	.toast.error {
+		border-color: #ef4444;
+		color: #fecaca;
+	}
+	.toast.success {
+		border-color: #22c55e;
+		color: #bbf7d0;
+	}
+	.muted {
+		color: #9aa3c4;
+		font-size: 0.8rem;
+	}
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -76,8 +111,11 @@
 			<h1>Too Many Coins</h1>
 			<div class="label">Earn coins, buy stars, climb the season.</div>
 		</div>
-		<div>
-			<span class="badge">ALPHA 1</span>
+		<div class="stack" style="align-items:flex-end;">
+			<div class="row">
+				<span class="badge">ALPHA 1</span>
+				<span id="stat-pill" class="badge accent" style="display:none;"></span>
+			</div>
 			<nav>
 				<a href="/about.html">About</a>
 				<a href="/playtest.html">Playtest</a>
@@ -87,17 +125,22 @@
 
 	<div class="card" id="auth-card">
 		<div id="auth-status" class="label">Checking session…</div>
-		<div id="auth-forms">
-			<input id="username" placeholder="Username" />
-			<input id="password" type="password" placeholder="Password" />
+		<div id="auth-forms" class="stack">
+			<div class="row">
+				<input id="username" placeholder="Username" />
+				<input id="password" type="password" placeholder="Password" />
+			</div>
 			<input id="display-name" placeholder="Display name (signup)" />
-			<div style="margin-top: 0.5rem;">
+			<div class="row">
 				<button class="primary" id="login-btn">Log in</button>
 				<button id="signup-btn">Sign up</button>
 			</div>
+			<div class="muted">Alpha accounts are local to this test.</div>
 		</div>
 		<button id="logout-btn" style="display:none;">Log out</button>
 	</div>
+
+	<div id="toast" class="toast" style="display:none;"></div>
 
 	<div class="grid">
 		<div class="card" id="profile-card" style="display:none;">
@@ -116,7 +159,7 @@
 
 	<div class="card" id="onboarding" style="display:none;">
 		<div class="label">Quick start</div>
-		<div>Play a season. Earn coins over time. Spend them on stars.</div>
+		<div>Play the current season. Earn coins over time. Spend them on stars.</div>
 		<button id="dismiss-hint">Got it</button>
 	</div>
 
@@ -127,7 +170,7 @@
 	</div>
 
 	<div id="locked-message" class="label"></div>
-	<div id="seasons" class="grid">Loading seasons…</div>
+	<div id="seasons" class="grid">Loading season…</div>
 
 	<script>
 const authStatus = document.getElementById("auth-status");
@@ -142,11 +185,14 @@ const coinsDiv = document.getElementById("player-coins");
 const starsDiv = document.getElementById("player-stars");
 const onboarding = document.getElementById("onboarding");
 const feedbackCard = document.getElementById("feedback-card");
+const toast = document.getElementById("toast");
+const statPill = document.getElementById("stat-pill");
 
 const joinedSeasonId = localStorage.getItem("joinedSeasonId");
 let playerCoins = 0;
 let playerStars = 0;
 let currentUser = null;
+const ALPHA_SEASON_ID = "season-1";
 
 function apiFetch(url, options = {}) {
 	return fetch(url, {
@@ -179,6 +225,7 @@ async function loadAuth() {
 		profileCard.style.display = "none";
 		playerStats.style.display = "none";
 		feedbackCard.style.display = "none";
+		statPill.style.display = "none";
 		document.getElementById("seasons").style.display = "none";
 		document.getElementById("locked-message").innerText = "Log in to access seasons.";
 		return;
@@ -193,6 +240,7 @@ async function loadAuth() {
 	profileDisplay.value = data.displayName;
 	playerStats.style.display = "block";
 	feedbackCard.style.display = "block";
+	statPill.style.display = "inline-flex";
 	document.getElementById("seasons").style.display = "grid";
 	document.getElementById("locked-message").innerText = "";
 }
@@ -206,6 +254,7 @@ async function refreshPlayer() {
 	playerStars = data.playerStars || 0;
 	coinsDiv.innerText = `Coins: ${playerCoins}`;
 	starsDiv.innerText = `Stars: ${playerStars}`;
+	statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
 }
 
 async function loadSeasons() {
@@ -213,8 +262,13 @@ async function loadSeasons() {
 	const data = await res.json();
 	const container = document.getElementById("seasons");
 	container.innerHTML = "";
+	const alphaSeason = data.seasons.find(season => season.seasonId === ALPHA_SEASON_ID);
+	if (!alphaSeason) {
+		container.innerHTML = "<div class='card'>Season unavailable.</div>";
+		return;
+	}
 
-	data.seasons.forEach(season => {
+	[alphaSeason].forEach(season => {
 		const div = document.createElement("div");
 		const isJoined = joinedSeasonId !== null;
 		const isThisSeasonJoined = season.seasonId === joinedSeasonId;
@@ -230,16 +284,15 @@ async function loadSeasons() {
 		}
 
 		div.innerHTML = `
-			<strong>${season.seasonId}</strong>
-			${season.seasonId === data.recommendedSeasonId ? "<span class='label'>(recommended)</span>" : ""}
+			<strong>Season 1</strong>
 			<div class="label">Time remaining: ${hoursLeft} hours</div>
 			<div class="label">Star price: ${starPrice} coins</div>
 			${isThisSeasonJoined
 				? `<div class="label">You joined this season</div>
-					<button class="buy-star-btn">Buy Star</button>`
+					<button class="buy-star-btn primary">Buy Star</button>`
 				: isJoined
 					? "<div class='label'>Locked to another season</div>"
-					: "<button class='join-btn'>Join this season</button>"
+					: "<button class='join-btn primary'>Join this season</button>"
 			}
 		`;
 
@@ -252,13 +305,15 @@ async function loadSeasons() {
 				});
 				const data = await res.json();
 				if (!data.ok) {
-					alert(data.error || "Purchase failed");
+					setToast(data.error || "Purchase failed", "error");
 					return;
 				}
 				playerCoins = data.playerCoins;
 				playerStars = data.playerStars;
 				coinsDiv.innerText = `Coins: ${playerCoins}`;
 				starsDiv.innerText = `Stars: ${playerStars}`;
+				statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
+				setToast("Star purchased.", "success");
 				track("buy_star", { seasonId: season.seasonId, price: data.starPricePaid });
 			});
 		}
@@ -285,7 +340,7 @@ document.getElementById("login-btn").addEventListener("click", async () => {
 	});
 	const data = await res.json();
 	if (!data.ok) {
-		alert(data.error || "Login failed");
+		setToast(data.error || "Login failed", "error");
 		return;
 	}
 	await loadAuth();
@@ -303,7 +358,7 @@ document.getElementById("signup-btn").addEventListener("click", async () => {
 	});
 	const data = await res.json();
 	if (!data.ok) {
-		alert(data.error || "Signup failed");
+		setToast(data.error || "Signup failed", "error");
 		return;
 	}
 	await loadAuth();
@@ -325,10 +380,11 @@ profileSave.addEventListener("click", async () => {
 	});
 	const data = await res.json();
 	if (!data.ok) {
-		alert(data.error || "Update failed");
+		setToast(data.error || "Update failed", "error");
 		return;
 	}
 	authStatus.innerText = `Logged in as ${data.displayName}`;
+	setToast("Profile updated.", "success");
 });
 
 document.getElementById("feedback-send").addEventListener("click", async () => {
@@ -339,6 +395,7 @@ document.getElementById("feedback-send").addEventListener("click", async () => {
 		body: JSON.stringify({ message })
 	});
 	document.getElementById("feedback-text").value = "";
+	setToast("Thanks for the feedback.", "success");
 });
 
 document.getElementById("dismiss-hint").addEventListener("click", () => {
@@ -348,6 +405,15 @@ document.getElementById("dismiss-hint").addEventListener("click", () => {
 
 if (localStorage.getItem("dismissedHint") !== "true") {
 	onboarding.style.display = "block";
+}
+
+function setToast(message, type) {
+	toast.innerText = message;
+	toast.className = `toast ${type || ""}`;
+	toast.style.display = "block";
+	setTimeout(() => {
+		toast.style.display = "none";
+	}, 2500);
 }
 
 loadAuth().then(async () => {
