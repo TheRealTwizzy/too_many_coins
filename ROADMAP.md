@@ -176,10 +176,10 @@ The project follows a principle of **server authority first**, with the frontend
 
 ## 🧱 STEP 13 — Additional Coin Faucets (PLANNED)
 
-- [ ] Activity-based rewards
-- [ ] Risk/reward mechanics
-- [ ] Time-locked faucets
-- [ ] Faucet prioritization rules
+- [x] Activity-based rewards
+- [x] Risk/reward mechanics
+- [x] Time-locked faucets
+- [x] Faucet prioritization rules
 
 ---
 

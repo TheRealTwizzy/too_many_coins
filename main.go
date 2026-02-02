@@ -27,6 +27,29 @@ type BuyStarResponse struct {
 	PlayerStars   int    `json:"playerStars,omitempty"`
 }
 
+type FaucetClaimRequest struct {
+	PlayerID string `json:"playerId"`
+	Wager    int    `json:"wager,omitempty"`
+}
+
+type FaucetClaimResponse struct {
+	OK                     bool   `json:"ok"`
+	Error                  string `json:"error,omitempty"`
+	Reward                 int    `json:"reward,omitempty"`
+	PlayerCoins            int    `json:"playerCoins,omitempty"`
+	NextAvailableInSeconds int64  `json:"nextAvailableInSeconds,omitempty"`
+}
+
+type RiskRollResponse struct {
+	OK                     bool   `json:"ok"`
+	Error                  string `json:"error,omitempty"`
+	Won                    bool   `json:"won,omitempty"`
+	Wager                  int    `json:"wager,omitempty"`
+	Payout                 int    `json:"payout,omitempty"`
+	PlayerCoins            int    `json:"playerCoins,omitempty"`
+	NextAvailableInSeconds int64  `json:"nextAvailableInSeconds,omitempty"`
+}
+
 /* ======================
    main()
    ====================== */
@@ -110,6 +133,9 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/player", playerHandler(db))
 	mux.HandleFunc("/seasons", seasonsHandler(db))
 	mux.HandleFunc("/buy-star", buyStarHandler(db))
+	mux.HandleFunc("/claim-daily", dailyClaimHandler(db))
+	mux.HandleFunc("/claim-activity", activityClaimHandler(db))
+	mux.HandleFunc("/risk-roll", riskRollHandler(db))
 }
 
 /* ======================

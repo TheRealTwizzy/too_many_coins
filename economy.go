@@ -171,6 +171,20 @@ func ensureSchema(db *sql.DB) error {
 		return err
 	}
 
+	// 4️⃣ player_faucet_claims table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS player_faucet_claims (
+			player_id TEXT NOT NULL,
+			faucet_key TEXT NOT NULL,
+			last_claim_at TIMESTAMPTZ NOT NULL,
+			claim_count BIGINT NOT NULL DEFAULT 0,
+			PRIMARY KEY (player_id, faucet_key)
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

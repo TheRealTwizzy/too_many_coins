@@ -26,3 +26,11 @@ CREATE TABLE IF NOT EXISTS player_ip_associations (
 
 CREATE INDEX IF NOT EXISTS idx_player_ip_associations_ip
     ON player_ip_associations (ip);
+
+CREATE TABLE IF NOT EXISTS player_faucet_claims (
+    player_id TEXT NOT NULL,
+    faucet_key TEXT NOT NULL,
+    last_claim_at TIMESTAMPTZ NOT NULL,
+    claim_count BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (player_id, faucet_key)
+);

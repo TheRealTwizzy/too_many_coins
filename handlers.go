@@ -212,3 +212,248 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 		})
 	}
 }
+
+func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req FaucetClaimRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		player, err := LoadPlayer(db, req.PlayerID)
+		if err != nil || player == nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
+			return
+		}
+
+		allowed, err := IsPlayerAllowedByIP(db, req.PlayerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !allowed {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "FAUCET_BLOCKED"})
+			return
+		}
+
+		const reward = 20
+		const cooldown = 24 * time.Hour
+
+		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetDaily, cooldown)
+		if err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !canClaim {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{
+				OK:                     false,
+				Error:                  "COOLDOWN",
+				NextAvailableInSeconds: int64(remaining.Seconds()),
+			})
+			return
+		}
+
+		if !TryDistributeCoinsWithPriority(FaucetDaily, reward) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "EMISSION_EXHAUSTED"})
+			return
+		}
+
+		player.Coins += reward
+		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if err := RecordFaucetClaim(db, player.PlayerID, FaucetDaily); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(FaucetClaimResponse{
+			OK:          true,
+			Reward:      reward,
+			PlayerCoins: int(player.Coins),
+		})
+	}
+}
+
+func activityClaimHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req FaucetClaimRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		player, err := LoadPlayer(db, req.PlayerID)
+		if err != nil || player == nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
+			return
+		}
+
+		allowed, err := IsPlayerAllowedByIP(db, req.PlayerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !allowed {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "FAUCET_BLOCKED"})
+			return
+		}
+
+		const reward = 3
+		const cooldown = 5 * time.Minute
+
+		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetActivity, cooldown)
+		if err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !canClaim {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{
+				OK:                     false,
+				Error:                  "COOLDOWN",
+				NextAvailableInSeconds: int64(remaining.Seconds()),
+			})
+			return
+		}
+
+		if !TryDistributeCoinsWithPriority(FaucetActivity, reward) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "EMISSION_EXHAUSTED"})
+			return
+		}
+
+		player.Coins += reward
+		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if err := RecordFaucetClaim(db, player.PlayerID, FaucetActivity); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(FaucetClaimResponse{
+			OK:          true,
+			Reward:      reward,
+			PlayerCoins: int(player.Coins),
+		})
+	}
+}
+
+func riskRollHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req FaucetClaimRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		wager := req.Wager
+		if wager <= 0 || wager > 5 {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INVALID_WAGER"})
+			return
+		}
+
+		player, err := LoadPlayer(db, req.PlayerID)
+		if err != nil || player == nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
+			return
+		}
+
+		if player.Coins < int64(wager) {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
+			return
+		}
+
+		allowed, err := IsPlayerAllowedByIP(db, req.PlayerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !allowed {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "FAUCET_BLOCKED"})
+			return
+		}
+
+		const cooldown = time.Minute
+		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetRisk, cooldown)
+		if err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !canClaim {
+			json.NewEncoder(w).Encode(RiskRollResponse{
+				OK:                     false,
+				Error:                  "COOLDOWN",
+				NextAvailableInSeconds: int64(remaining.Seconds()),
+			})
+			return
+		}
+
+		won, err := rollWin50()
+		if err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		payout := 0
+		if won {
+			payout = wager * 3
+			if !TryDistributeCoinsWithPriority(FaucetRisk, payout) {
+				json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "EMISSION_EXHAUSTED"})
+				return
+			}
+		}
+
+		player.Coins -= int64(wager)
+		player.Coins += int64(payout)
+
+		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if err := RecordFaucetClaim(db, player.PlayerID, FaucetRisk); err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(RiskRollResponse{
+			OK:          true,
+			Won:         won,
+			Wager:       wager,
+			Payout:      payout,
+			PlayerCoins: int(player.Coins),
+		})
+	}
+}
