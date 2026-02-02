@@ -106,6 +106,36 @@ type AuctionBidResponse struct {
 	Status *AuctionStatus `json:"status,omitempty"`
 }
 
+type SignupRequest struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	DisplayName string `json:"displayName,omitempty"`
+}
+
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type AuthResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	Username    string `json:"username,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	PlayerID    string `json:"playerId,omitempty"`
+}
+
+type ProfileUpdateRequest struct {
+	DisplayName string `json:"displayName"`
+}
+
+type ProfileResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	Username    string `json:"username,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+}
+
 /* ======================
    main()
    ====================== */
@@ -197,6 +227,13 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/risk-roll", riskRollHandler(db))
 	mux.HandleFunc("/auction-status", auctionStatusHandler(db))
 	mux.HandleFunc("/auction-bid", auctionBidHandler(db))
+	mux.HandleFunc("/auth/signup", signupHandler(db))
+	mux.HandleFunc("/auth/login", loginHandler(db))
+	mux.HandleFunc("/auth/logout", logoutHandler(db))
+	mux.HandleFunc("/auth/me", meHandler(db))
+	mux.HandleFunc("/profile", profileHandler(db))
+	mux.HandleFunc("/telemetry", telemetryHandler(db))
+	mux.HandleFunc("/feedback", feedbackHandler(db))
 }
 
 /* ======================

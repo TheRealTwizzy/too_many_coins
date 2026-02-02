@@ -13,6 +13,25 @@ CREATE TABLE IF NOT EXISTS players (
     last_active_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS accounts (
+    account_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    last_login_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_account_id
+    ON sessions (account_id);
+
 ALTER TABLE players
     ADD COLUMN IF NOT EXISTS last_coin_grant_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
@@ -87,4 +106,23 @@ CREATE TABLE IF NOT EXISTS season_final_rankings (
     coins BIGINT NOT NULL,
     captured_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (season_id, player_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_telemetry (
+    id BIGSERIAL PRIMARY KEY,
+    account_id TEXT,
+    player_id TEXT,
+    event_type TEXT NOT NULL,
+    payload JSONB,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS player_feedback (
+    id BIGSERIAL PRIMARY KEY,
+    account_id TEXT,
+    player_id TEXT,
+    rating INT,
+    message TEXT NOT NULL,
+    context JSONB,
+    created_at TIMESTAMPTZ NOT NULL
 );

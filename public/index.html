@@ -28,215 +28,269 @@
 </head>
 <body>
 	<h1>Too Many Coins</h1>
-	<p>Select a season. Time and inflation are always moving.</p>
-	<div id="player-coins" class="label"></div>
-	<div id="player-stars" class="label"></div>
+	<p class="label">Earn coins, buy stars, climb the season.</p>
+
+	<div class="season" id="auth-card">
+		<div id="auth-status" class="label">Checking session…</div>
+		<div id="auth-forms">
+			<input id="username" placeholder="Username" />
+			<input id="password" type="password" placeholder="Password" />
+			<input id="display-name" placeholder="Display name (signup)" />
+			<div style="margin-top: 0.5rem;">
+				<button id="login-btn">Log in</button>
+				<button id="signup-btn">Sign up</button>
+			</div>
+		</div>
+		<button id="logout-btn" style="display:none;">Log out</button>
+	</div>
+
+	<div class="season" id="profile-card" style="display:none;">
+		<div class="label">Profile</div>
+		<div id="profile-name"></div>
+		<input id="profile-display" placeholder="Display name" />
+		<button id="profile-save">Save</button>
+	</div>
+
+	<div class="season" id="onboarding" style="display:none;">
+		<div class="label">Quick start</div>
+		<div>Play a season. Earn coins over time. Spend them on stars.</div>
+		<button id="dismiss-hint">Got it</button>
+	</div>
+
+	<div class="season" id="player-stats" style="display:none;">
+		<div id="player-coins" class="label"></div>
+		<div id="player-stars" class="label"></div>
+	</div>
+
+	<div class="season" id="feedback-card" style="display:none;">
+		<div class="label">Playtest feedback</div>
+		<textarea id="feedback-text" rows="3" style="width:100%;"></textarea>
+		<button id="feedback-send">Send</button>
+	</div>
+
 	<div id="seasons">Loading seasons…</div>
-	
+
 	<script>
-// Ensure persistent player ID (one per browser)
-let playerId = localStorage.getItem("playerId");
-if (!playerId) {
-	playerId = crypto.randomUUID();
-	localStorage.setItem("playerId", playerId);
-}
-// Load authoritative player state from server
-fetch(`/player?playerId=${playerId}`)
-	.then(res => res.json())
-	.then(data => {
-		playerCoins = data.playerCoins;
-		playerStars = data.playerStars;
+const authStatus = document.getElementById("auth-status");
+const authForms = document.getElementById("auth-forms");
+const logoutBtn = document.getElementById("logout-btn");
+const profileCard = document.getElementById("profile-card");
+const profileName = document.getElementById("profile-name");
+const profileDisplay = document.getElementById("profile-display");
+const profileSave = document.getElementById("profile-save");
+const playerStats = document.getElementById("player-stats");
+const coinsDiv = document.getElementById("player-coins");
+const starsDiv = document.getElementById("player-stars");
+const onboarding = document.getElementById("onboarding");
+const feedbackCard = document.getElementById("feedback-card");
 
-		localStorage.setItem("playerCoins", playerCoins.toString());
-		localStorage.setItem("playerStars", playerStars.toString());
+const joinedSeasonId = localStorage.getItem("joinedSeasonId");
+let playerCoins = 0;
+let playerStars = 0;
+let currentUser = null;
 
-		coinsDiv.innerText = `Your coins: ${playerCoins}`;
-		starsDiv.innerText = `Your stars: ${playerStars}`;
+function apiFetch(url, options = {}) {
+	return fetch(url, {
+		...options,
+		headers: {
+			"Content-Type": "application/json",
+			...(options.headers || {})
+		},
+		credentials: "include"
 	});
+}
 
-	const params = new URLSearchParams(window.location.search);
-	const devMinutes = parseInt(params.get("devMinutes"), 10) || 0;
-	const IS_DEV = window.__DEV_MODE__ === true;
-	console.log("devMinutes =", devMinutes, "IS_DEV =", IS_DEV);
-	const joinedSeasonId = localStorage.getItem("joinedSeasonId");
-	let playerCoins = parseInt(localStorage.getItem("playerCoins"), 10);
-	const coinsDiv = document.getElementById("player-coins");
-	const starsDiv = document.getElementById("player-stars");
-	if (isNaN(playerCoins)) {
-		playerCoins = 0;
+async function track(eventType, payload) {
+	try {
+		await apiFetch("/telemetry", {
+			method: "POST",
+			body: JSON.stringify({ eventType, payload })
+		});
+	} catch (e) {}
+}
+
+async function loadAuth() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok) {
+		currentUser = null;
+		authStatus.innerText = "Log in to save your profile.";
+		authForms.style.display = "block";
+		logoutBtn.style.display = "none";
+		profileCard.style.display = "none";
+		playerStats.style.display = "none";
+		feedbackCard.style.display = "none";
+		return;
 	}
 
-	let playerStars = parseInt(localStorage.getItem("playerStars"), 10);
-	if (isNaN(playerStars)) {
-		playerStars = 0;
-	}
-	
-	const devBanner = document.getElementById("dev-banner");
-	if (devBanner && IS_DEV && devMinutes > 0) {
-  		devBanner.innerText = `DEV MODE: +${devMinutes} minutes elapsed`;
-	}
+	currentUser = data;
+	authStatus.innerText = `Logged in as ${data.displayName}`;
+	authForms.style.display = "none";
+	logoutBtn.style.display = "block";
+	profileCard.style.display = "block";
+	profileName.innerText = `@${data.username}`;
+	profileDisplay.value = data.displayName;
+	playerStats.style.display = "block";
+	feedbackCard.style.display = "block";
+}
 
+async function refreshPlayer() {
+	if (!currentUser) return;
+	const res = await apiFetch("/player");
+	if (res.status === 401) return;
+	const data = await res.json();
+	playerCoins = data.playerCoins || 0;
+	playerStars = data.playerStars || 0;
+	coinsDiv.innerText = `Coins: ${playerCoins}`;
+	starsDiv.innerText = `Stars: ${playerStars}`;
+}
 
-	if (joinedSeasonId) {
-		coinsDiv.innerText = `Your coins: ${playerCoins}`;
-	} else {
-		coinsDiv.innerText = "";
-	}
-		
+async function loadSeasons() {
+	const res = await fetch("/seasons");
+	const data = await res.json();
+	const container = document.getElementById("seasons");
+	container.innerHTML = "";
 
-	
+	data.seasons.forEach(season => {
+		const div = document.createElement("div");
+		const isJoined = joinedSeasonId !== null;
+		const isThisSeasonJoined = season.seasonId === joinedSeasonId;
+		const hoursLeft = Math.floor(season.secondsRemaining / 3600);
+		const starPrice = season.currentStarPrice;
 
-	if (joinedSeasonId) {
-		starsDiv.innerText = `Your stars: ${playerStars}`;
-	} else {
-		starsDiv.innerText = "";
-	}
+		div.className = "season";
+		if (isJoined && !isThisSeasonJoined) {
+			div.style.opacity = "0.5";
+		}
+		if (season.seasonId === data.recommendedSeasonId) {
+			div.classList.add("recommended");
+		}
 
-	
-	fetch("/seasons")
-		.then(res => res.json())
-		.then(data => {
-		const container = document.getElementById("seasons");
-		container.innerHTML = "";
-
-
-		data.seasons.forEach(season => {
-			const div = document.createElement("div");
-			const isJoined = joinedSeasonId !== null;
-			const isThisSeasonJoined = season.seasonId === joinedSeasonId;
-			const totalSeconds = 28 * 24 * 3600;
-
-			let adjustedSecondsRemaining = season.secondsRemaining;
-
-			if (IS_DEV && devMinutes > 0) {
-  				adjustedSecondsRemaining -= devMinutes * 60;
-			}
-
-			if (adjustedSecondsRemaining < 0) {
-  				adjustedSecondsRemaining = 0;
-			}
-
-			const progress = 1 - (adjustedSecondsRemaining / totalSeconds);
-			const timeMultiplier = 1 + progress; // ranges from 1.0 to 2.0
-			const percent = Math.floor(progress * 100);
-			const starPrice = season.currentStarPrice;
-
-			console.log(
-  				season.seasonId,
-  				"baseCoins =", season.coinsInCirculation,
-  				"emission =", season.coinEmissionPerMinute,
-  				"devCoins =", devMinutes * season.coinEmissionPerMinute
-			);
-
-			console.log(
-  				season.seasonId,
-  				"effectiveCoins =", season.coinsInCirculation,
-  				"timeMultiplier =", timeMultiplier
-			);
-			
-			let phaseLabel = "";
-			if (percent < 25) {
-				phaseLabel = "Early season: coins are cheaper";
-			} else if (percent > 75) {
-				phaseLabel = "Late season: scarcity is high";
-			}
-			div.className = "season";
-			
-			if (isJoined && !isThisSeasonJoined) {
-				div.style.opacity = "0.4";
-			}
-
-			if (season.seasonId === data.recommendedSeasonId) {
-				div.classList.add("recommended");
-			}
-			if (season.seasonId === joinedSeasonId) {
-				div.style.opacity = "0.6";
-			}
-			div.innerHTML = `
+		div.innerHTML = `
 			<strong>${season.seasonId}</strong>
 			${season.seasonId === data.recommendedSeasonId ? "<span class='label'>(recommended)</span>" : ""}
-			<div class="label">Inflation pressure amplified by time (${Math.floor(progress * 100)}% complete)</div>
-			<div class="label">Coins in circulation: ${season.coinsInCirculation}</div>
-			<div class="label">Emission: +${season.coinEmissionPerMinute.toFixed(2)} coins / minute</div>
-			<div class="label">Star price determined by global coin supply.</div>
-			<div class="label">Time remaining: ${Math.floor(season.secondsRemaining / 3600)} hours</div>
-			<div class="label">Season progress: ${percent}%</div>
-			${phaseLabel ? `<div class="label">${phaseLabel}</div>` : ""}
+			<div class="label">Time remaining: ${hoursLeft} hours</div>
+			<div class="label">Star price: ${starPrice} coins</div>
 			${isThisSeasonJoined
 				? `<div class="label">You joined this season</div>
-					<button class="buy-star-btn">Buy Star (${starPrice} coins)</button>`
+					<button class="buy-star-btn">Buy Star</button>`
 				: isJoined
-					? "<div class='label'>You are locked into another season</div>"
+					? "<div class='label'>Locked to another season</div>"
 					: "<button class='join-btn'>Join this season</button>"
 			}
-			`;
+		`;
 
-			const buyButton = div.querySelector(".buy-star-btn");
-			if (buyButton) {
-				buyButton.addEventListener("click", async () => {
-					try {
-						const res = await fetch("/buy-star", {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json"
-							},
-							body: JSON.stringify({
-								seasonId: season.seasonId,
-								playerId: playerId
-							})
-						});
-
-						const data = await res.json();
-
-						if (!data.ok) {
-							if (data.playerCoins !== undefined) {
-								playerCoins = data.playerCoins;
-								playerStars = data.playerStars;
-
-								localStorage.setItem("playerCoins", playerCoins.toString());
-								localStorage.setItem("playerStars", playerStars.toString());
-							}
-							alert(data.error || "Purchase failed");
-							return;
-						}
-
-						// Update local UI state from server response
-						playerCoins = data.playerCoins;
-						playerStars = data.playerStars;
-
-						localStorage.setItem("playerCoins", playerCoins.toString());
-						localStorage.setItem("playerStars", playerStars.toString());
-
-					} catch (err) {
-						console.error(err);
-						alert("Network error while purchasing star");
-					}
+		const buyButton = div.querySelector(".buy-star-btn");
+		if (buyButton) {
+			buyButton.addEventListener("click", async () => {
+				const res = await apiFetch("/buy-star", {
+					method: "POST",
+					body: JSON.stringify({ seasonId: season.seasonId })
 				});
-			}
+				const data = await res.json();
+				if (!data.ok) {
+					alert(data.error || "Purchase failed");
+					return;
+				}
+				playerCoins = data.playerCoins;
+				playerStars = data.playerStars;
+				coinsDiv.innerText = `Coins: ${playerCoins}`;
+				starsDiv.innerText = `Stars: ${playerStars}`;
+				track("buy_star", { seasonId: season.seasonId, price: data.starPricePaid });
+			});
+		}
 
+		const button = div.querySelector(".join-btn");
+		if (button) {
+			button.addEventListener("click", () => {
+				localStorage.setItem("joinedSeasonId", season.seasonId);
+				track("join_season", { seasonId: season.seasonId });
+				location.reload();
+			});
+		}
 
-			container.appendChild(div);
-			
-			const button = div.querySelector(".join-btn");
-			if (button) {
-				button.addEventListener("click", () => {
-					localStorage.setItem("joinedSeasonId", season.seasonId);
+		container.appendChild(div);
+	});
+}
 
-					// Grant starter coins ONCE
-					const STARTER_COINS = 100;
-					localStorage.setItem("playerCoins", STARTER_COINS.toString());
+document.getElementById("login-btn").addEventListener("click", async () => {
+	const username = document.getElementById("username").value;
+	const password = document.getElementById("password").value;
+	const res = await apiFetch("/auth/login", {
+		method: "POST",
+		body: JSON.stringify({ username, password })
+	});
+	const data = await res.json();
+	if (!data.ok) {
+		alert(data.error || "Login failed");
+		return;
+	}
+	await loadAuth();
+	await refreshPlayer();
+	track("login", {});
+});
 
-					alert(`You joined ${season.seasonId} and received ${STARTER_COINS} coins`);
-					location.reload();
-				});
-			}
+document.getElementById("signup-btn").addEventListener("click", async () => {
+	const username = document.getElementById("username").value;
+	const password = document.getElementById("password").value;
+	const displayName = document.getElementById("display-name").value;
+	const res = await apiFetch("/auth/signup", {
+		method: "POST",
+		body: JSON.stringify({ username, password, displayName })
+	});
+	const data = await res.json();
+	if (!data.ok) {
+		alert(data.error || "Signup failed");
+		return;
+	}
+	await loadAuth();
+	await refreshPlayer();
+	track("signup", {});
+});
 
-		});
-		})
-		.catch(err => {
-		document.getElementById("seasons").innerText = "Failed to load seasons.";
-		console.error(err);
-		});
+logoutBtn.addEventListener("click", async () => {
+	await apiFetch("/auth/logout", { method: "POST" });
+	currentUser = null;
+	await loadAuth();
+});
+
+profileSave.addEventListener("click", async () => {
+	const displayName = profileDisplay.value;
+	const res = await apiFetch("/profile", {
+		method: "POST",
+		body: JSON.stringify({ displayName })
+	});
+	const data = await res.json();
+	if (!data.ok) {
+		alert(data.error || "Update failed");
+		return;
+	}
+	authStatus.innerText = `Logged in as ${data.displayName}`;
+});
+
+document.getElementById("feedback-send").addEventListener("click", async () => {
+	const message = document.getElementById("feedback-text").value.trim();
+	if (!message) return;
+	await apiFetch("/feedback", {
+		method: "POST",
+		body: JSON.stringify({ message })
+	});
+	document.getElementById("feedback-text").value = "";
+});
+
+document.getElementById("dismiss-hint").addEventListener("click", () => {
+	localStorage.setItem("dismissedHint", "true");
+	onboarding.style.display = "none";
+});
+
+if (localStorage.getItem("dismissedHint") !== "true") {
+	onboarding.style.display = "block";
+}
+
+loadAuth().then(async () => {
+	await refreshPlayer();
+	await loadSeasons();
+});
 	</script>
 </body>
 </html>

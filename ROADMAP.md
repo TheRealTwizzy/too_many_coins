@@ -211,14 +211,14 @@ The project follows a principle of **server authority first**, with the frontend
 - [ ] Iterate based on data
 
 ### Step 16.A — Alpha Test Readiness (Core)
-- [ ] Auth: signup/login + session handling
-- [ ] Auth: profile persistence and restore on login
-- [ ] Create minimal player profile page
-- [ ] UI clarity pass (clean, minimal, no over-explaining)
-- [ ] Add basic onboarding hints (one-time, dismissible)
-- [ ] Add playtest feature flags (enable/disable faucets, sinks)
-- [ ] Add test telemetry (session length, faucet usage, purchases)
-- [ ] Add feedback capture endpoint (survey + freeform)
+- [x] Auth: signup/login + session handling
+- [x] Auth: profile persistence and restore on login
+- [x] Create minimal player profile page
+- [x] UI clarity pass (clean, minimal, no over-explaining)
+- [x] Add basic onboarding hints (one-time, dismissible)
+- [x] Add playtest feature flags (enable/disable faucets, sinks)
+- [x] Add test telemetry (session length, faucet usage, purchases)
+- [x] Add feedback capture endpoint (survey + freeform)
 
 ### Step 16.B — Alpha Test Execution
 - [ ] Define Alpha 1 test goals and metrics

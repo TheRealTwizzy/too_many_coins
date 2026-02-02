@@ -50,17 +50,22 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+func requireSession(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Account, bool) {
+	account, _, err := getSessionAccount(db, r)
+	if err != nil || account == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil, false
+	}
+	return account, true
+}
+
 func playerHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		playerID := r.URL.Query().Get("playerId")
-		if !isValidPlayerID(playerID) {
-			w.WriteHeader(http.StatusBadRequest)
+		account, ok := requireSession(db, w, r)
+		if !ok {
 			return
 		}
-
-		if ip := getClientIP(r); ip != "" {
-			log.Printf("IP association: ip=%s playerId=%s", ip, playerID)
-		}
+		playerID := account.PlayerID
 
 		player, err := LoadOrCreatePlayer(db, playerID)
 		if err != nil {
@@ -152,12 +157,16 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "SEASON_ENDED"})
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.SinksEnabled {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "FEATURE_DISABLED"})
 			return
 		}
 
-		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "SEASON_ENDED"})
+		account, ok := requireSession(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -169,18 +178,13 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
-			json.NewEncoder(w).Encode(BuyStarResponse{
-				OK: false, Error: "INVALID_PLAYER_ID",
-			})
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INVALID_PLAYER_ID"})
 			return
 		}
 
-		if ip := getClientIP(r); ip != "" {
-			log.Printf("IP association: ip=%s playerId=%s", ip, req.PlayerID)
-		}
-
-		player, err := LoadPlayer(db, req.PlayerID)
+		player, err := LoadPlayer(db, playerID)
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(BuyStarResponse{
 				OK: false, Error: "PLAYER_NOT_REGISTERED",
@@ -193,7 +197,7 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			28*24*3600,
 		)
 
-		dampenedPrice, err := ComputeDampenedStarPrice(db, req.PlayerID, price)
+		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, price)
 		if err != nil {
 			json.NewEncoder(w).Encode(BuyStarResponse{
 				OK: false, Error: "INTERNAL_ERROR",
@@ -232,12 +236,16 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "SEASON_ENDED"})
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.SinksEnabled {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "FEATURE_DISABLED"})
 			return
 		}
 
-		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "SEASON_ENDED"})
+		account, ok := requireSession(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -247,7 +255,8 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
 			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INVALID_PLAYER_ID"})
 			return
 		}
@@ -263,7 +272,7 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		player, err := LoadPlayer(db, req.PlayerID)
+		player, err := LoadPlayer(db, playerID)
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
@@ -274,7 +283,7 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 			28*24*3600,
 		)
 
-		dampenedPrice, err := ComputeDampenedStarPrice(db, req.PlayerID, basePrice)
+		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePrice)
 		if err != nil {
 			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -313,12 +322,16 @@ func buyBoostHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "SEASON_ENDED"})
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.SinksEnabled {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "FEATURE_DISABLED"})
 			return
 		}
 
-		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "SEASON_ENDED"})
+		account, ok := requireSession(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -328,7 +341,8 @@ func buyBoostHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
 			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INVALID_PLAYER_ID"})
 			return
 		}
@@ -338,7 +352,7 @@ func buyBoostHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		player, err := LoadPlayer(db, req.PlayerID)
+		player, err := LoadPlayer(db, playerID)
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
@@ -381,12 +395,16 @@ func burnCoinsHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "SEASON_ENDED"})
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.SinksEnabled {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "FEATURE_DISABLED"})
 			return
 		}
 
-		if isSeasonEnded(time.Now().UTC()) {
-			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "SEASON_ENDED"})
+		account, ok := requireSession(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -396,7 +414,8 @@ func burnCoinsHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
 			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INVALID_PLAYER_ID"})
 			return
 		}
@@ -411,7 +430,7 @@ func burnCoinsHandler(db *sql.DB) http.HandlerFunc {
 			SET coins = coins - $2,
 			    burned_coins = burned_coins + $2
 			WHERE player_id = $1 AND coins >= $2
-		`, req.PlayerID, req.Amount)
+		`, playerID, req.Amount)
 		if err != nil {
 			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -429,7 +448,7 @@ func burnCoinsHandler(db *sql.DB) http.HandlerFunc {
 			SELECT coins, burned_coins
 			FROM players
 			WHERE player_id = $1
-		`, req.PlayerID).Scan(&coins, &burned)
+		`, playerID).Scan(&coins, &burned)
 		if err != nil {
 			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -463,14 +482,28 @@ func auctionBidHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		var req AuctionBidRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INVALID_REQUEST"})
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.SinksEnabled {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "FEATURE_DISABLED"})
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
 			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		var req AuctionBidRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INVALID_REQUEST"})
 			return
 		}
 
@@ -479,7 +512,7 @@ func auctionBidHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		status, err := PlaceAuctionBid(db, req.PlayerID, req.Bid)
+		status, err := PlaceAuctionBid(db, playerID, req.Bid)
 		if err != nil {
 			switch {
 			case errors.Is(err, errAuctionNotFound):
@@ -498,10 +531,199 @@ func auctionBidHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func signupHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req SignupRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		account, err := createAccount(db, req.Username, req.Password, req.DisplayName)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "USERNAME_TAKEN"})
+				return
+			}
+			if err.Error() == "INVALID_USERNAME" || err.Error() == "INVALID_PASSWORD" {
+				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		if _, err := LoadOrCreatePlayer(db, account.PlayerID); err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		sessionID, expiresAt, err := createSession(db, account.AccountID)
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		writeSessionCookie(w, sessionID, expiresAt)
+		json.NewEncoder(w).Encode(AuthResponse{
+			OK:          true,
+			Username:    account.Username,
+			DisplayName: account.DisplayName,
+			PlayerID:    account.PlayerID,
+		})
+	}
+}
+
+func loginHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		account, err := authenticate(db, req.Username, req.Password)
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INVALID_CREDENTIALS"})
+			return
+		}
+
+		if _, err := LoadOrCreatePlayer(db, account.PlayerID); err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		sessionID, expiresAt, err := createSession(db, account.AccountID)
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		writeSessionCookie(w, sessionID, expiresAt)
+		json.NewEncoder(w).Encode(AuthResponse{
+			OK:          true,
+			Username:    account.Username,
+			DisplayName: account.DisplayName,
+			PlayerID:    account.PlayerID,
+		})
+	}
+}
+
+func logoutHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		_, sessionID, err := getSessionAccount(db, r)
+		if err == nil && sessionID != "" {
+			clearSession(db, sessionID)
+		}
+		clearSessionCookie(w)
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func meHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		account, _, err := getSessionAccount(db, r)
+		if err != nil || account == nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false})
+			return
+		}
+		json.NewEncoder(w).Encode(AuthResponse{
+			OK:          true,
+			Username:    account.Username,
+			DisplayName: account.DisplayName,
+			PlayerID:    account.PlayerID,
+		})
+	}
+}
+
+func profileHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			json.NewEncoder(w).Encode(ProfileResponse{
+				OK:          true,
+				Username:    account.Username,
+				DisplayName: account.DisplayName,
+			})
+			return
+		case http.MethodPost:
+			var req ProfileUpdateRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			displayName := strings.TrimSpace(req.DisplayName)
+			if displayName == "" || len(displayName) > 32 {
+				json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INVALID_DISPLAY_NAME"})
+				return
+			}
+
+			_, err := db.Exec(`
+				UPDATE accounts
+				SET display_name = $2
+				WHERE account_id = $1
+			`, account.AccountID, displayName)
+			if err != nil {
+				json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+
+			json.NewEncoder(w).Encode(ProfileResponse{
+				OK:          true,
+				Username:    account.Username,
+				DisplayName: displayName,
+			})
+			return
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+	}
+}
+
 func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.FaucetsEnabled {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "FEATURE_DISABLED"})
+			return
+		}
+
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_PLAYER_ID"})
 			return
 		}
 
@@ -511,18 +733,13 @@ func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_PLAYER_ID"})
-			return
-		}
-
-		player, err := LoadPlayer(db, req.PlayerID)
+		player, err := LoadPlayer(db, playerID)
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
 		}
 
-		allowed, err := IsPlayerAllowedByIP(db, req.PlayerID)
+		allowed, err := IsPlayerAllowedByIP(db, playerID)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -535,7 +752,7 @@ func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 		const reward = 20
 		const cooldown = 24 * time.Hour
 
-		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetDaily, cooldown)
+		canClaim, remaining, err := CanClaimFaucet(db, playerID, FaucetDaily, cooldown)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -579,24 +796,38 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.FaucetsEnabled {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "FEATURE_DISABLED"})
+			return
+		}
+
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
 		var req FaucetClaimRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_REQUEST"})
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INVALID_PLAYER_ID"})
-			return
-		}
-
-		player, err := LoadPlayer(db, req.PlayerID)
+		player, err := LoadPlayer(db, playerID)
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
 		}
 
-		allowed, err := IsPlayerAllowedByIP(db, req.PlayerID)
+		allowed, err := IsPlayerAllowedByIP(db, playerID)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -609,14 +840,14 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 		reward := 3
 		const cooldown = 5 * time.Minute
 
-		if active, _, err := HasActiveBoost(db, req.PlayerID, BoostActivity); err != nil {
+		if active, _, err := HasActiveBoost(db, playerID, BoostActivity); err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		} else if active {
 			reward += 1
 		}
 
-		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetActivity, cooldown)
+		canClaim, remaining, err := CanClaimFaucet(db, playerID, FaucetActivity, cooldown)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -660,14 +891,28 @@ func riskRollHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		var req FaucetClaimRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INVALID_REQUEST"})
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.FaucetsEnabled {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "FEATURE_DISABLED"})
 			return
 		}
 
-		if !isValidPlayerID(req.PlayerID) {
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
 			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		var req FaucetClaimRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INVALID_REQUEST"})
 			return
 		}
 
@@ -677,7 +922,7 @@ func riskRollHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		player, err := LoadPlayer(db, req.PlayerID)
+		player, err := LoadPlayer(db, playerID)
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
@@ -688,7 +933,7 @@ func riskRollHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		allowed, err := IsPlayerAllowedByIP(db, req.PlayerID)
+		allowed, err := IsPlayerAllowedByIP(db, playerID)
 		if err != nil {
 			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -699,7 +944,7 @@ func riskRollHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		const cooldown = time.Minute
-		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetRisk, cooldown)
+		canClaim, remaining, err := CanClaimFaucet(db, playerID, FaucetRisk, cooldown)
 		if err != nil {
 			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
