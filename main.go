@@ -112,6 +112,7 @@ func main() {
 			SecondsRemaining      int64   `json:"secondsRemaining"`
 			CoinsInCirculation    int64   `json:"coinsInCirculation"`
 			CoinEmissionPerMinute float64 `json:"coinEmissionPerMinute"`
+			CurrentStarPrice      int     `json:"currentStarPrice"`
 		}
 
 		now := time.Now().UTC()
@@ -148,12 +149,19 @@ func main() {
 				recommendedSeasonID = s.id
 			}
 
+			currentStarPrice := ComputeStarPrice(
+				s.coins,
+				secondsRemaining,
+			)
+
 			responseSeasons = append(responseSeasons, SeasonView{
 				SeasonID:              s.id,
 				SecondsRemaining:      secondsRemaining,
 				CoinsInCirculation:    s.coins,
 				CoinEmissionPerMinute: economy.EmissionPerMinute(),
+				CurrentStarPrice:      currentStarPrice,
 			})
+
 		}
 
 		w.Header().Set("Content-Type", "application/json")
