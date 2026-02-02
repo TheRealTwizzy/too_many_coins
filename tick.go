@@ -12,7 +12,18 @@ func startTickLoop(db *sql.DB) {
 	go func() {
 		tickCount := 0
 		for t := range ticker.C {
-			log.Println("Tick:", t.UTC())
+			now := t.UTC()
+			log.Println("Tick:", now)
+
+			if isSeasonEnded(now) {
+				finalized, err := FinalizeSeason(db, currentSeasonID())
+				if err != nil {
+					log.Println("Season finalization failed:", err)
+				} else if finalized {
+					log.Println("Season finalized:", currentSeasonID())
+				}
+				continue
+			}
 
 			// Simple emission: release coins evenly over the day
 			economy.mu.Lock()
@@ -28,10 +39,10 @@ func startTickLoop(db *sql.DB) {
 			}
 
 			economy.mu.Unlock()
-			
+
 			tickCount++
 			if tickCount%5 == 0 {
-				economy.persist("season-1", db)
+				economy.persist(currentSeasonID(), db)
 			}
 		}
 	}()

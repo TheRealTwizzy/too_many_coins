@@ -150,7 +150,7 @@ func main() {
 	}
 
 	// Economy
-	if err := economy.load("season-1", db); err != nil {
+	if err := economy.load(currentSeasonID(), db); err != nil {
 		log.Fatal("Failed to load economy state:", err)
 	}
 
@@ -205,6 +205,9 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 
 func runPassiveDrip(db *sql.DB) {
 	now := time.Now().UTC()
+	if isSeasonEnded(now) {
+		return
+	}
 
 	rows, err := db.Query(`
 		SELECT player_id, last_active_at

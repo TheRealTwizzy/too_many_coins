@@ -33,6 +33,14 @@ func LoadOrCreatePlayer(
 
 	if err == nil {
 		now := time.Now().UTC()
+		if isSeasonEnded(now) {
+			_, _ = db.Exec(`
+				UPDATE players
+				SET last_active_at = NOW()
+				WHERE player_id = $1
+			`, playerID)
+			return &p, nil
+		}
 
 		elapsed := now.Sub(p.LastCoinGrantAt)
 		minutes := int64(elapsed / time.Minute)

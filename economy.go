@@ -68,6 +68,12 @@ func (e *EconomyState) IncrementStars() {
 	e.globalStarsPurchased++
 }
 
+func (e *EconomyState) Snapshot() (int, int, int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.globalCoinPool, e.globalStarsPurchased, e.coinsDistributed
+}
+
 func (e *EconomyState) StarsPurchased() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -250,6 +256,35 @@ func ensureSchema(db *sql.DB) error {
 	_, err = db.Exec(`
 		CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id
 		ON auction_bids (auction_id);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// 8️⃣ season_end_snapshots table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS season_end_snapshots (
+			season_id TEXT PRIMARY KEY,
+			ended_at TIMESTAMPTZ NOT NULL,
+			coins_in_circulation BIGINT NOT NULL,
+			stars_purchased BIGINT NOT NULL,
+			coins_distributed BIGINT NOT NULL
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// 9️⃣ season_final_rankings table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS season_final_rankings (
+			season_id TEXT NOT NULL,
+			player_id TEXT NOT NULL,
+			stars BIGINT NOT NULL,
+			coins BIGINT NOT NULL,
+			captured_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (season_id, player_id)
+		);
 	`)
 	if err != nil {
 		return err

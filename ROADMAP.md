@@ -194,10 +194,10 @@ The project follows a principle of **server authority first**, with the frontend
 
 ## 🧱 STEP 15 — Season End Logic (PLANNED)
 
-- [ ] Define season end conditions
-- [ ] Handle remaining coins
-- [ ] Handle stars
-- [ ] Archive economy state
+- [x] Define season end conditions
+- [x] Handle remaining coins
+- [x] Handle stars
+- [x] Archive economy state
 - [ ] Transition to next season
 
 ---

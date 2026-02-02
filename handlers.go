@@ -104,7 +104,7 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 			startTime time.Time
 			coins     int64
 		}{
-			{"season-1", now.Add(-21 * 24 * time.Hour), economy.CoinsInCirculation()},
+			{currentSeasonID(), seasonStart(), economy.CoinsInCirculation()},
 			{"season-2", now.Add(-14 * 24 * time.Hour), 12000},
 			{"season-3", now.Add(-7 * 24 * time.Hour), 6000},
 			{"season-4", now, 1000},
@@ -148,6 +148,16 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "SEASON_ENDED"})
 			return
 		}
 
@@ -218,6 +228,16 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "SEASON_ENDED"})
 			return
 		}
 
@@ -292,6 +312,16 @@ func buyBoostHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(RiskRollResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+
 		var req BuyBoostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INVALID_REQUEST"})
@@ -347,6 +377,16 @@ func burnCoinsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "SEASON_ENDED"})
 			return
 		}
 
