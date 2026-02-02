@@ -538,19 +538,36 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if account, _, err := getSessionAccount(db, r); err == nil && account != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "ALREADY_LOGGED_IN"})
+			return
+		}
+
+		if ip := getClientIP(r); ip != "" {
+			allowed, err := CanSignupFromIP(db, ip)
+			if err != nil {
+				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if !allowed {
+				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "IP_SIGNUP_BLOCKED"})
+				return
+			}
+		}
+
 		var req SignupRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INVALID_REQUEST"})
 			return
 		}
 
-		account, err := createAccount(db, req.Username, req.Password, req.DisplayName)
+		account, err := createAccount(db, req.Username, req.Password, req.DisplayName, req.Email)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "USERNAME_TAKEN"})
 				return
 			}
-			if err.Error() == "INVALID_USERNAME" || err.Error() == "INVALID_PASSWORD" {
+			if err.Error() == "INVALID_USERNAME" || err.Error() == "INVALID_PASSWORD" || err.Error() == "INVALID_EMAIL" {
 				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: err.Error()})
 				return
 			}
@@ -561,6 +578,17 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		if _, err := LoadOrCreatePlayer(db, account.PlayerID); err != nil {
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
+		}
+
+		if ip := getClientIP(r); ip != "" {
+			isNew, err := RecordPlayerIP(db, account.PlayerID, ip)
+			if err != nil {
+				log.Println("Failed to record player IP on signup:", err)
+			} else if isNew {
+				if err := ApplyIPDampeningDelay(db, account.PlayerID, ip); err != nil {
+					log.Println("Failed to apply IP dampening delay on signup:", err)
+				}
+			}
 		}
 
 		sessionID, expiresAt, err := createSession(db, account.AccountID)
@@ -579,6 +607,193 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 			IsModerator: account.Role == "moderator",
 			Role:        account.Role,
 		})
+	}
+}
+
+func requestPasswordResetHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var req PasswordResetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Identifier == "" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		account, err := lookupAccountForReset(db, req.Identifier)
+		if err == sql.ErrNoRows {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+			return
+		}
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if account.Email == "" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "EMAIL_NOT_SET"})
+			return
+		}
+		token, err := createPasswordResetToken(db, account.AccountID)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		baseURL := os.Getenv("APP_BASE_URL")
+		if baseURL == "" {
+			scheme := "https"
+			if r.Header.Get("X-Forwarded-Proto") != "" {
+				scheme = r.Header.Get("X-Forwarded-Proto")
+			} else if r.TLS == nil {
+				scheme = "http"
+			}
+			baseURL = scheme + "://" + r.Host
+		}
+		if err := sendPasswordResetEmail(account.Email, token, baseURL); err != nil {
+			if err.Error() == "EMAIL_NOT_CONFIGURED" {
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "EMAIL_NOT_CONFIGURED"})
+				return
+			}
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "EMAIL_SEND_FAILED"})
+			return
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+	}
+}
+
+func resetPasswordHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var req PasswordResetConfirmRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Token == "" || req.NewPassword == "" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		err := resetPasswordWithToken(db, req.Token, req.NewPassword)
+		if err != nil {
+			switch err.Error() {
+			case "INVALID_PASSWORD", "INVALID_TOKEN", "TOKEN_USED", "TOKEN_EXPIRED":
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: err.Error()})
+				return
+			default:
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+	}
+}
+
+func whitelistRequestHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		var req WhitelistRequestPayload
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		ip := getClientIP(r)
+		if ip == "" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_IP"})
+			return
+		}
+		pending, err := hasPendingWhitelistRequest(db, ip)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if pending {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "REQUEST_ALREADY_PENDING"})
+			return
+		}
+		if err := createIPWhitelistRequest(db, ip, account.AccountID, req.Reason); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+	}
+}
+
+func notificationsHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		rows, err := db.Query(`
+			SELECT n.id, n.message, n.level, n.created_at, n.expires_at
+			FROM notifications n
+			LEFT JOIN notification_reads r
+				ON r.notification_id = n.id AND r.account_id = $1
+			WHERE r.notification_id IS NULL
+				AND (n.expires_at IS NULL OR n.expires_at > NOW())
+				AND (n.account_id IS NULL OR n.account_id = $1)
+				AND (
+					n.target_role = 'all'
+					OR n.target_role = $2
+					OR (n.target_role = 'user' AND $2 = 'user')
+				)
+			ORDER BY n.created_at DESC
+			LIMIT 20
+		`, account.AccountID, account.Role)
+		if err != nil {
+			json.NewEncoder(w).Encode(NotificationsResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer rows.Close()
+		list := []NotificationItem{}
+		for rows.Next() {
+			var item NotificationItem
+			var expires sql.NullTime
+			if err := rows.Scan(&item.ID, &item.Message, &item.Level, &item.CreatedAt, &expires); err != nil {
+				continue
+			}
+			if expires.Valid {
+				item.ExpiresAt = &expires.Time
+			}
+			list = append(list, item)
+		}
+		json.NewEncoder(w).Encode(NotificationsResponse{OK: true, Notifications: list})
+	}
+}
+
+func notificationsAckHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		var req NotificationAckRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		for _, id := range req.IDs {
+			_, _ = db.Exec(`
+				INSERT INTO notification_reads (notification_id, account_id, read_at)
+				VALUES ($1, $2, NOW())
+				ON CONFLICT (notification_id, account_id) DO NOTHING
+			`, id, account.AccountID)
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
 	}
 }
 
@@ -673,6 +888,7 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 				OK:          true,
 				Username:    account.Username,
 				DisplayName: account.DisplayName,
+				Email:       account.Email,
 			})
 			return
 		case http.MethodPost:
@@ -686,21 +902,44 @@ func profileHandler(db *sql.DB) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INVALID_DISPLAY_NAME"})
 				return
 			}
+			normalizedEmail := ""
+			if strings.TrimSpace(req.Email) != "" {
+				var err error
+				normalizedEmail, err = normalizeEmail(req.Email)
+				if err != nil {
+					json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INVALID_EMAIL"})
+					return
+				}
+			}
 
-			_, err := db.Exec(`
-				UPDATE accounts
-				SET display_name = $2
-				WHERE account_id = $1
-			`, account.AccountID, displayName)
-			if err != nil {
-				json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
-				return
+			if normalizedEmail != "" {
+				_, err := db.Exec(`
+					UPDATE accounts
+					SET display_name = $2, email = $3
+					WHERE account_id = $1
+				`, account.AccountID, displayName, normalizedEmail)
+				if err != nil {
+					json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
+					return
+				}
+				account.Email = normalizedEmail
+			} else {
+				_, err := db.Exec(`
+					UPDATE accounts
+					SET display_name = $2
+					WHERE account_id = $1
+				`, account.AccountID, displayName)
+				if err != nil {
+					json.NewEncoder(w).Encode(ProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
+					return
+				}
 			}
 
 			json.NewEncoder(w).Encode(ProfileResponse{
 				OK:          true,
 				Username:    account.Username,
 				DisplayName: displayName,
+				Email:       account.Email,
 			})
 			return
 		default:

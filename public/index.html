@@ -106,6 +106,21 @@
 		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 		gap: 1rem;
 	}
+	.notice {
+		padding: 0.75rem 1rem;
+		border-radius: 10px;
+		border: 1px solid #2a2f55;
+		background: #11162b;
+		margin-bottom: 0.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+	.notice.info { border-color: #2a2f55; }
+	.notice.warn { border-color: #f59e0b; color: #fde68a; }
+	.notice.urgent { border-color: #ef4444; color: #fecaca; }
+	.notice button { padding: 0.25rem 0.6rem; }
 	.view { display: none; }
 	.view.active { display: block; }
 	.footer { margin-top: auto; text-align: center; font-size: 0.8rem; color: #9aa3c4; }
@@ -126,12 +141,17 @@
 				<a href="#/home">Home</a>
 				<a href="#/about">About</a>
 				<a href="#/playtest">Playtest</a>
-				<a href="#/signup">Sign up</a>
+				<a id="signup-link" href="#/signup">Sign up</a>
 				<a id="moderator-link" href="#/moderator" style="display:none;">Moderate</a>
 				<a id="admin-link" href="#/admin" style="display:none;">Admin</a>
 			</nav>
 		</div>
 	</header>
+
+	<div id="notification-bar" class="card" style="display:none;">
+		<div class="label">Notifications</div>
+		<div id="notification-list"></div>
+	</div>
 
 	<main id="app">
 		<section id="view-home" class="view active">
@@ -146,6 +166,9 @@
 						<button class="primary" id="login-btn">Log in</button>
 						<a class="muted" href="#/signup">Create account</a>
 					</div>
+					<div class="row">
+						<a class="muted" href="#/reset">Forgot password?</a>
+					</div>
 					<div class="muted">Alpha accounts are local to this test.</div>
 				</div>
 				<button id="logout-btn" style="display:none;">Log out</button>
@@ -159,6 +182,7 @@
 					<div id="profile-name"></div>
 					<div id="profile-role" class="label"></div>
 					<input id="profile-display" placeholder="Display name" />
+					<input id="profile-email" placeholder="Email (for password reset)" />
 					<button id="profile-save">Save</button>
 				</div>
 
@@ -191,6 +215,15 @@
 				<div id="actions-status" class="muted"></div>
 			</div>
 
+			<div class="card" id="whitelist-request-card" style="display:none;">
+				<div class="label">IP whitelist request</div>
+				<div class="row">
+					<input id="whitelist-reason" placeholder="Reason (optional)" />
+					<button id="whitelist-request-btn" class="primary">Request approval</button>
+				</div>
+				<div id="whitelist-request-status" class="muted"></div>
+			</div>
+
 			<div id="locked-message" class="label"></div>
 			<div id="seasons" class="grid">Loading season…</div>
 		</section>
@@ -216,10 +249,29 @@
 				<div class="stack">
 					<input id="signup-username" placeholder="Username" />
 					<input id="signup-display-name" placeholder="Display name" />
+					<input id="signup-email" placeholder="Email" />
 					<input id="signup-password" type="password" placeholder="Password" />
 					<button class="primary" id="signup-btn">Sign up</button>
 					<div class="label"><a href="#/home">Back to login</a></div>
 					<div id="signup-toast" class="toast" style="display:none;"></div>
+				</div>
+			</div>
+		</section>
+
+		<section id="view-reset" class="view">
+			<div class="card" style="max-width: 520px;">
+				<div class="stack">
+					<div class="label">Request reset link</div>
+					<input id="reset-identifier" placeholder="Email or username" />
+					<button class="primary" id="reset-request-btn">Send reset email</button>
+					<div id="reset-request-status" class="label"></div>
+					<hr style="border:0; border-top:1px solid #2a2f55; width:100%;" />
+					<div class="label">Have a token?</div>
+					<input id="reset-token" placeholder="Reset token" />
+					<input id="reset-new-password" type="password" placeholder="New password" />
+					<button class="primary" id="reset-confirm-btn">Reset password</button>
+					<div id="reset-confirm-status" class="label"></div>
+					<div class="label"><a href="#/home">Back to login</a></div>
 				</div>
 			</div>
 		</section>
@@ -266,6 +318,22 @@
 				<div id="user-key-status" class="label"></div>
 			</div>
 
+			<div class="card" id="ip-whitelist" style="display:none;">
+				<div class="label">IP whitelist (max accounts)</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="ip-whitelist-value" placeholder="IP address" />
+					<input id="ip-whitelist-max" placeholder="Max accounts" />
+					<button id="ip-whitelist-save" class="primary">Allow</button>
+					<button id="ip-whitelist-remove">Remove</button>
+				</div>
+				<div id="ip-whitelist-status" class="label"></div>
+			</div>
+
+			<div class="card" id="whitelist-requests" style="display:none;">
+				<div class="label">Pending whitelist requests</div>
+				<div id="whitelist-requests-list" class="label">Loading…</div>
+			</div>
+
 			<div class="card" id="moderator-profile" style="display:none;">
 				<div class="label">Moderator: edit profile</div>
 				<div class="row" style="margin-top:0.5rem;">
@@ -277,6 +345,30 @@
 					<button id="mod-save" class="primary">Update</button>
 				</div>
 				<div id="mod-status" class="label"></div>
+			</div>
+
+			<div class="card" id="admin-notify" style="display:none;">
+				<div class="label">Send notification</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<select id="notify-target">
+						<option value="all">All</option>
+						<option value="user">Players</option>
+						<option value="moderator">Moderators</option>
+						<option value="admin">Admins</option>
+					</select>
+					<input id="notify-account" placeholder="Account ID (optional)" />
+					<select id="notify-level">
+						<option value="info">Info</option>
+						<option value="warn">Warn</option>
+						<option value="urgent">Urgent</option>
+					</select>
+				</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="notify-expires" placeholder="Expires (RFC3339, optional)" />
+					<input id="notify-message" placeholder="Message" style="flex:1;" />
+					<button id="notify-send" class="primary">Send</button>
+				</div>
+				<div id="notify-status" class="label"></div>
 			</div>
 
 			<div class="card" id="auction-card" style="display:none;">
@@ -393,6 +485,7 @@ const logoutBtn = document.getElementById("logout-btn");
 const profileName = document.getElementById("profile-name");
 const profileRole = document.getElementById("profile-role");
 const profileDisplay = document.getElementById("profile-display");
+const profileEmail = document.getElementById("profile-email");
 const profileSave = document.getElementById("profile-save");
 const playerPanels = document.getElementById("player-panels");
 const coinsDiv = document.getElementById("player-coins");
@@ -400,9 +493,13 @@ const starsDiv = document.getElementById("player-stars");
 const onboarding = document.getElementById("onboarding");
 const feedbackCard = document.getElementById("feedback-card");
 const actionsCard = document.getElementById("actions-card");
+const whitelistRequestCard = document.getElementById("whitelist-request-card");
 const actionsStatus = document.getElementById("actions-status");
 const toast = document.getElementById("toast");
 const statPill = document.getElementById("stat-pill");
+const notificationBar = document.getElementById("notification-bar");
+const notificationList = document.getElementById("notification-list");
+const signupLink = document.getElementById("signup-link");
 const moderatorLink = document.getElementById("moderator-link");
 const adminLink = document.getElementById("admin-link");
 
@@ -412,6 +509,7 @@ const viewMap = {
 	about: "view-about",
 	playtest: "view-playtest",
 	signup: "view-signup",
+	reset: "view-reset",
 	admin: "view-admin",
 	"admin-economy": "view-admin-economy",
 	"admin-telemetry": "view-admin-telemetry",
@@ -428,6 +526,7 @@ let adminEconomyInitialized = false;
 let adminTelemetryInitialized = false;
 let moderatorInitialized = false;
 let signupInitialized = false;
+let resetInitialized = false;
 const ALPHA_SEASON_ID = "season-1";
 
 if (joinedSeasonId && joinedSeasonId !== ALPHA_SEASON_ID) {
@@ -470,9 +569,13 @@ async function loadAuth() {
 		playerPanels.style.display = "none";
 		feedbackCard.style.display = "none";
 		actionsCard.style.display = "none";
+		whitelistRequestCard.style.display = "none";
 		statPill.style.display = "none";
+		signupLink.style.display = "inline";
 		moderatorLink.style.display = "none";
 		adminLink.style.display = "none";
+		notificationBar.style.display = "none";
+		notificationList.innerHTML = "";
 		document.getElementById("seasons").style.display = "none";
 		document.getElementById("locked-message").innerText = "Log in to access seasons.";
 		return;
@@ -485,10 +588,13 @@ async function loadAuth() {
 	profileName.innerText = `@${data.username}`;
 	profileRole.innerText = `Role: ${data.role || "user"}`;
 	profileDisplay.value = data.displayName;
+	await loadProfile();
 	playerPanels.style.display = "grid";
 	feedbackCard.style.display = "block";
 	actionsCard.style.display = "block";
+	whitelistRequestCard.style.display = "block";
 	statPill.style.display = "inline-flex";
+	signupLink.style.display = "none";
 	moderatorLink.style.display = (data.isModerator || data.isAdmin) ? "inline" : "none";
 	adminLink.style.display = data.isAdmin ? "inline" : "none";
 	document.getElementById("seasons").style.display = "grid";
@@ -505,6 +611,16 @@ async function refreshPlayer() {
 	coinsDiv.innerText = `Coins: ${playerCoins}`;
 	starsDiv.innerText = `Stars: ${playerStars}`;
 	statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
+}
+
+async function loadProfile() {
+	if (!currentUser) return;
+	const res = await apiFetch("/profile");
+	if (!res.ok) return;
+	const data = await res.json();
+	if (!data.ok) return;
+	profileDisplay.value = data.displayName || "";
+	profileEmail.value = data.email || "";
 }
 
 async function loadSeasons() {
@@ -590,6 +706,46 @@ function setToast(message, type) {
 	}, 2500);
 }
 
+async function refreshNotifications() {
+	if (!currentUser) {
+		notificationBar.style.display = "none";
+		notificationList.innerHTML = "";
+		return;
+	}
+	const res = await apiFetch("/notifications");
+	const data = await res.json();
+	if (!data.ok) {
+		notificationBar.style.display = "none";
+		return;
+	}
+	const items = data.notifications || [];
+	if (items.length === 0) {
+		notificationBar.style.display = "none";
+		notificationList.innerHTML = "";
+		return;
+	}
+	notificationBar.style.display = "block";
+	notificationList.innerHTML = items.map(item => {
+		return `
+			<div class="notice ${item.level || "info"}">
+				<div>${item.message}</div>
+				<button data-ack="${item.id}">Dismiss</button>
+			</div>
+		`;
+	}).join("");
+
+	notificationList.querySelectorAll("button[data-ack]").forEach(btn => {
+		btn.addEventListener("click", async () => {
+			const id = parseInt(btn.getAttribute("data-ack"), 10);
+			await apiFetch("/notifications/ack", {
+				method: "POST",
+				body: JSON.stringify({ ids: [id] })
+			});
+			refreshNotifications();
+		});
+	});
+}
+
 function setView(viewId) {
 	views.forEach(view => view.classList.remove("active"));
 	const nextView = document.getElementById(viewId);
@@ -598,19 +754,28 @@ function setView(viewId) {
 	}
 }
 
-function getRoute() {
+function getRouteInfo() {
 	const hash = location.hash.replace("#", "");
-	if (!hash || hash === "/") return "home";
+	if (!hash || hash === "/") {
+		return { routeKey: "home", query: new URLSearchParams() };
+	}
 	const trimmed = hash.startsWith("/") ? hash.slice(1) : hash;
-	return viewMap[trimmed] ? trimmed : "home";
+	const parts = trimmed.split("?");
+	const routeKey = viewMap[parts[0]] ? parts[0] : "home";
+	const query = new URLSearchParams(parts[1] || "");
+	return { routeKey, query };
 }
 
 async function route() {
-	const routeKey = getRoute();
+	const { routeKey, query } = getRouteInfo();
+	await loadAuth();
+	if (routeKey === "signup" && currentUser) {
+		location.hash = "#/home";
+		return;
+	}
 	setView(viewMap[routeKey]);
 	if (routeKey === "home") {
 		if (!homeInitialized) initHome();
-		await loadAuth();
 		await refreshPlayer();
 		if (currentUser) {
 			await loadSeasons();
@@ -619,6 +784,14 @@ async function route() {
 	}
 	if (routeKey === "signup") {
 		if (!signupInitialized) initSignup();
+		return;
+	}
+	if (routeKey === "reset") {
+		if (!resetInitialized) initReset();
+		const token = query.get("token") || "";
+		if (token) {
+			document.getElementById("reset-token").value = token;
+		}
 		return;
 	}
 	if (routeKey === "admin") {
@@ -670,9 +843,10 @@ function initHome() {
 
 	profileSave.addEventListener("click", async () => {
 		const displayName = profileDisplay.value;
+		const email = profileEmail.value;
 		const res = await apiFetch("/profile", {
 			method: "POST",
-			body: JSON.stringify({ displayName })
+			body: JSON.stringify({ displayName, email })
 		});
 		const data = await res.json();
 		if (!data.ok) {
@@ -736,6 +910,19 @@ function initHome() {
 		await refreshPlayer();
 	});
 
+	document.getElementById("whitelist-request-btn").addEventListener("click", async () => {
+		const reason = document.getElementById("whitelist-reason").value.trim();
+		const res = await apiFetch("/auth/request-whitelist", {
+			method: "POST",
+		refreshNotifications();
+			body: JSON.stringify({ reason })
+		});
+		const data = await res.json();
+		document.getElementById("whitelist-request-status").innerText = data.ok
+			? "Request submitted for admin review."
+			: (data.error || "Request failed");
+	});
+
 	document.getElementById("dismiss-hint").addEventListener("click", () => {
 		localStorage.setItem("dismissedHint", "true");
 		onboarding.style.display = "none";
@@ -751,6 +938,9 @@ function initHome() {
 	setInterval(() => {
 		if (currentUser) loadSeasons();
 	}, 15000);
+	setInterval(() => {
+		if (currentUser) refreshNotifications();
+	}, 15000);
 }
 
 function initSignup() {
@@ -759,9 +949,10 @@ function initSignup() {
 		const username = document.getElementById("signup-username").value;
 		const password = document.getElementById("signup-password").value;
 		const displayName = document.getElementById("signup-display-name").value;
+		const email = document.getElementById("signup-email").value;
 		const res = await apiFetch("/auth/signup", {
 			method: "POST",
-			body: JSON.stringify({ username, password, displayName })
+			body: JSON.stringify({ username, password, displayName, email })
 		});
 		const data = await res.json();
 		const toast = document.getElementById("signup-toast");
@@ -770,6 +961,37 @@ function initSignup() {
 			toast.style.display = "block";
 			return;
 		}
+		location.hash = "#/home";
+	});
+}
+
+function initReset() {
+	resetInitialized = true;
+	document.getElementById("reset-request-btn").addEventListener("click", async () => {
+		const identifier = document.getElementById("reset-identifier").value.trim();
+		const res = await apiFetch("/auth/request-reset", {
+			method: "POST",
+			body: JSON.stringify({ identifier })
+		});
+		const data = await res.json();
+		const status = document.getElementById("reset-request-status");
+		status.innerText = data.ok ? "If the account exists, a reset email was sent." : (data.error || "Request failed");
+	});
+
+	document.getElementById("reset-confirm-btn").addEventListener("click", async () => {
+		const token = document.getElementById("reset-token").value.trim();
+		const newPassword = document.getElementById("reset-new-password").value;
+		const res = await apiFetch("/auth/reset-password", {
+			method: "POST",
+			body: JSON.stringify({ token, newPassword })
+		});
+		const data = await res.json();
+		const status = document.getElementById("reset-confirm-status");
+		if (!data.ok) {
+			status.innerText = data.error || "Reset failed";
+			return;
+		}
+		status.innerText = "Password updated. You can log in now.";
 		location.hash = "#/home";
 	});
 }
@@ -799,6 +1021,7 @@ function initAdmin() {
 		await refreshAdminView();
 		loadSummary();
 		loadAuction();
+		loadWhitelistRequests();
 	});
 
 	document.getElementById("role-save").addEventListener("click", async () => {
@@ -823,6 +1046,29 @@ function initAdmin() {
 		});
 		const data = await res.json();
 		document.getElementById("user-key-status").innerText = data.ok ? "Admin key updated." : (data.error || "Key update failed.");
+	});
+
+	document.getElementById("ip-whitelist-save").addEventListener("click", async () => {
+		const ip = document.getElementById("ip-whitelist-value").value.trim();
+		const maxAccounts = parseInt(document.getElementById("ip-whitelist-max").value, 10) || 2;
+		const res = await apiFetch("/admin/ip-whitelist", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ ip, maxAccounts, action: "set" })
+		});
+		const data = await res.json();
+		document.getElementById("ip-whitelist-status").innerText = data.ok ? "IP whitelisted." : (data.error || "Update failed.");
+	});
+
+	document.getElementById("ip-whitelist-remove").addEventListener("click", async () => {
+		const ip = document.getElementById("ip-whitelist-value").value.trim();
+		const res = await apiFetch("/admin/ip-whitelist", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ ip, action: "remove" })
+		});
+		const data = await res.json();
+		document.getElementById("ip-whitelist-status").innerText = data.ok ? "IP removed." : (data.error || "Update failed.");
 	});
 
 	document.getElementById("mod-load").addEventListener("click", async () => {
@@ -851,11 +1097,31 @@ function initAdmin() {
 		document.getElementById("mod-status").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");
 	});
 
+	document.getElementById("notify-send").addEventListener("click", async () => {
+		const targetRole = document.getElementById("notify-target").value;
+		const accountId = document.getElementById("notify-account").value.trim();
+		const level = document.getElementById("notify-level").value;
+		const expiresAt = document.getElementById("notify-expires").value.trim();
+		const message = document.getElementById("notify-message").value.trim();
+		const res = await apiFetch("/admin/notifications", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ targetRole, accountId, level, expiresAt, message })
+		});
+		const data = await res.json();
+		document.getElementById("notify-status").innerText = data.ok ? "Notification sent." : (data.error || "Send failed.");
+		if (data.ok) {
+			document.getElementById("notify-message").value = "";
+		}
+	});
+
 	const storedKey = getAdminKey();
 	if (storedKey) {
 		document.getElementById("admin-key").value = storedKey;
 		document.getElementById("key-status").innerText = "Key loaded.";
 	}
+
+	loadWhitelistRequests();
 }
 
 async function refreshAdminView() {
@@ -867,7 +1133,10 @@ async function refreshAdminView() {
 		document.getElementById("auction-card").style.display = "none";
 		document.getElementById("role-management").style.display = "none";
 		document.getElementById("admin-key-management").style.display = "none";
+		document.getElementById("ip-whitelist").style.display = "none";
+		document.getElementById("whitelist-requests").style.display = "none";
 		document.getElementById("moderator-profile").style.display = "none";
+		document.getElementById("admin-notify").style.display = "none";
 		document.getElementById("admin-setup").style.display = "block";
 		return false;
 	}
@@ -877,8 +1146,71 @@ async function refreshAdminView() {
 	document.getElementById("auction-card").style.display = "block";
 	document.getElementById("role-management").style.display = "block";
 	document.getElementById("admin-key-management").style.display = "block";
+	document.getElementById("ip-whitelist").style.display = "block";
+	document.getElementById("whitelist-requests").style.display = "block";
 	document.getElementById("moderator-profile").style.display = "block";
+	document.getElementById("admin-notify").style.display = "block";
+	loadWhitelistRequests();
 	return true;
+}
+
+async function loadWhitelistRequests() {
+	const res = await apiFetch("/admin/whitelist-requests", { headers: { "X-Admin-Key": getAdminKey() } });
+	const data = await res.json();
+	const container = document.getElementById("whitelist-requests-list");
+	if (!data.ok) {
+		container.innerText = "Unable to load requests.";
+		return;
+	}
+	const rows = data.requests || [];
+	if (rows.length === 0) {
+		container.innerText = "No pending requests.";
+		return;
+	}
+	container.innerHTML = rows.map(req => {
+		const time = new Date(req.createdAt).toLocaleString();
+		return `
+			<div class="card" style="margin-top:0.75rem;">
+				<div class="label">${req.ip} · ${time}</div>
+				<div class="label">Reason: ${req.reason || "(none)"}</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input data-max="${req.requestId}" placeholder="Max accounts" />
+					<button data-approve="${req.requestId}" class="primary">Approve</button>
+					<button data-deny="${req.requestId}">Deny</button>
+				</div>
+			</div>
+		`;
+	}).join("");
+
+	container.querySelectorAll("button[data-approve]").forEach(btn => {
+		btn.addEventListener("click", async () => {
+			const requestId = btn.getAttribute("data-approve");
+			const maxInput = container.querySelector(`input[data-max="${requestId}"]`);
+			const maxAccounts = parseInt(maxInput.value, 10) || 2;
+			await resolveWhitelistRequest(requestId, "approve", maxAccounts);
+		});
+	});
+
+	container.querySelectorAll("button[data-deny]").forEach(btn => {
+		btn.addEventListener("click", async () => {
+			const requestId = btn.getAttribute("data-deny");
+			await resolveWhitelistRequest(requestId, "deny", 0);
+		});
+	});
+}
+
+async function resolveWhitelistRequest(requestId, decision, maxAccounts) {
+	const res = await apiFetch("/admin/whitelist-requests", {
+		method: "POST",
+		headers: { "X-Admin-Key": getAdminKey() },
+		body: JSON.stringify({ requestId, decision, maxAccounts })
+	});
+	const data = await res.json();
+	if (!data.ok) {
+		document.getElementById("whitelist-requests-list").innerText = data.error || "Update failed.";
+		return;
+	}
+	loadWhitelistRequests();
 }
 
 async function loadSummary() {

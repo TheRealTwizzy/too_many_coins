@@ -110,6 +110,7 @@ type SignupRequest struct {
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	DisplayName string `json:"displayName,omitempty"`
+	Email       string `json:"email,omitempty"`
 }
 
 type LoginRequest struct {
@@ -130,6 +131,7 @@ type AuthResponse struct {
 
 type ProfileUpdateRequest struct {
 	DisplayName string `json:"displayName"`
+	Email       string `json:"email,omitempty"`
 }
 
 type ProfileResponse struct {
@@ -137,6 +139,71 @@ type ProfileResponse struct {
 	Error       string `json:"error,omitempty"`
 	Username    string `json:"username,omitempty"`
 	DisplayName string `json:"displayName,omitempty"`
+	Email       string `json:"email,omitempty"`
+}
+
+type PasswordResetRequest struct {
+	Identifier string `json:"identifier"`
+}
+
+type PasswordResetConfirmRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"newPassword"`
+}
+
+type SimpleResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+type WhitelistRequestPayload struct {
+	Reason string `json:"reason,omitempty"`
+}
+
+type AdminWhitelistRequestListResponse struct {
+	OK       bool                `json:"ok"`
+	Error    string              `json:"error,omitempty"`
+	Requests []WhitelistRequestView `json:"requests,omitempty"`
+}
+
+type WhitelistRequestView struct {
+	RequestID string    `json:"requestId"`
+	IP        string    `json:"ip"`
+	AccountID string    `json:"accountId,omitempty"`
+	Reason    string    `json:"reason,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type AdminWhitelistResolveRequest struct {
+	RequestID  string `json:"requestId"`
+	Decision   string `json:"decision"`
+	MaxAccounts int   `json:"maxAccounts,omitempty"`
+}
+
+type NotificationItem struct {
+	ID        int64     `json:"id"`
+	Message   string    `json:"message"`
+	Level     string    `json:"level"`
+	CreatedAt time.Time `json:"createdAt"`
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+}
+
+type NotificationsResponse struct {
+	OK            bool               `json:"ok"`
+	Error         string             `json:"error,omitempty"`
+	Notifications []NotificationItem `json:"notifications,omitempty"`
+}
+
+type NotificationAckRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
+type AdminNotificationCreateRequest struct {
+	TargetRole string `json:"targetRole"`
+	AccountID  string `json:"accountId,omitempty"`
+	Message    string `json:"message"`
+	Level      string `json:"level,omitempty"`
+	ExpiresAt  string `json:"expiresAt,omitempty"`
 }
 
 /* ======================
@@ -232,6 +299,11 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/auth/login", loginHandler(db))
 	mux.HandleFunc("/auth/logout", logoutHandler(db))
 	mux.HandleFunc("/auth/me", meHandler(db))
+	mux.HandleFunc("/auth/request-reset", requestPasswordResetHandler(db))
+	mux.HandleFunc("/auth/reset-password", resetPasswordHandler(db))
+	mux.HandleFunc("/auth/request-whitelist", whitelistRequestHandler(db))
+	mux.HandleFunc("/notifications", notificationsHandler(db))
+	mux.HandleFunc("/notifications/ack", notificationsAckHandler(db))
 	mux.HandleFunc("/profile", profileHandler(db))
 	mux.HandleFunc("/telemetry", telemetryHandler(db))
 	mux.HandleFunc("/feedback", feedbackHandler(db))
@@ -240,6 +312,9 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/admin/set-key", adminKeySetHandler(db))
 	mux.HandleFunc("/admin/role", adminRoleHandler(db))
 	mux.HandleFunc("/admin/set-user-key", adminKeyForUserHandler(db))
+	mux.HandleFunc("/admin/ip-whitelist", adminIPWhitelistHandler(db))
+	mux.HandleFunc("/admin/whitelist-requests", adminWhitelistRequestsHandler(db))
+	mux.HandleFunc("/admin/notifications", adminNotificationsHandler(db))
 	mux.HandleFunc("/moderator/profile", moderatorProfileHandler(db))
 }
 

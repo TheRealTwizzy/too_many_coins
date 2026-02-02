@@ -28,6 +28,9 @@ ALTER TABLE accounts
     ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
 
 ALTER TABLE accounts
+    ADD COLUMN IF NOT EXISTS email TEXT;
+
+ALTER TABLE accounts
     ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -51,6 +54,49 @@ CREATE TABLE IF NOT EXISTS player_ip_associations (
     first_seen TIMESTAMPTZ NOT NULL,
     last_seen TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (player_id, ip)
+);
+
+CREATE TABLE IF NOT EXISTS ip_whitelist (
+    ip TEXT PRIMARY KEY,
+    max_accounts INT NOT NULL DEFAULT 2,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ip_whitelist_requests (
+    request_id TEXT PRIMARY KEY,
+    ip TEXT NOT NULL,
+    account_id TEXT,
+    reason TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL,
+    resolved_at TIMESTAMPTZ,
+    resolved_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGSERIAL PRIMARY KEY,
+    target_role TEXT NOT NULL,
+    account_id TEXT,
+    message TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'info',
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS notification_reads (
+    notification_id BIGINT NOT NULL,
+    account_id TEXT NOT NULL,
+    read_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (notification_id, account_id)
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    reset_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_player_ip_associations_ip

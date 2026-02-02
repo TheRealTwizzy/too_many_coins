@@ -387,3 +387,160 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 		}
 	}
 }
+
+type AdminIPWhitelistRequest struct {
+	IP          string `json:"ip"`
+	MaxAccounts int    `json:"maxAccounts,omitempty"`
+	Action      string `json:"action,omitempty"`
+}
+
+type AdminIPWhitelistResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+func adminIPWhitelistHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+		var req AdminIPWhitelistRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.IP == "" {
+			json.NewEncoder(w).Encode(AdminIPWhitelistResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		action := strings.ToLower(strings.TrimSpace(req.Action))
+		if action == "remove" {
+			if err := removeIPWhitelist(db, req.IP); err != nil {
+				json.NewEncoder(w).Encode(AdminIPWhitelistResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			json.NewEncoder(w).Encode(AdminIPWhitelistResponse{OK: true})
+			return
+		}
+		if err := upsertIPWhitelist(db, req.IP, req.MaxAccounts); err != nil {
+			json.NewEncoder(w).Encode(AdminIPWhitelistResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(AdminIPWhitelistResponse{OK: true})
+	}
+}
+
+func adminWhitelistRequestsHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			requests, err := listPendingWhitelistRequests(db)
+			if err != nil {
+				json.NewEncoder(w).Encode(AdminWhitelistRequestListResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			views := make([]WhitelistRequestView, 0, len(requests))
+			for _, req := range requests {
+				views = append(views, WhitelistRequestView{
+					RequestID: req.RequestID,
+					IP:        req.IP,
+					AccountID: req.AccountID,
+					Reason:    req.Reason,
+					CreatedAt: req.CreatedAt,
+				})
+			}
+			json.NewEncoder(w).Encode(AdminWhitelistRequestListResponse{OK: true, Requests: views})
+			return
+		case http.MethodPost:
+			var req AdminWhitelistResolveRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RequestID == "" || req.Decision == "" {
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			decision := strings.ToLower(strings.TrimSpace(req.Decision))
+			if decision != "approve" && decision != "deny" {
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			status := "denied"
+			if decision == "approve" {
+				status = "approved"
+				if req.MaxAccounts <= 0 {
+					req.MaxAccounts = 2
+				}
+				var ip string
+				err := db.QueryRow(`
+					SELECT ip FROM ip_whitelist_requests WHERE request_id = $1
+				`, req.RequestID).Scan(&ip)
+				if err != nil {
+					json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+					return
+				}
+				if err := upsertIPWhitelist(db, ip, req.MaxAccounts); err != nil {
+					json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+					return
+				}
+			}
+			if err := resolveWhitelistRequest(db, req.RequestID, status, "admin"); err != nil {
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+			return
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+	}
+}
+
+func adminNotificationsHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+		var req AdminNotificationCreateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Message == "" || req.TargetRole == "" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		level := strings.ToLower(strings.TrimSpace(req.Level))
+		if level == "" {
+			level = "info"
+		}
+		if level != "info" && level != "warn" && level != "urgent" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_LEVEL"})
+			return
+		}
+		targetRole := strings.ToLower(strings.TrimSpace(req.TargetRole))
+		if targetRole != "all" && targetRole != "user" && targetRole != "moderator" && targetRole != "admin" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_TARGET"})
+			return
+		}
+		var expiresAt sql.NullTime
+		if strings.TrimSpace(req.ExpiresAt) != "" {
+			t, err := time.Parse(time.RFC3339, req.ExpiresAt)
+			if err != nil {
+				json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_EXPIRES_AT"})
+				return
+			}
+			expiresAt = sql.NullTime{Time: t, Valid: true}
+		}
+		_, err := db.Exec(`
+			INSERT INTO notifications (target_role, account_id, message, level, created_at, expires_at)
+			VALUES ($1, $2, $3, $4, NOW(), $5)
+		`, targetRole, strings.TrimSpace(req.AccountID), strings.TrimSpace(req.Message), level, expiresAt)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+	}
+}
