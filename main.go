@@ -39,8 +39,13 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	log.Println("Server starting on :8080")
-	err = http.ListenAndServe(":8080", mux)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Println("Server starting on :" + port)
+	err = http.ListenAndServe(":"+port, mux)
 	if err != nil {
 		log.Fatal(err)
 	}
