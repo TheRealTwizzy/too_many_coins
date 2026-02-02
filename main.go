@@ -31,6 +31,7 @@ func main() {
 	}
 
 	log.Println("Connected to PostgreSQL")
+	startTickLoop()
 
 	mux := http.NewServeMux()
 
