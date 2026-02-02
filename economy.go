@@ -149,6 +149,14 @@ func ensureSchema(db *sql.DB) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		ALTER TABLE players
+		ADD COLUMN IF NOT EXISTS burned_coins BIGINT NOT NULL DEFAULT 0;
+	`)
+	if err != nil {
+		return err
+	}
+
 	// 3️⃣ player_ip_associations table
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS player_ip_associations (
@@ -180,6 +188,68 @@ func ensureSchema(db *sql.DB) error {
 			claim_count BIGINT NOT NULL DEFAULT 0,
 			PRIMARY KEY (player_id, faucet_key)
 		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// 5️⃣ player_star_variants table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS player_star_variants (
+			player_id TEXT NOT NULL,
+			variant TEXT NOT NULL,
+			count BIGINT NOT NULL DEFAULT 0,
+			PRIMARY KEY (player_id, variant)
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// 6️⃣ player_boosts table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS player_boosts (
+			player_id TEXT NOT NULL,
+			boost_type TEXT NOT NULL,
+			expires_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (player_id, boost_type)
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// 7️⃣ system_auctions table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS system_auctions (
+			auction_id TEXT PRIMARY KEY,
+			item_key TEXT NOT NULL,
+			min_bid BIGINT NOT NULL,
+			current_bid BIGINT NOT NULL,
+			current_winner TEXT,
+			ends_at TIMESTAMPTZ NOT NULL,
+			settled_at TIMESTAMPTZ
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS auction_bids (
+			auction_id TEXT NOT NULL,
+			player_id TEXT NOT NULL,
+			bid BIGINT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id
+		ON auction_bids (auction_id);
 	`)
 	if err != nil {
 		return err

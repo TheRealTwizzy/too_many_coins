@@ -50,6 +50,62 @@ type RiskRollResponse struct {
 	NextAvailableInSeconds int64  `json:"nextAvailableInSeconds,omitempty"`
 }
 
+type BuyVariantStarRequest struct {
+	PlayerID string `json:"playerId"`
+	Variant  string `json:"variant"`
+}
+
+type BuyVariantStarResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	Variant     string `json:"variant,omitempty"`
+	PricePaid   int    `json:"pricePaid,omitempty"`
+	PlayerCoins int    `json:"playerCoins,omitempty"`
+}
+
+type BuyBoostRequest struct {
+	PlayerID  string `json:"playerId"`
+	BoostType string `json:"boostType"`
+}
+
+type BuyBoostResponse struct {
+	OK          bool      `json:"ok"`
+	Error       string    `json:"error,omitempty"`
+	BoostType   string    `json:"boostType,omitempty"`
+	ExpiresAt   time.Time `json:"expiresAt,omitempty"`
+	PlayerCoins int       `json:"playerCoins,omitempty"`
+}
+
+type BurnCoinsRequest struct {
+	PlayerID string `json:"playerId"`
+	Amount   int    `json:"amount"`
+}
+
+type BurnCoinsResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	Amount      int    `json:"amount,omitempty"`
+	PlayerCoins int    `json:"playerCoins,omitempty"`
+	BurnedTotal int    `json:"burnedTotal,omitempty"`
+}
+
+type AuctionBidRequest struct {
+	PlayerID string `json:"playerId"`
+	Bid      int    `json:"bid"`
+}
+
+type AuctionStatusResponse struct {
+	OK     bool           `json:"ok"`
+	Error  string         `json:"error,omitempty"`
+	Status *AuctionStatus `json:"status,omitempty"`
+}
+
+type AuctionBidResponse struct {
+	OK     bool           `json:"ok"`
+	Error  string         `json:"error,omitempty"`
+	Status *AuctionStatus `json:"status,omitempty"`
+}
+
 /* ======================
    main()
    ====================== */
@@ -133,9 +189,14 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/player", playerHandler(db))
 	mux.HandleFunc("/seasons", seasonsHandler(db))
 	mux.HandleFunc("/buy-star", buyStarHandler(db))
+	mux.HandleFunc("/buy-variant-star", buyVariantStarHandler(db))
+	mux.HandleFunc("/buy-boost", buyBoostHandler(db))
+	mux.HandleFunc("/burn-coins", burnCoinsHandler(db))
 	mux.HandleFunc("/claim-daily", dailyClaimHandler(db))
 	mux.HandleFunc("/claim-activity", activityClaimHandler(db))
 	mux.HandleFunc("/risk-roll", riskRollHandler(db))
+	mux.HandleFunc("/auction-status", auctionStatusHandler(db))
+	mux.HandleFunc("/auction-bid", auctionBidHandler(db))
 }
 
 /* ======================

@@ -185,10 +185,10 @@ The project follows a principle of **server authority first**, with the frontend
 
 ## 🧱 STEP 14 — Additional Sinks (PLANNED)
 
-- [ ] New star variants
-- [ ] Temporary boosts
-- [ ] Burn mechanics
-- [ ] Auctions / bidding systems
+- [x] New star variants
+- [x] Temporary boosts
+- [x] Burn mechanics
+- [x] Auctions / bidding systems
 
 ---
 

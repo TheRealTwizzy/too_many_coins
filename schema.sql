@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS players (
 ALTER TABLE players
     ADD COLUMN IF NOT EXISTS last_coin_grant_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS burned_coins BIGINT NOT NULL DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS player_ip_associations (
     player_id TEXT NOT NULL,
     ip TEXT NOT NULL,
@@ -34,3 +37,37 @@ CREATE TABLE IF NOT EXISTS player_faucet_claims (
     claim_count BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (player_id, faucet_key)
 );
+
+CREATE TABLE IF NOT EXISTS player_star_variants (
+    player_id TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    count BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (player_id, variant)
+);
+
+CREATE TABLE IF NOT EXISTS player_boosts (
+    player_id TEXT NOT NULL,
+    boost_type TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (player_id, boost_type)
+);
+
+CREATE TABLE IF NOT EXISTS system_auctions (
+    auction_id TEXT PRIMARY KEY,
+    item_key TEXT NOT NULL,
+    min_bid BIGINT NOT NULL,
+    current_bid BIGINT NOT NULL,
+    current_winner TEXT,
+    ends_at TIMESTAMPTZ NOT NULL,
+    settled_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS auction_bids (
+    auction_id TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    bid BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id
+    ON auction_bids (auction_id);

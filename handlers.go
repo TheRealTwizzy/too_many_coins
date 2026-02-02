@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -213,6 +214,250 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req BuyVariantStarRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		variantMultiplier := 0.0
+		switch req.Variant {
+		case StarVariantEmber:
+			variantMultiplier = 2.0
+		case StarVariantVoid:
+			variantMultiplier = 4.0
+		default:
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INVALID_VARIANT"})
+			return
+		}
+
+		player, err := LoadPlayer(db, req.PlayerID)
+		if err != nil || player == nil {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
+			return
+		}
+
+		basePrice := ComputeStarPrice(
+			economy.CoinsInCirculation(),
+			28*24*3600,
+		)
+
+		dampenedPrice, err := ComputeDampenedStarPrice(db, req.PlayerID, basePrice)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		price := int(float64(dampenedPrice)*variantMultiplier + 0.9999)
+		if player.Coins < int64(price) {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
+			return
+		}
+
+		player.Coins -= int64(price)
+		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if err := AddStarVariant(db, player.PlayerID, req.Variant, 1); err != nil {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(BuyVariantStarResponse{
+			OK:          true,
+			Variant:     req.Variant,
+			PricePaid:   price,
+			PlayerCoins: int(player.Coins),
+		})
+	}
+}
+
+func buyBoostHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req BuyBoostRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		if req.BoostType != BoostActivity {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INVALID_BOOST"})
+			return
+		}
+
+		player, err := LoadPlayer(db, req.PlayerID)
+		if err != nil || player == nil {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
+			return
+		}
+
+		const price = 25
+		const duration = 30 * time.Minute
+
+		if player.Coins < price {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
+			return
+		}
+
+		player.Coins -= price
+		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		expiresAt, err := SetBoost(db, player.PlayerID, BoostActivity, duration)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(BuyBoostResponse{
+			OK:          true,
+			BoostType:   BoostActivity,
+			ExpiresAt:   expiresAt,
+			PlayerCoins: int(player.Coins),
+		})
+	}
+}
+
+func burnCoinsHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req BurnCoinsRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		if req.Amount <= 0 || req.Amount > 1000 {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INVALID_AMOUNT"})
+			return
+		}
+
+		result, err := db.Exec(`
+			UPDATE players
+			SET coins = coins - $2,
+			    burned_coins = burned_coins + $2
+			WHERE player_id = $1 AND coins >= $2
+		`, req.PlayerID, req.Amount)
+		if err != nil {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		affected, err := result.RowsAffected()
+		if err != nil || affected == 0 {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
+			return
+		}
+
+		var coins int
+		var burned int
+		err = db.QueryRow(`
+			SELECT coins, burned_coins
+			FROM players
+			WHERE player_id = $1
+		`, req.PlayerID).Scan(&coins, &burned)
+		if err != nil {
+			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(BurnCoinsResponse{
+			OK:          true,
+			Amount:      req.Amount,
+			PlayerCoins: coins,
+			BurnedTotal: burned,
+		})
+	}
+}
+
+func auctionStatusHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		status, err := GetAuctionStatus(db)
+		if err != nil {
+			json.NewEncoder(w).Encode(AuctionStatusResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(AuctionStatusResponse{OK: true, Status: status})
+	}
+}
+
+func auctionBidHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req AuctionBidRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		if !isValidPlayerID(req.PlayerID) {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		if req.Bid <= 0 {
+			json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INVALID_BID"})
+			return
+		}
+
+		status, err := PlaceAuctionBid(db, req.PlayerID, req.Bid)
+		if err != nil {
+			switch {
+			case errors.Is(err, errAuctionNotFound):
+				json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "AUCTION_NOT_FOUND"})
+			case err.Error() == "BID_TOO_LOW":
+				json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "BID_TOO_LOW"})
+			case err.Error() == "NOT_ENOUGH_COINS":
+				json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
+			default:
+				json.NewEncoder(w).Encode(AuctionBidResponse{OK: false, Error: "INTERNAL_ERROR"})
+			}
+			return
+		}
+
+		json.NewEncoder(w).Encode(AuctionBidResponse{OK: true, Status: status})
+	}
+}
+
 func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -269,7 +514,7 @@ func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		player.Coins += reward
+		player.Coins += int64(reward)
 		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -321,8 +566,15 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		const reward = 3
+		reward := 3
 		const cooldown = 5 * time.Minute
+
+		if active, _, err := HasActiveBoost(db, req.PlayerID, BoostActivity); err != nil {
+			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		} else if active {
+			reward += 1
+		}
 
 		canClaim, remaining, err := CanClaimFaucet(db, req.PlayerID, FaucetActivity, cooldown)
 		if err != nil {
@@ -343,7 +595,7 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		player.Coins += reward
+		player.Coins += int64(reward)
 		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
