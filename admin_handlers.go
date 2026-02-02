@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -49,7 +50,25 @@ func requireAdmin(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Account,
 		w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
-	if !account.IsAdmin || account.AdminKeyHash == "" {
+	if account.Role != "admin" || account.AdminKeyHash == "" {
+		w.WriteHeader(http.StatusForbidden)
+		return nil, false
+	}
+	provided := r.Header.Get("X-Admin-Key")
+	if provided == "" || !verifyAdminKey(account.AdminKeyHash, provided) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil, false
+	}
+	return account, true
+}
+
+func requireModerator(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Account, bool) {
+	account, _, err := getSessionAccount(db, r)
+	if err != nil || account == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil, false
+	}
+	if (account.Role != "admin" && account.Role != "moderator") || account.AdminKeyHash == "" {
 		w.WriteHeader(http.StatusForbidden)
 		return nil, false
 	}
@@ -227,6 +246,144 @@ func adminKeySetHandler(db *sql.DB) http.HandlerFunc {
 			json.NewEncoder(w).Encode(AdminKeySetResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
+		_ = setAccountRole(db, account.AccountID, "admin")
 		json.NewEncoder(w).Encode(AdminKeySetResponse{OK: true})
+	}
+}
+
+type AdminRoleRequest struct {
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+type AdminRoleResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+func adminRoleHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+		var req AdminRoleRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
+			json.NewEncoder(w).Encode(AdminRoleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		if err := setAccountRoleByUsername(db, req.Username, req.Role); err != nil {
+			json.NewEncoder(w).Encode(AdminRoleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(AdminRoleResponse{OK: true})
+	}
+}
+
+type AdminKeyForUserRequest struct {
+	Username string `json:"username"`
+	AdminKey string `json:"adminKey"`
+}
+
+type AdminKeyForUserResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+func adminKeyForUserHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+		var req AdminKeyForUserRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" || req.AdminKey == "" {
+			json.NewEncoder(w).Encode(AdminKeyForUserResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		if len(req.AdminKey) < 8 {
+			json.NewEncoder(w).Encode(AdminKeyForUserResponse{OK: false, Error: "WEAK_KEY"})
+			return
+		}
+		if err := setAdminKeyByUsername(db, req.Username, req.AdminKey); err != nil {
+			json.NewEncoder(w).Encode(AdminKeyForUserResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(AdminKeyForUserResponse{OK: true})
+	}
+}
+
+type ModeratorProfileRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+}
+
+type ModeratorProfileResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	Username    string `json:"username,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+}
+
+func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := requireModerator(db, w, r); !ok {
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			username := r.URL.Query().Get("username")
+			if username == "" {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			var displayName string
+			err := db.QueryRow(`
+				SELECT display_name
+				FROM accounts
+				WHERE username = $1
+			`, strings.ToLower(username)).Scan(&displayName)
+			if err == sql.ErrNoRows {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "NOT_FOUND"})
+				return
+			}
+			if err != nil {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: true, Username: strings.ToLower(username), DisplayName: displayName})
+			return
+		case http.MethodPost:
+			var req ModeratorProfileRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			displayName := strings.TrimSpace(req.DisplayName)
+			if displayName == "" || len(displayName) > 32 {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_DISPLAY_NAME"})
+				return
+			}
+			_, err := db.Exec(`
+				UPDATE accounts
+				SET display_name = $2
+				WHERE username = $1
+			`, strings.ToLower(req.Username), displayName)
+			if err != nil {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: true, Username: strings.ToLower(req.Username), DisplayName: displayName})
+			return
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 	}
 }

@@ -54,6 +54,42 @@
 		</div>
 	</div>
 
+	<div class="card" id="role-management" style="display:none;">
+		<div class="label">Role management</div>
+		<div class="row" style="margin-top:0.5rem;">
+			<input id="role-username" placeholder="Username" />
+			<select id="role-value">
+				<option value="moderator">Moderator</option>
+				<option value="admin">Admin</option>
+			</select>
+			<button id="role-save" class="primary">Set role</button>
+		</div>
+		<div id="role-status" class="label"></div>
+	</div>
+
+	<div class="card" id="admin-key-management" style="display:none;">
+		<div class="label">Set user admin key</div>
+		<div class="row" style="margin-top:0.5rem;">
+			<input id="user-key-username" placeholder="Username" />
+			<input id="user-key-value" placeholder="New admin key" />
+			<button id="user-key-save" class="primary">Save key</button>
+		</div>
+		<div id="user-key-status" class="label"></div>
+	</div>
+
+	<div class="card" id="moderator-profile" style="display:none;">
+		<div class="label">Moderator: edit profile</div>
+		<div class="row" style="margin-top:0.5rem;">
+			<input id="mod-username" placeholder="Username" />
+			<button id="mod-load" class="primary">Load</button>
+		</div>
+		<div class="row" style="margin-top:0.5rem;">
+			<input id="mod-display-name" placeholder="Display name" />
+			<button id="mod-save" class="primary">Update</button>
+		</div>
+		<div id="mod-status" class="label"></div>
+	</div>
+
 	<div class="card" id="auction-card" style="display:none;">
 		<div class="label">Auction</div>
 		<div id="auction-status">Loading…</div>
@@ -89,6 +125,9 @@
 			return false;
 		}
 		document.getElementById("admin-content").style.display = "block";
+		document.getElementById("role-management").style.display = "block";
+		document.getElementById("admin-key-management").style.display = "block";
+		document.getElementById("moderator-profile").style.display = "block";
 		document.getElementById("auction-card").style.display = "block";
 		return true;
 	}
@@ -141,6 +180,51 @@
 		await loadAccess();
 		loadSummary();
 		loadAuction();
+	});
+
+	document.getElementById("role-save").addEventListener("click", async () => {
+		const username = document.getElementById("role-username").value.trim();
+		const role = document.getElementById("role-value").value;
+		const res = await apiFetch("/admin/role", {
+			method: "POST",
+			body: JSON.stringify({ username, role })
+		});
+		const data = await res.json();
+		document.getElementById("role-status").innerText = data.ok ? "Role updated." : (data.error || "Role update failed.");
+	});
+
+	document.getElementById("user-key-save").addEventListener("click", async () => {
+		const username = document.getElementById("user-key-username").value.trim();
+		const adminKey = document.getElementById("user-key-value").value.trim();
+		const res = await apiFetch("/admin/set-user-key", {
+			method: "POST",
+			body: JSON.stringify({ username, adminKey })
+		});
+		const data = await res.json();
+		document.getElementById("user-key-status").innerText = data.ok ? "Admin key updated." : (data.error || "Key update failed.");
+	});
+
+	document.getElementById("mod-load").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username").value.trim();
+		const res = await apiFetch(`/moderator/profile?username=${encodeURIComponent(username)}`);
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("mod-status").innerText = data.error || "Load failed.";
+			return;
+		}
+		document.getElementById("mod-display-name").value = data.displayName || "";
+		document.getElementById("mod-status").innerText = "Profile loaded.";
+	});
+
+	document.getElementById("mod-save").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username").value.trim();
+		const displayName = document.getElementById("mod-display-name").value.trim();
+		const res = await apiFetch("/moderator/profile", {
+			method: "POST",
+			body: JSON.stringify({ username, displayName })
+		});
+		const data = await res.json();
+		document.getElementById("mod-status").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");
 	});
 
 	const storedKey = getAdminKey();

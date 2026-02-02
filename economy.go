@@ -155,6 +155,7 @@ func ensureSchema(db *sql.DB) error {
 			password_hash TEXT NOT NULL,
 			display_name TEXT NOT NULL,
 			player_id TEXT NOT NULL,
+			role TEXT NOT NULL DEFAULT 'user',
 			created_at TIMESTAMPTZ NOT NULL,
 			last_login_at TIMESTAMPTZ NOT NULL
 		);
@@ -166,6 +167,14 @@ func ensureSchema(db *sql.DB) error {
 	_, err = db.Exec(`
 		ALTER TABLE accounts
 		ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE accounts
+		ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
 	`)
 	if err != nil {
 		return err

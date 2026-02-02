@@ -575,7 +575,9 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 			Username:    account.Username,
 			DisplayName: account.DisplayName,
 			PlayerID:    account.PlayerID,
-			IsAdmin:     account.IsAdmin,
+			IsAdmin:     account.Role == "admin",
+			IsModerator: account.Role == "moderator",
+			Role:        account.Role,
 		})
 	}
 }
@@ -616,7 +618,9 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 			Username:    account.Username,
 			DisplayName: account.DisplayName,
 			PlayerID:    account.PlayerID,
-			IsAdmin:     account.IsAdmin,
+			IsAdmin:     account.Role == "admin",
+			IsModerator: account.Role == "moderator",
+			Role:        account.Role,
 		})
 	}
 }
@@ -649,7 +653,9 @@ func meHandler(db *sql.DB) http.HandlerFunc {
 			Username:    account.Username,
 			DisplayName: account.DisplayName,
 			PlayerID:    account.PlayerID,
-			IsAdmin:     account.IsAdmin,
+			IsAdmin:     account.Role == "admin",
+			IsModerator: account.Role == "moderator",
+			Role:        account.Role,
 		})
 	}
 }

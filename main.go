@@ -124,6 +124,8 @@ type AuthResponse struct {
 	DisplayName string `json:"displayName,omitempty"`
 	PlayerID    string `json:"playerId,omitempty"`
 	IsAdmin     bool   `json:"isAdmin,omitempty"`
+	IsModerator bool   `json:"isModerator,omitempty"`
+	Role        string `json:"role,omitempty"`
 }
 
 type ProfileUpdateRequest struct {
@@ -236,6 +238,9 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/admin/telemetry", adminTelemetryHandler(db))
 	mux.HandleFunc("/admin/economy", adminEconomyHandler(db))
 	mux.HandleFunc("/admin/set-key", adminKeySetHandler(db))
+	mux.HandleFunc("/admin/role", adminRoleHandler(db))
+	mux.HandleFunc("/admin/set-user-key", adminKeyForUserHandler(db))
+	mux.HandleFunc("/moderator/profile", moderatorProfileHandler(db))
 }
 
 /* ======================

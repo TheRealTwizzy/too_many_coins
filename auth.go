@@ -20,7 +20,7 @@ type Account struct {
 	DisplayName  string
 	PlayerID     string
 	AdminKeyHash string
-	IsAdmin      bool
+	Role         string
 }
 
 func createAccount(db *sql.DB, username string, password string, displayName string) (*Account, error) {
@@ -56,10 +56,11 @@ func createAccount(db *sql.DB, username string, password string, displayName str
 			password_hash,
 			display_name,
 			player_id,
+			role,
 			created_at,
 			last_login_at
 		)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, 'user', NOW(), NOW())
 	`, accountID, username, hash, displayName, playerID)
 	if err != nil {
 		return nil, err
@@ -79,11 +80,12 @@ func authenticate(db *sql.DB, username string, password string) (*Account, error
 	var account Account
 	var hash string
 	var adminKey sql.NullString
+	var role string
 	if err := db.QueryRow(`
-		SELECT account_id, username, display_name, player_id, password_hash, admin_key_hash
+		SELECT account_id, username, display_name, player_id, password_hash, admin_key_hash, role
 		FROM accounts
 		WHERE username = $1
-	`, username).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &hash, &adminKey); err != nil {
+	`, username).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &hash, &adminKey, &role); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("INVALID_CREDENTIALS")
 		}
@@ -91,8 +93,8 @@ func authenticate(db *sql.DB, username string, password string) (*Account, error
 	}
 	if adminKey.Valid {
 		account.AdminKeyHash = adminKey.String
-		account.IsAdmin = true
 	}
+	account.Role = normalizeRole(role)
 
 	if !verifyPassword(hash, password) {
 		return nil, errors.New("INVALID_CREDENTIALS")
@@ -141,18 +143,19 @@ func getSessionAccount(db *sql.DB, r *http.Request) (*Account, string, error) {
 	var account Account
 	var expiresAt time.Time
 	var adminKey sql.NullString
+	var role string
 	if err := db.QueryRow(`
-		SELECT a.account_id, a.username, a.display_name, a.player_id, a.admin_key_hash, s.expires_at
+		SELECT a.account_id, a.username, a.display_name, a.player_id, a.admin_key_hash, a.role, s.expires_at
 		FROM sessions s
 		JOIN accounts a ON a.account_id = s.account_id
 		WHERE s.session_id = $1
-	`, cookie.Value).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &adminKey, &expiresAt); err != nil {
+	`, cookie.Value).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &adminKey, &role, &expiresAt); err != nil {
 		return nil, "", err
 	}
 	if adminKey.Valid {
 		account.AdminKeyHash = adminKey.String
-		account.IsAdmin = true
 	}
+	account.Role = normalizeRole(role)
 
 	if time.Now().UTC().After(expiresAt) {
 		clearSession(db, cookie.Value)
@@ -231,4 +234,46 @@ func setAdminKey(db *sql.DB, accountID string, key string) error {
 
 func verifyAdminKey(stored string, provided string) bool {
 	return verifyPassword(stored, provided)
+}
+
+func normalizeRole(role string) string {
+	switch strings.ToLower(role) {
+	case "admin", "moderator":
+		return strings.ToLower(role)
+	default:
+		return "user"
+	}
+}
+
+func setAccountRole(db *sql.DB, accountID string, role string) error {
+	role = normalizeRole(role)
+	_, err := db.Exec(`
+		UPDATE accounts
+		SET role = $2
+		WHERE account_id = $1
+	`, accountID, role)
+	return err
+}
+
+func setAccountRoleByUsername(db *sql.DB, username string, role string) error {
+	role = normalizeRole(role)
+	_, err := db.Exec(`
+		UPDATE accounts
+		SET role = $2
+		WHERE username = $1
+	`, strings.ToLower(username), role)
+	return err
+}
+
+func setAdminKeyByUsername(db *sql.DB, username string, key string) error {
+	hash, err := hashPassword(key)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		UPDATE accounts
+		SET admin_key_hash = $2
+		WHERE username = $1
+	`, strings.ToLower(username), hash)
+	return err
 }

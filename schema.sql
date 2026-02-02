@@ -19,12 +19,16 @@ CREATE TABLE IF NOT EXISTS accounts (
     password_hash TEXT NOT NULL,
     display_name TEXT NOT NULL,
     player_id TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
     created_at TIMESTAMPTZ NOT NULL,
     last_login_at TIMESTAMPTZ NOT NULL
 );
 
 ALTER TABLE accounts
     ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
+
+ALTER TABLE accounts
+    ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
 
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
