@@ -1,0 +1,188 @@
+package main
+
+import (
+	"crypto/subtle"
+	"database/sql"
+	"encoding/json"
+	"net/http"
+	"os"
+	"time"
+)
+
+type AdminTelemetrySeriesPoint struct {
+	Bucket    time.Time `json:"bucket"`
+	EventType string    `json:"eventType"`
+	Count     int       `json:"count"`
+}
+
+type AdminTelemetryResponse struct {
+	OK       bool                        `json:"ok"`
+	Error    string                      `json:"error,omitempty"`
+	Series   []AdminTelemetrySeriesPoint `json:"series,omitempty"`
+	Feedback []AdminFeedbackItem         `json:"feedback,omitempty"`
+}
+
+type AdminFeedbackItem struct {
+	Rating    *int      `json:"rating,omitempty"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type AdminEconomyResponse struct {
+	OK                  bool   `json:"ok"`
+	Error               string `json:"error,omitempty"`
+	DailyEmissionTarget int    `json:"dailyEmissionTarget,omitempty"`
+	FaucetsEnabled      bool   `json:"faucetsEnabled,omitempty"`
+	SinksEnabled        bool   `json:"sinksEnabled,omitempty"`
+	TelemetryEnabled    bool   `json:"telemetryEnabled,omitempty"`
+}
+
+type AdminEconomyUpdateRequest struct {
+	DailyEmissionTarget *int  `json:"dailyEmissionTarget,omitempty"`
+	FaucetsEnabled      *bool `json:"faucetsEnabled,omitempty"`
+	SinksEnabled        *bool `json:"sinksEnabled,omitempty"`
+	TelemetryEnabled    *bool `json:"telemetryEnabled,omitempty"`
+}
+
+func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
+	key := os.Getenv("ADMIN_KEY")
+	if key == "" {
+		w.WriteHeader(http.StatusForbidden)
+		return false
+	}
+
+	provided := r.Header.Get("X-Admin-Key")
+	if provided == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+
+	if subtle.ConstantTimeCompare([]byte(provided), []byte(key)) != 1 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+
+	return true
+}
+
+func adminTelemetryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireAdmin(w, r) {
+			return
+		}
+
+		rows, err := db.Query(`
+			SELECT date_trunc('hour', created_at) AS bucket, event_type, COUNT(*)
+			FROM player_telemetry
+			WHERE created_at >= NOW() - INTERVAL '48 hours'
+			GROUP BY bucket, event_type
+			ORDER BY bucket ASC
+		`)
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminTelemetryResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer rows.Close()
+
+		series := []AdminTelemetrySeriesPoint{}
+		for rows.Next() {
+			var point AdminTelemetrySeriesPoint
+			if err := rows.Scan(&point.Bucket, &point.EventType, &point.Count); err != nil {
+				continue
+			}
+			series = append(series, point)
+		}
+
+		feedbackRows, err := db.Query(`
+			SELECT rating, message, created_at
+			FROM player_feedback
+			ORDER BY created_at DESC
+			LIMIT 25
+		`)
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminTelemetryResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer feedbackRows.Close()
+
+		feedback := []AdminFeedbackItem{}
+		for feedbackRows.Next() {
+			var rating sql.NullInt64
+			var message string
+			var created time.Time
+			if err := feedbackRows.Scan(&rating, &message, &created); err != nil {
+				continue
+			}
+			item := AdminFeedbackItem{
+				Message:   message,
+				CreatedAt: created,
+			}
+			if rating.Valid {
+				value := int(rating.Int64)
+				item.Rating = &value
+			}
+			feedback = append(feedback, item)
+		}
+
+		json.NewEncoder(w).Encode(AdminTelemetryResponse{
+			OK:       true,
+			Series:   series,
+			Feedback: feedback,
+		})
+	}
+}
+
+func adminEconomyHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireAdmin(w, r) {
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			json.NewEncoder(w).Encode(AdminEconomyResponse{
+				OK:                  true,
+				DailyEmissionTarget: economy.DailyEmissionTarget(),
+				FaucetsEnabled:      featureFlags.FaucetsEnabled,
+				SinksEnabled:        featureFlags.SinksEnabled,
+				TelemetryEnabled:    featureFlags.Telemetry,
+			})
+			return
+		case http.MethodPost:
+			var req AdminEconomyUpdateRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				json.NewEncoder(w).Encode(AdminEconomyResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			if req.DailyEmissionTarget != nil {
+				value := *req.DailyEmissionTarget
+				if value < 0 || value > 10000 {
+					json.NewEncoder(w).Encode(AdminEconomyResponse{OK: false, Error: "INVALID_EMISSION_TARGET"})
+					return
+				}
+				economy.SetDailyEmissionTarget(value)
+			}
+			if req.FaucetsEnabled != nil {
+				featureFlags.FaucetsEnabled = *req.FaucetsEnabled
+			}
+			if req.SinksEnabled != nil {
+				featureFlags.SinksEnabled = *req.SinksEnabled
+			}
+			if req.TelemetryEnabled != nil {
+				featureFlags.Telemetry = *req.TelemetryEnabled
+			}
+
+			json.NewEncoder(w).Encode(AdminEconomyResponse{
+				OK:                  true,
+				DailyEmissionTarget: economy.DailyEmissionTarget(),
+				FaucetsEnabled:      featureFlags.FaucetsEnabled,
+				SinksEnabled:        featureFlags.SinksEnabled,
+				TelemetryEnabled:    featureFlags.Telemetry,
+			})
+			return
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+	}
+}

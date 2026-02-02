@@ -371,6 +371,18 @@ func (e *EconomyState) EmissionPerMinute() float64 {
 	return float64(e.dailyEmissionTarget) / (24 * 60)
 }
 
+func (e *EconomyState) DailyEmissionTarget() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.dailyEmissionTarget
+}
+
+func (e *EconomyState) SetDailyEmissionTarget(target int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.dailyEmissionTarget = target
+}
+
 func ComputeStarPrice(
 	coinsInCirculation int64,
 	secondsRemaining int64,

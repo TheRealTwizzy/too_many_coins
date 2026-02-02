@@ -232,6 +232,8 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/profile", profileHandler(db))
 	mux.HandleFunc("/telemetry", telemetryHandler(db))
 	mux.HandleFunc("/feedback", feedbackHandler(db))
+	mux.HandleFunc("/admin/telemetry", adminTelemetryHandler(db))
+	mux.HandleFunc("/admin/economy", adminEconomyHandler(db))
 }
 
 /* ======================

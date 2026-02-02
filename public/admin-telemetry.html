@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>Too Many Coins — Admin Telemetry</title>
+	<style>
+	body {
+		font-family: system-ui, sans-serif;
+		background: #0f1220;
+		color: #eaeaf0;
+		padding: 2rem;
+		max-width: 960px;
+		margin: 0 auto;
+	}
+	a { color: #c5cae9; text-decoration: none; }
+	.card {
+		border: 1px solid #2a2f55;
+		padding: 1rem;
+		margin-bottom: 1rem;
+		border-radius: 10px;
+		background: #141a2e;
+	}
+	.label { font-size: 0.8rem; color: #aaa; }
+	table { width: 100%; border-collapse: collapse; }
+	th, td { padding: 0.4rem; border-bottom: 1px solid #2a2f55; text-align: left; }
+	</style>
+</head>
+<body>
+	<h1>Telemetry</h1>
+	<p class="label"><a href="/admin.html">Admin home</a></p>
+
+	<div class="card">
+		<div class="label">Admin key</div>
+		<input id="admin-key" placeholder="Enter admin key" />
+		<button id="save-key">Save</button>
+		<div id="key-status" class="label"></div>
+	</div>
+
+	<div class="card">
+		<div class="label">Events by hour (last 48h)</div>
+		<table>
+			<thead>
+				<tr><th>Hour</th><th>Event</th><th>Count</th></tr>
+			</thead>
+			<tbody id="telemetry-body"></tbody>
+		</table>
+	</div>
+
+	<div class="card">
+		<div class="label">Recent feedback</div>
+		<div id="feedback-list"></div>
+	</div>
+
+	<script>
+	function getAdminKey() {
+		return localStorage.getItem("adminKey") || "";
+	}
+
+	async function apiFetch(url, options = {}) {
+		return fetch(url, {
+			...options,
+			headers: {
+				"Content-Type": "application/json",
+				"X-Admin-Key": getAdminKey(),
+				...(options.headers || {})
+			}
+		});
+	}
+
+	async function loadTelemetry() {
+		const res = await apiFetch("/admin/telemetry");
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("telemetry-body").innerHTML = "<tr><td colspan='3'>Unauthorized</td></tr>";
+			return;
+		}
+		const rows = data.series || [];
+		const tbody = document.getElementById("telemetry-body");
+		tbody.innerHTML = rows.map(row => {
+			const time = new Date(row.bucket).toLocaleString();
+			return `<tr><td>${time}</td><td>${row.eventType}</td><td>${row.count}</td></tr>`;
+		}).join("");
+
+		const feedback = data.feedback || [];
+		document.getElementById("feedback-list").innerHTML = feedback.map(item => {
+			const time = new Date(item.createdAt).toLocaleString();
+			const rating = item.rating !== null && item.rating !== undefined ? ` (${item.rating}/5)` : "";
+			return `<div class='label'>${time}${rating} — ${item.message}</div>`;
+		}).join("") || "<div class='label'>No feedback yet.</div>";
+	}
+
+	document.getElementById("save-key").addEventListener("click", () => {
+		const key = document.getElementById("admin-key").value.trim();
+		localStorage.setItem("adminKey", key);
+		document.getElementById("key-status").innerText = key ? "Key saved." : "Key cleared.";
+		loadTelemetry();
+	});
+
+	const storedKey = getAdminKey();
+	if (storedKey) {
+		document.getElementById("admin-key").value = storedKey;
+		document.getElementById("key-status").innerText = "Key loaded.";
+	}
+
+	loadTelemetry();
+	</script>
+</body>
+</html>
