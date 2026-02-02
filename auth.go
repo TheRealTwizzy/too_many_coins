@@ -15,10 +15,12 @@ import (
 const sessionTTL = 7 * 24 * time.Hour
 
 type Account struct {
-	AccountID   string
-	Username    string
-	DisplayName string
-	PlayerID    string
+	AccountID    string
+	Username     string
+	DisplayName  string
+	PlayerID     string
+	AdminKeyHash string
+	IsAdmin      bool
 }
 
 func createAccount(db *sql.DB, username string, password string, displayName string) (*Account, error) {
@@ -76,15 +78,20 @@ func authenticate(db *sql.DB, username string, password string) (*Account, error
 
 	var account Account
 	var hash string
+	var adminKey sql.NullString
 	if err := db.QueryRow(`
-		SELECT account_id, username, display_name, player_id, password_hash
+		SELECT account_id, username, display_name, player_id, password_hash, admin_key_hash
 		FROM accounts
 		WHERE username = $1
-	`, username).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &hash); err != nil {
+	`, username).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &hash, &adminKey); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("INVALID_CREDENTIALS")
 		}
 		return nil, err
+	}
+	if adminKey.Valid {
+		account.AdminKeyHash = adminKey.String
+		account.IsAdmin = true
 	}
 
 	if !verifyPassword(hash, password) {
@@ -133,13 +140,18 @@ func getSessionAccount(db *sql.DB, r *http.Request) (*Account, string, error) {
 
 	var account Account
 	var expiresAt time.Time
+	var adminKey sql.NullString
 	if err := db.QueryRow(`
-		SELECT a.account_id, a.username, a.display_name, a.player_id, s.expires_at
+		SELECT a.account_id, a.username, a.display_name, a.player_id, a.admin_key_hash, s.expires_at
 		FROM sessions s
 		JOIN accounts a ON a.account_id = s.account_id
 		WHERE s.session_id = $1
-	`, cookie.Value).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &expiresAt); err != nil {
+	`, cookie.Value).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &adminKey, &expiresAt); err != nil {
 		return nil, "", err
+	}
+	if adminKey.Valid {
+		account.AdminKeyHash = adminKey.String
+		account.IsAdmin = true
 	}
 
 	if time.Now().UTC().After(expiresAt) {
@@ -202,4 +214,21 @@ func verifyPassword(stored string, password string) bool {
 	sum := sha256.Sum256([]byte(salt + password))
 	computed := base64.RawURLEncoding.EncodeToString(sum[:])
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(encoded)) == 1
+}
+
+func setAdminKey(db *sql.DB, accountID string, key string) error {
+	hash, err := hashPassword(key)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		UPDATE accounts
+		SET admin_key_hash = $2
+		WHERE account_id = $1
+	`, accountID, hash)
+	return err
+}
+
+func verifyAdminKey(stored string, provided string) bool {
+	return verifyPassword(stored, provided)
 }

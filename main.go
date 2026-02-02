@@ -123,6 +123,7 @@ type AuthResponse struct {
 	Username    string `json:"username,omitempty"`
 	DisplayName string `json:"displayName,omitempty"`
 	PlayerID    string `json:"playerId,omitempty"`
+	IsAdmin     bool   `json:"isAdmin,omitempty"`
 }
 
 type ProfileUpdateRequest struct {
@@ -234,6 +235,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/feedback", feedbackHandler(db))
 	mux.HandleFunc("/admin/telemetry", adminTelemetryHandler(db))
 	mux.HandleFunc("/admin/economy", adminEconomyHandler(db))
+	mux.HandleFunc("/admin/set-key", adminKeySetHandler(db))
 }
 
 /* ======================

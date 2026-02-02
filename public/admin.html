@@ -35,17 +35,18 @@
 </head>
 <body>
 	<h1>Admin</h1>
-	<p class="label">Alpha 1 tools (admin key required).</p>
+	<p class="label">Alpha 1 tools (admin only).</p>
 	<p><a href="/">Back to game</a> · <a href="/admin-telemetry.html">Telemetry</a> · <a href="/admin-economy.html">Economy</a></p>
 
-	<div class="card">
-		<div class="label">Admin key</div>
-		<input id="admin-key" placeholder="Enter admin key" />
+	<div class="card" id="admin-setup" style="display:none;">
+		<div class="label">Admin setup</div>
+		<input id="admin-setup-key" placeholder="Setup key" />
+		<input id="admin-key" placeholder="Set admin key" />
 		<button id="save-key" class="primary">Save</button>
 		<div id="key-status" class="label"></div>
 	</div>
 
-	<div class="card">
+	<div class="card" id="admin-content" style="display:none;">
 		<div class="label">Season summary</div>
 		<div id="season-summary">Loading…</div>
 		<div class="row" style="margin-top:0.5rem;">
@@ -53,9 +54,14 @@
 		</div>
 	</div>
 
-	<div class="card">
+	<div class="card" id="auction-card" style="display:none;">
 		<div class="label">Auction</div>
 		<div id="auction-status">Loading…</div>
+	</div>
+
+	<div class="card" id="no-access" style="display:none;">
+		<div class="label">Not authorized</div>
+		<div class="label">You need an admin account to view this page.</div>
 	</div>
 
 	<script>
@@ -73,6 +79,18 @@
 			},
 			credentials: "include"
 		});
+	}
+
+	async function loadAccess() {
+		const res = await apiFetch("/auth/me");
+		const data = await res.json();
+		if (!data.ok || !data.isAdmin) {
+			document.getElementById("no-access").style.display = "block";
+			return false;
+		}
+		document.getElementById("admin-content").style.display = "block";
+		document.getElementById("auction-card").style.display = "block";
+		return true;
 	}
 
 	async function loadSummary() {
@@ -105,10 +123,24 @@
 		loadAuction();
 	});
 
-	document.getElementById("save-key").addEventListener("click", () => {
+	document.getElementById("save-key").addEventListener("click", async () => {
+		const setupKey = document.getElementById("admin-setup-key").value.trim();
 		const key = document.getElementById("admin-key").value.trim();
+		const res = await apiFetch("/admin/set-key", {
+			method: "POST",
+			headers: { "X-Admin-Setup": setupKey },
+			body: JSON.stringify({ adminKey: key })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("key-status").innerText = data.error || "Setup failed.";
+			return;
+		}
 		localStorage.setItem("adminKey", key);
-		document.getElementById("key-status").innerText = key ? "Key saved." : "Key cleared.";
+		document.getElementById("key-status").innerText = "Admin key set.";
+		await loadAccess();
+		loadSummary();
+		loadAuction();
 	});
 
 	const storedKey = getAdminKey();
@@ -117,8 +149,14 @@
 		document.getElementById("key-status").innerText = "Key loaded.";
 	}
 
-	loadSummary();
-	loadAuction();
+	loadAccess().then((ok) => {
+		if (ok) {
+			loadSummary();
+			loadAuction();
+		} else {
+			document.getElementById("admin-setup").style.display = "block";
+		}
+	});
 	</script>
 </body>
 </html>

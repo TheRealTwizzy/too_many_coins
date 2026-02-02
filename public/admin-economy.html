@@ -38,6 +38,10 @@
 		<div id="key-status" class="label"></div>
 	</div>
 
+	<div class="card" id="no-access" style="display:none;">
+		<div class="label">Not authorized</div>
+	</div>
+
 	<div class="card">
 		<div class="label">Daily emission target</div>
 		<div class="row">
@@ -69,6 +73,16 @@
 				...(options.headers || {})
 			}
 		});
+	}
+
+	async function loadAccess() {
+		const res = await apiFetch("/auth/me");
+		const data = await res.json();
+		if (!data.ok || !data.isAdmin) {
+			document.getElementById("no-access").style.display = "block";
+			return false;
+		}
+		return true;
 	}
 
 	async function loadEconomy() {
@@ -123,7 +137,11 @@
 		document.getElementById("key-status").innerText = "Key loaded.";
 	}
 
-	loadEconomy();
+	loadAccess().then((ok) => {
+		if (ok) {
+			loadEconomy();
+		}
+	});
 	</script>
 </body>
 </html>

@@ -163,6 +163,14 @@ func ensureSchema(db *sql.DB) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		ALTER TABLE accounts
+		ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
+	`)
+	if err != nil {
+		return err
+	}
+
 	// 2️⃣c sessions table
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (

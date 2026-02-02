@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -44,30 +43,27 @@ type AdminEconomyUpdateRequest struct {
 	TelemetryEnabled    *bool `json:"telemetryEnabled,omitempty"`
 }
 
-func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
-	key := os.Getenv("ADMIN_KEY")
-	if key == "" {
+func requireAdmin(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Account, bool) {
+	account, _, err := getSessionAccount(db, r)
+	if err != nil || account == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil, false
+	}
+	if !account.IsAdmin || account.AdminKeyHash == "" {
 		w.WriteHeader(http.StatusForbidden)
-		return false
+		return nil, false
 	}
-
 	provided := r.Header.Get("X-Admin-Key")
-	if provided == "" {
+	if provided == "" || !verifyAdminKey(account.AdminKeyHash, provided) {
 		w.WriteHeader(http.StatusUnauthorized)
-		return false
+		return nil, false
 	}
-
-	if subtle.ConstantTimeCompare([]byte(provided), []byte(key)) != 1 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return false
-	}
-
-	return true
+	return account, true
 }
 
 func adminTelemetryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireAdmin(w, r) {
+		if _, ok := requireAdmin(db, w, r); !ok {
 			return
 		}
 
@@ -134,7 +130,7 @@ func adminTelemetryHandler(db *sql.DB) http.HandlerFunc {
 
 func adminEconomyHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireAdmin(w, r) {
+		if _, ok := requireAdmin(db, w, r); !ok {
 			return
 		}
 
@@ -184,5 +180,53 @@ func adminEconomyHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+	}
+}
+
+type AdminKeySetRequest struct {
+	AdminKey string `json:"adminKey"`
+}
+
+type AdminKeySetResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+func adminKeySetHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		setupKey := os.Getenv("ADMIN_SETUP_KEY")
+		if setupKey == "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		provided := r.Header.Get("X-Admin-Setup")
+		if provided != setupKey {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		account, _, err := getSessionAccount(db, r)
+		if err != nil || account == nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		var req AdminKeySetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.AdminKey == "" {
+			json.NewEncoder(w).Encode(AdminKeySetResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		if len(req.AdminKey) < 8 {
+			json.NewEncoder(w).Encode(AdminKeySetResponse{OK: false, Error: "WEAK_KEY"})
+			return
+		}
+		if err := setAdminKey(db, account.AccountID, req.AdminKey); err != nil {
+			json.NewEncoder(w).Encode(AdminKeySetResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(AdminKeySetResponse{OK: true})
 	}
 }

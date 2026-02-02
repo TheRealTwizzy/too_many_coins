@@ -119,7 +119,7 @@
 			<nav>
 				<a href="/about.html">About</a>
 				<a href="/playtest.html">Playtest</a>
-				<a href="/admin.html">Admin</a>
+				<a id="admin-link" href="/admin.html" style="display:none;">Admin</a>
 			</nav>
 		</div>
 	</header>
@@ -200,6 +200,7 @@ const actionsCard = document.getElementById("actions-card");
 const actionsStatus = document.getElementById("actions-status");
 const toast = document.getElementById("toast");
 const statPill = document.getElementById("stat-pill");
+const adminLink = document.getElementById("admin-link");
 
 let joinedSeasonId = localStorage.getItem("joinedSeasonId");
 let playerCoins = 0;
@@ -244,6 +245,7 @@ async function loadAuth() {
 		feedbackCard.style.display = "none";
 		actionsCard.style.display = "none";
 		statPill.style.display = "none";
+		adminLink.style.display = "none";
 		document.getElementById("seasons").style.display = "none";
 		document.getElementById("locked-message").innerText = "Log in to access seasons.";
 		return;
@@ -259,6 +261,7 @@ async function loadAuth() {
 	feedbackCard.style.display = "block";
 	actionsCard.style.display = "block";
 	statPill.style.display = "inline-flex";
+	adminLink.style.display = data.isAdmin ? "inline" : "none";
 	document.getElementById("seasons").style.display = "grid";
 	document.getElementById("locked-message").innerText = "";
 }

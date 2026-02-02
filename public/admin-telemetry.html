@@ -36,6 +36,10 @@
 		<div id="key-status" class="label"></div>
 	</div>
 
+	<div class="card" id="no-access" style="display:none;">
+		<div class="label">Not authorized</div>
+	</div>
+
 	<div class="card">
 		<div class="label">Events by hour (last 48h)</div>
 		<table>
@@ -65,6 +69,16 @@
 				...(options.headers || {})
 			}
 		});
+	}
+
+	async function loadAccess() {
+		const res = await apiFetch("/auth/me");
+		const data = await res.json();
+		if (!data.ok || !data.isAdmin) {
+			document.getElementById("no-access").style.display = "block";
+			return false;
+		}
+		return true;
 	}
 
 	async function loadTelemetry() {
@@ -102,7 +116,11 @@
 		document.getElementById("key-status").innerText = "Key loaded.";
 	}
 
-	loadTelemetry();
+	loadAccess().then((ok) => {
+		if (ok) {
+			loadTelemetry();
+		}
+	});
 	</script>
 </body>
 </html>

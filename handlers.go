@@ -575,6 +575,7 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 			Username:    account.Username,
 			DisplayName: account.DisplayName,
 			PlayerID:    account.PlayerID,
+			IsAdmin:     account.IsAdmin,
 		})
 	}
 }
@@ -615,6 +616,7 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 			Username:    account.Username,
 			DisplayName: account.DisplayName,
 			PlayerID:    account.PlayerID,
+			IsAdmin:     account.IsAdmin,
 		})
 	}
 }
@@ -647,6 +649,7 @@ func meHandler(db *sql.DB) http.HandlerFunc {
 			Username:    account.Username,
 			DisplayName: account.DisplayName,
 			PlayerID:    account.PlayerID,
+			IsAdmin:     account.IsAdmin,
 		})
 	}
 }

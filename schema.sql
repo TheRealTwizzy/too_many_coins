@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS accounts (
     last_login_at TIMESTAMPTZ NOT NULL
 );
 
+ALTER TABLE accounts
+    ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
+
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,
