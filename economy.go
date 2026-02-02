@@ -78,3 +78,27 @@ func (e *EconomyState) load(seasonID string, db *sql.DB) error {
 	log.Println("Economy: loaded state, pool", e.globalCoinPool)
 	return nil
 }
+
+func ensureSchema(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS season_economy (
+			season_id TEXT PRIMARY KEY,
+			global_coin_pool BIGINT NOT NULL,
+			emission_remainder DOUBLE PRECISION NOT NULL,
+			last_updated TIMESTAMPTZ NOT NULL
+		);
+	`)
+	return err
+}
+
+func (e *EconomyState) CoinsInCirculation() int64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return int64(e.globalCoinPool)
+}
+
+func (e *EconomyState) EmissionPerMinute() float64 {
+	// dailyEmissionTarget is coins per day
+	return float64(e.dailyEmissionTarget) / (24 * 60)
+}
+
