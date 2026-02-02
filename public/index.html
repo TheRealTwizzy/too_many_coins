@@ -119,6 +119,7 @@
 			<nav>
 				<a href="/about.html">About</a>
 				<a href="/playtest.html">Playtest</a>
+				<a href="/admin.html">Admin</a>
 			</nav>
 		</div>
 	</header>
@@ -169,6 +170,16 @@
 		<button id="feedback-send">Send</button>
 	</div>
 
+	<div class="card" id="actions-card" style="display:none;">
+		<div class="label">Quick actions</div>
+		<div class="row">
+			<button id="claim-daily" class="primary">Daily claim</button>
+			<button id="claim-activity">Activity claim</button>
+			<button id="risk-roll">Risk roll (1)</button>
+		</div>
+		<div id="actions-status" class="muted"></div>
+	</div>
+
 	<div id="locked-message" class="label"></div>
 	<div id="seasons" class="grid">Loading season…</div>
 
@@ -185,14 +196,21 @@ const coinsDiv = document.getElementById("player-coins");
 const starsDiv = document.getElementById("player-stars");
 const onboarding = document.getElementById("onboarding");
 const feedbackCard = document.getElementById("feedback-card");
+const actionsCard = document.getElementById("actions-card");
+const actionsStatus = document.getElementById("actions-status");
 const toast = document.getElementById("toast");
 const statPill = document.getElementById("stat-pill");
 
-const joinedSeasonId = localStorage.getItem("joinedSeasonId");
+let joinedSeasonId = localStorage.getItem("joinedSeasonId");
 let playerCoins = 0;
 let playerStars = 0;
 let currentUser = null;
 const ALPHA_SEASON_ID = "season-1";
+
+if (joinedSeasonId && joinedSeasonId !== ALPHA_SEASON_ID) {
+	localStorage.removeItem("joinedSeasonId");
+	joinedSeasonId = null;
+}
 
 function apiFetch(url, options = {}) {
 	return fetch(url, {
@@ -225,6 +243,7 @@ async function loadAuth() {
 		profileCard.style.display = "none";
 		playerStats.style.display = "none";
 		feedbackCard.style.display = "none";
+		actionsCard.style.display = "none";
 		statPill.style.display = "none";
 		document.getElementById("seasons").style.display = "none";
 		document.getElementById("locked-message").innerText = "Log in to access seasons.";
@@ -240,6 +259,7 @@ async function loadAuth() {
 	profileDisplay.value = data.displayName;
 	playerStats.style.display = "block";
 	feedbackCard.style.display = "block";
+	actionsCard.style.display = "block";
 	statPill.style.display = "inline-flex";
 	document.getElementById("seasons").style.display = "grid";
 	document.getElementById("locked-message").innerText = "";
@@ -396,6 +416,48 @@ document.getElementById("feedback-send").addEventListener("click", async () => {
 	});
 	document.getElementById("feedback-text").value = "";
 	setToast("Thanks for the feedback.", "success");
+});
+
+document.getElementById("claim-daily").addEventListener("click", async () => {
+	const res = await apiFetch("/claim-daily", { method: "POST", body: JSON.stringify({}) });
+	const data = await res.json();
+	if (!data.ok) {
+		actionsStatus.innerText = data.error || "Claim failed";
+		setToast(actionsStatus.innerText, "error");
+		return;
+	}
+	actionsStatus.innerText = `Daily claim: +${data.reward} coins`;
+	setToast("Daily claim received.", "success");
+	await refreshPlayer();
+});
+
+document.getElementById("claim-activity").addEventListener("click", async () => {
+	const res = await apiFetch("/claim-activity", { method: "POST", body: JSON.stringify({}) });
+	const data = await res.json();
+	if (!data.ok) {
+		actionsStatus.innerText = data.error || "Claim failed";
+		setToast(actionsStatus.innerText, "error");
+		return;
+	}
+	actionsStatus.innerText = `Activity claim: +${data.reward} coins`;
+	setToast("Activity claim received.", "success");
+	await refreshPlayer();
+});
+
+document.getElementById("risk-roll").addEventListener("click", async () => {
+	const res = await apiFetch("/risk-roll", {
+		method: "POST",
+		body: JSON.stringify({ wager: 1 })
+	});
+	const data = await res.json();
+	if (!data.ok) {
+		actionsStatus.innerText = data.error || "Roll failed";
+		setToast(actionsStatus.innerText, "error");
+		return;
+	}
+	actionsStatus.innerText = data.won ? `Won +${data.payout}` : "No win this time";
+	setToast("Risk roll complete.", "success");
+	await refreshPlayer();
 });
 
 document.getElementById("dismiss-hint").addEventListener("click", () => {

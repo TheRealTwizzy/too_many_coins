@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>Too Many Coins — Admin</title>
+	<style>
+	body {
+		font-family: system-ui, sans-serif;
+		background: #0f1220;
+		color: #eaeaf0;
+		padding: 2rem;
+		max-width: 960px;
+		margin: 0 auto;
+	}
+	a { color: #c5cae9; text-decoration: none; }
+	.card {
+		border: 1px solid #2a2f55;
+		padding: 1rem;
+		margin-bottom: 1rem;
+		border-radius: 10px;
+		background: #141a2e;
+	}
+	.label { font-size: 0.8rem; color: #aaa; }
+	.row { display: flex; gap: 1rem; flex-wrap: wrap; }
+	button {
+		background: #0f1220;
+		border: 1px solid #2a2f55;
+		color: #eaeaf0;
+		padding: 0.5rem 0.75rem;
+		border-radius: 8px;
+		cursor: pointer;
+	}
+	button.primary { background: #3b82f6; border-color: #3b82f6; }
+	</style>
+</head>
+<body>
+	<h1>Admin</h1>
+	<p class="label">Alpha 1 tools (read-only where possible).</p>
+	<p><a href="/">Back to game</a></p>
+
+	<div class="card">
+		<div class="label">Season summary</div>
+		<div id="season-summary">Loading…</div>
+		<div class="row" style="margin-top:0.5rem;">
+			<button id="refresh" class="primary">Refresh</button>
+		</div>
+	</div>
+
+	<div class="card">
+		<div class="label">Auction</div>
+		<div id="auction-status">Loading…</div>
+	</div>
+
+	<script>
+	async function apiFetch(url, options = {}) {
+		return fetch(url, {
+			...options,
+			headers: {
+				"Content-Type": "application/json",
+				...(options.headers || {})
+			},
+			credentials: "include"
+		});
+	}
+
+	async function loadSummary() {
+		const res = await fetch("/seasons");
+		const data = await res.json();
+		const season = data.seasons.find(s => s.seasonId === "season-1");
+		if (!season) {
+			document.getElementById("season-summary").innerText = "Season not found.";
+			return;
+		}
+		const hoursLeft = Math.floor(season.secondsRemaining / 3600);
+		document.getElementById("season-summary").innerText =
+			`Season 1 · ${hoursLeft}h left · Coins in circulation: ${season.coinsInCirculation} · Star price: ${season.currentStarPrice}`;
+	}
+
+	async function loadAuction() {
+		const res = await apiFetch("/auction-status");
+		const data = await res.json();
+		if (!data.ok || !data.status) {
+			document.getElementById("auction-status").innerText = "Auction unavailable.";
+			return;
+		}
+		const endsAt = new Date(data.status.endsAt).toLocaleString();
+		document.getElementById("auction-status").innerText =
+			`${data.status.itemKey} · min ${data.status.minBid} · current ${data.status.currentBid} · ends ${endsAt}`;
+	}
+
+	document.getElementById("refresh").addEventListener("click", () => {
+		loadSummary();
+		loadAuction();
+	});
+
+	loadSummary();
+	loadAuction();
+	</script>
+</body>
+</html>
