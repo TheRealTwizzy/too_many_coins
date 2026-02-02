@@ -14,6 +14,9 @@
 		padding: 2rem;
 		max-width: 960px;
 		margin: 0 auto;
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
 	}
 	header {
 		display: flex;
@@ -103,6 +106,9 @@
 		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 		gap: 1rem;
 	}
+	.view { display: none; }
+	.view.active { display: block; }
+	.footer { margin-top: auto; text-align: center; font-size: 0.8rem; color: #9aa3c4; }
 	</style>
 </head>
 <body>
@@ -117,83 +123,277 @@
 				<span id="stat-pill" class="badge accent" style="display:none;"></span>
 			</div>
 			<nav>
-				<a href="/about.html">About</a>
-				<a href="/playtest.html">Playtest</a>
-				<a id="moderator-link" href="/moderator.html" style="display:none;">Moderate</a>
-				<a id="admin-link" href="/admin.html" style="display:none;">Admin</a>
+				<a href="#/home">Home</a>
+				<a href="#/about">About</a>
+				<a href="#/playtest">Playtest</a>
+				<a href="#/signup">Sign up</a>
+				<a id="moderator-link" href="#/moderator" style="display:none;">Moderate</a>
+				<a id="admin-link" href="#/admin" style="display:none;">Admin</a>
 			</nav>
 		</div>
 	</header>
 
-	<div class="card" id="auth-card">
-		<div id="auth-status" class="label">Checking session…</div>
-		<div id="auth-forms" class="stack">
-			<div class="row">
-				<input id="username" placeholder="Username" />
-				<input id="password" type="password" placeholder="Password" />
+	<main id="app">
+		<section id="view-home" class="view active">
+			<div class="card" id="auth-card">
+				<div id="auth-status" class="label">Checking session…</div>
+				<div id="auth-forms" class="stack">
+					<div class="row">
+						<input id="username" placeholder="Username" />
+						<input id="password" type="password" placeholder="Password" />
+					</div>
+					<div class="row">
+						<button class="primary" id="login-btn">Log in</button>
+						<a class="muted" href="#/signup">Create account</a>
+					</div>
+					<div class="muted">Alpha accounts are local to this test.</div>
+				</div>
+				<button id="logout-btn" style="display:none;">Log out</button>
 			</div>
-			<div class="row">
-				<button class="primary" id="login-btn">Log in</button>
-				<a class="muted" href="/signup.html">Create account</a>
+
+			<div id="toast" class="toast" style="display:none;"></div>
+
+			<div class="grid" id="player-panels" style="display:none;">
+				<div class="card" id="profile-card">
+					<div class="label">Profile</div>
+					<div id="profile-name"></div>
+					<div id="profile-role" class="label"></div>
+					<input id="profile-display" placeholder="Display name" />
+					<button id="profile-save">Save</button>
+				</div>
+
+				<div class="card" id="player-stats">
+					<div class="label">Your stats</div>
+					<div id="player-coins" class="label"></div>
+					<div id="player-stars" class="label"></div>
+				</div>
 			</div>
-			<div class="muted">Alpha accounts are local to this test.</div>
-		</div>
-		<button id="logout-btn" style="display:none;">Log out</button>
-	</div>
 
-	<div id="toast" class="toast" style="display:none;"></div>
+			<div class="card" id="onboarding" style="display:none;">
+				<div class="label">Quick start</div>
+				<div>Play the current season. Earn coins over time. Spend them on stars.</div>
+				<button id="dismiss-hint">Got it</button>
+			</div>
 
-	<div class="grid" id="player-panels" style="display:none;">
-		<div class="card" id="profile-card">
-			<div class="label">Profile</div>
-			<div id="profile-name"></div>
-			<div id="profile-role" class="label"></div>
-			<input id="profile-display" placeholder="Display name" />
-			<button id="profile-save">Save</button>
-		</div>
+			<div class="card" id="feedback-card" style="display:none;">
+				<div class="label">Playtest feedback</div>
+				<textarea id="feedback-text" rows="3" style="width:100%;"></textarea>
+				<button id="feedback-send">Send</button>
+			</div>
 
-		<div class="card" id="player-stats">
-			<div class="label">Your stats</div>
-			<div id="player-coins" class="label"></div>
-			<div id="player-stars" class="label"></div>
-		</div>
-	</div>
+			<div class="card" id="actions-card" style="display:none;">
+				<div class="label">Quick actions</div>
+				<div class="row">
+					<button id="claim-daily" class="primary">Daily claim</button>
+					<button id="claim-activity">Activity claim</button>
+					<button id="risk-roll">Risk roll (1)</button>
+				</div>
+				<div id="actions-status" class="muted"></div>
+			</div>
 
-	<div class="card" id="onboarding" style="display:none;">
-		<div class="label">Quick start</div>
-		<div>Play the current season. Earn coins over time. Spend them on stars.</div>
-		<button id="dismiss-hint">Got it</button>
-	</div>
+			<div id="locked-message" class="label"></div>
+			<div id="seasons" class="grid">Loading season…</div>
+		</section>
 
-	<div class="card" id="feedback-card" style="display:none;">
-		<div class="label">Playtest feedback</div>
-		<textarea id="feedback-text" rows="3" style="width:100%;"></textarea>
-		<button id="feedback-send">Send</button>
-	</div>
+		<section id="view-about" class="view">
+			<div class="card">
+				<p>Earn coins over time and spend them on stars. Stars are your season score.</p>
+				<p>This alpha focuses on the core loop, auth stability, and pacing.</p>
+				<p><a href="#/home">Back to login</a></p>
+			</div>
+		</section>
 
-	<div class="card" id="actions-card" style="display:none;">
-		<div class="label">Quick actions</div>
-		<div class="row">
-			<button id="claim-daily" class="primary">Daily claim</button>
-			<button id="claim-activity">Activity claim</button>
-			<button id="risk-roll">Risk roll (1)</button>
-		</div>
-		<div id="actions-status" class="muted"></div>
-	</div>
+		<section id="view-playtest" class="view">
+			<div class="card">
+				<p>Please focus on: clarity of the loop, faucet pacing, and star pricing feel.</p>
+				<p>Play 10–20 minutes per day when possible, and leave feedback in the app.</p>
+				<p><a href="#/home">Back to login</a></p>
+			</div>
+		</section>
 
-	<div id="locked-message" class="label"></div>
-	<div id="seasons" class="grid">Loading season…</div>
+		<section id="view-signup" class="view">
+			<div class="card" style="max-width: 520px;">
+				<div class="stack">
+					<input id="signup-username" placeholder="Username" />
+					<input id="signup-display-name" placeholder="Display name" />
+					<input id="signup-password" type="password" placeholder="Password" />
+					<button class="primary" id="signup-btn">Sign up</button>
+					<div class="label"><a href="#/home">Back to login</a></div>
+					<div id="signup-toast" class="toast" style="display:none;"></div>
+				</div>
+			</div>
+		</section>
+
+		<section id="view-admin" class="view">
+			<p class="label"><a href="#/home">Back to game</a> · <a href="#/admin-telemetry">Telemetry</a> · <a href="#/admin-economy">Economy</a></p>
+
+			<div class="card" id="admin-setup" style="display:none;">
+				<div class="label">Admin setup</div>
+				<input id="admin-setup-key" placeholder="Setup key" />
+				<input id="admin-key" placeholder="Set admin key" />
+				<button id="save-key" class="primary">Save</button>
+				<div id="key-status" class="label"></div>
+			</div>
+
+			<div class="card" id="admin-content" style="display:none;">
+				<div class="label">Season summary</div>
+				<div id="season-summary">Loading…</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<button id="refresh" class="primary">Refresh</button>
+				</div>
+			</div>
+
+			<div class="card" id="role-management" style="display:none;">
+				<div class="label">Role management</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="role-username" placeholder="Username" />
+					<select id="role-value">
+						<option value="moderator">Moderator</option>
+						<option value="admin">Admin</option>
+					</select>
+					<button id="role-save" class="primary">Set role</button>
+				</div>
+				<div id="role-status" class="label"></div>
+			</div>
+
+			<div class="card" id="admin-key-management" style="display:none;">
+				<div class="label">Set user admin key</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="user-key-username" placeholder="Username" />
+					<input id="user-key-value" placeholder="New admin key" />
+					<button id="user-key-save" class="primary">Save key</button>
+				</div>
+				<div id="user-key-status" class="label"></div>
+			</div>
+
+			<div class="card" id="moderator-profile" style="display:none;">
+				<div class="label">Moderator: edit profile</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="mod-username" placeholder="Username" />
+					<button id="mod-load" class="primary">Load</button>
+				</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="mod-display-name" placeholder="Display name" />
+					<button id="mod-save" class="primary">Update</button>
+				</div>
+				<div id="mod-status" class="label"></div>
+			</div>
+
+			<div class="card" id="auction-card" style="display:none;">
+				<div class="label">Auction</div>
+				<div id="auction-status">Loading…</div>
+			</div>
+
+			<div class="card" id="no-access" style="display:none;">
+				<div class="label">Not authorized</div>
+				<div class="label">You need an admin account to view this page.</div>
+			</div>
+		</section>
+
+		<section id="view-admin-economy" class="view">
+			<p class="label"><a href="#/admin">Admin home</a></p>
+
+			<div class="card">
+				<div class="label">Admin key</div>
+				<input id="econ-admin-key" placeholder="Enter admin key" />
+				<button id="econ-save-key">Save</button>
+				<div id="econ-key-status" class="label"></div>
+			</div>
+
+			<div class="card" id="econ-no-access" style="display:none;">
+				<div class="label">Not authorized</div>
+			</div>
+
+			<div class="card">
+				<div class="label">Daily emission target</div>
+				<div class="row">
+					<input id="emission" type="range" min="0" max="5000" step="50" />
+					<span id="emission-value"></span>
+				</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<label><input type="checkbox" id="faucets" /> Faucets enabled</label>
+					<label><input type="checkbox" id="sinks" /> Sinks enabled</label>
+					<label><input type="checkbox" id="telemetry" /> Telemetry enabled</label>
+				</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<button id="econ-save" class="primary">Save</button>
+				</div>
+				<div id="econ-status" class="label"></div>
+			</div>
+		</section>
+
+		<section id="view-admin-telemetry" class="view">
+			<p class="label"><a href="#/admin">Admin home</a></p>
+
+			<div class="card">
+				<div class="label">Admin key</div>
+				<input id="tele-admin-key" placeholder="Enter admin key" />
+				<button id="tele-save-key">Save</button>
+				<div id="tele-key-status" class="label"></div>
+			</div>
+
+			<div class="card" id="tele-no-access" style="display:none;">
+				<div class="label">Not authorized</div>
+			</div>
+
+			<div class="card">
+				<div class="label">Events by hour (last 48h)</div>
+				<table>
+					<thead>
+						<tr><th>Hour</th><th>Event</th><th>Count</th></tr>
+					</thead>
+					<tbody id="telemetry-body"></tbody>
+				</table>
+			</div>
+
+			<div class="card">
+				<div class="label">Recent feedback</div>
+				<div id="feedback-list"></div>
+			</div>
+		</section>
+
+		<section id="view-moderator" class="view">
+			<p class="label"><a href="#/home">Back to game</a></p>
+
+			<div class="card">
+				<div class="label">Local admin key</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="mod-local-key" placeholder="Admin key" />
+					<button id="mod-save-local-key" class="primary">Save</button>
+				</div>
+				<div id="mod-local-key-status" class="label"></div>
+			</div>
+
+			<div class="card" id="moderator-content" style="display:none;">
+				<div class="label">Edit profile</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="mod-username-view" placeholder="Username" />
+					<button id="mod-load-view" class="primary">Load</button>
+				</div>
+				<div class="row" style="margin-top:0.5rem;">
+					<input id="mod-display-name-view" placeholder="Display name" />
+					<button id="mod-save-view" class="primary">Update</button>
+				</div>
+				<div id="mod-status-view" class="label"></div>
+			</div>
+
+			<div class="card" id="mod-no-access" style="display:none;">
+				<div class="label">Not authorized</div>
+				<div class="label">You need a moderator or admin account to view this page.</div>
+			</div>
+		</section>
+	</main>
+
+	<div class="footer">Made by AI</div>
 
 	<script>
 const authStatus = document.getElementById("auth-status");
 const authForms = document.getElementById("auth-forms");
 const logoutBtn = document.getElementById("logout-btn");
-const profileCard = document.getElementById("profile-card");
 const profileName = document.getElementById("profile-name");
 const profileRole = document.getElementById("profile-role");
 const profileDisplay = document.getElementById("profile-display");
 const profileSave = document.getElementById("profile-save");
-const playerStats = document.getElementById("player-stats");
 const playerPanels = document.getElementById("player-panels");
 const coinsDiv = document.getElementById("player-coins");
 const starsDiv = document.getElementById("player-stars");
@@ -206,10 +406,28 @@ const statPill = document.getElementById("stat-pill");
 const moderatorLink = document.getElementById("moderator-link");
 const adminLink = document.getElementById("admin-link");
 
+const views = Array.from(document.querySelectorAll(".view"));
+const viewMap = {
+	home: "view-home",
+	about: "view-about",
+	playtest: "view-playtest",
+	signup: "view-signup",
+	admin: "view-admin",
+	"admin-economy": "view-admin-economy",
+	"admin-telemetry": "view-admin-telemetry",
+	moderator: "view-moderator"
+};
+
 let joinedSeasonId = localStorage.getItem("joinedSeasonId");
 let playerCoins = 0;
 let playerStars = 0;
 let currentUser = null;
+let homeInitialized = false;
+let adminInitialized = false;
+let adminEconomyInitialized = false;
+let adminTelemetryInitialized = false;
+let moderatorInitialized = false;
+let signupInitialized = false;
 const ALPHA_SEASON_ID = "season-1";
 
 if (joinedSeasonId && joinedSeasonId !== ALPHA_SEASON_ID) {
@@ -226,6 +444,10 @@ function apiFetch(url, options = {}) {
 		},
 		credentials: "include"
 	});
+}
+
+function getAdminKey() {
+	return localStorage.getItem("adminKey") || "";
 }
 
 async function track(eventType, payload) {
@@ -359,107 +581,6 @@ async function loadSeasons() {
 	});
 }
 
-document.getElementById("login-btn").addEventListener("click", async () => {
-	const username = document.getElementById("username").value;
-	const password = document.getElementById("password").value;
-	const res = await apiFetch("/auth/login", {
-		method: "POST",
-		body: JSON.stringify({ username, password })
-	});
-	const data = await res.json();
-	if (!data.ok) {
-		setToast(data.error || "Login failed", "error");
-		return;
-	}
-	await loadAuth();
-	await refreshPlayer();
-	track("login", {});
-});
-
-
-logoutBtn.addEventListener("click", async () => {
-	await apiFetch("/auth/logout", { method: "POST" });
-	currentUser = null;
-	await loadAuth();
-});
-
-profileSave.addEventListener("click", async () => {
-	const displayName = profileDisplay.value;
-	const res = await apiFetch("/profile", {
-		method: "POST",
-		body: JSON.stringify({ displayName })
-	});
-	const data = await res.json();
-	if (!data.ok) {
-		setToast(data.error || "Update failed", "error");
-		return;
-	}
-	authStatus.innerText = `Logged in as ${data.displayName}`;
-	setToast("Profile updated.", "success");
-});
-
-document.getElementById("feedback-send").addEventListener("click", async () => {
-	const message = document.getElementById("feedback-text").value.trim();
-	if (!message) return;
-	await apiFetch("/feedback", {
-		method: "POST",
-		body: JSON.stringify({ message })
-	});
-	document.getElementById("feedback-text").value = "";
-	setToast("Thanks for the feedback.", "success");
-});
-
-document.getElementById("claim-daily").addEventListener("click", async () => {
-	const res = await apiFetch("/claim-daily", { method: "POST", body: JSON.stringify({}) });
-	const data = await res.json();
-	if (!data.ok) {
-		actionsStatus.innerText = data.error || "Claim failed";
-		setToast(actionsStatus.innerText, "error");
-		return;
-	}
-	actionsStatus.innerText = `Daily claim: +${data.reward} coins`;
-	setToast("Daily claim received.", "success");
-	await refreshPlayer();
-});
-
-document.getElementById("claim-activity").addEventListener("click", async () => {
-	const res = await apiFetch("/claim-activity", { method: "POST", body: JSON.stringify({}) });
-	const data = await res.json();
-	if (!data.ok) {
-		actionsStatus.innerText = data.error || "Claim failed";
-		setToast(actionsStatus.innerText, "error");
-		return;
-	}
-	actionsStatus.innerText = `Activity claim: +${data.reward} coins`;
-	setToast("Activity claim received.", "success");
-	await refreshPlayer();
-});
-
-document.getElementById("risk-roll").addEventListener("click", async () => {
-	const res = await apiFetch("/risk-roll", {
-		method: "POST",
-		body: JSON.stringify({ wager: 1 })
-	});
-	const data = await res.json();
-	if (!data.ok) {
-		actionsStatus.innerText = data.error || "Roll failed";
-		setToast(actionsStatus.innerText, "error");
-		return;
-	}
-	actionsStatus.innerText = data.won ? `Won +${data.payout}` : "No win this time";
-	setToast("Risk roll complete.", "success");
-	await refreshPlayer();
-});
-
-document.getElementById("dismiss-hint").addEventListener("click", () => {
-	localStorage.setItem("dismissedHint", "true");
-	onboarding.style.display = "none";
-});
-
-if (localStorage.getItem("dismissedHint") !== "true") {
-	onboarding.style.display = "block";
-}
-
 function setToast(message, type) {
 	toast.innerText = message;
 	toast.className = `toast ${type || ""}`;
@@ -469,19 +590,497 @@ function setToast(message, type) {
 	}, 2500);
 }
 
-loadAuth().then(async () => {
-	await refreshPlayer();
-	if (currentUser) {
-		await loadSeasons();
-		setInterval(() => {
-			refreshPlayer();
-		}, 10000);
-		setInterval(() => {
-			loadSeasons();
-		}, 15000);
+function setView(viewId) {
+	views.forEach(view => view.classList.remove("active"));
+	const nextView = document.getElementById(viewId);
+	if (nextView) {
+		nextView.classList.add("active");
 	}
-});
+}
+
+function getRoute() {
+	const hash = location.hash.replace("#", "");
+	if (!hash || hash === "/") return "home";
+	const trimmed = hash.startsWith("/") ? hash.slice(1) : hash;
+	return viewMap[trimmed] ? trimmed : "home";
+}
+
+async function route() {
+	const routeKey = getRoute();
+	setView(viewMap[routeKey]);
+	if (routeKey === "home") {
+		if (!homeInitialized) initHome();
+		await loadAuth();
+		await refreshPlayer();
+		if (currentUser) {
+			await loadSeasons();
+		}
+		return;
+	}
+	if (routeKey === "signup") {
+		if (!signupInitialized) initSignup();
+		return;
+	}
+	if (routeKey === "admin") {
+		if (!adminInitialized) initAdmin();
+		await refreshAdminView();
+		return;
+	}
+	if (routeKey === "admin-economy") {
+		if (!adminEconomyInitialized) initAdminEconomy();
+		await refreshAdminEconomyView();
+		return;
+	}
+	if (routeKey === "admin-telemetry") {
+		if (!adminTelemetryInitialized) initAdminTelemetry();
+		await refreshAdminTelemetryView();
+		return;
+	}
+	if (routeKey === "moderator") {
+		if (!moderatorInitialized) initModerator();
+		await refreshModeratorView();
+		return;
+	}
+}
+
+function initHome() {
+	homeInitialized = true;
+	document.getElementById("login-btn").addEventListener("click", async () => {
+		const username = document.getElementById("username").value;
+		const password = document.getElementById("password").value;
+		const res = await apiFetch("/auth/login", {
+			method: "POST",
+			body: JSON.stringify({ username, password })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			setToast(data.error || "Login failed", "error");
+			return;
+		}
+		await loadAuth();
+		await refreshPlayer();
+		track("login", {});
+	});
+
+	logoutBtn.addEventListener("click", async () => {
+		await apiFetch("/auth/logout", { method: "POST" });
+		currentUser = null;
+		await loadAuth();
+	});
+
+	profileSave.addEventListener("click", async () => {
+		const displayName = profileDisplay.value;
+		const res = await apiFetch("/profile", {
+			method: "POST",
+			body: JSON.stringify({ displayName })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			setToast(data.error || "Update failed", "error");
+			return;
+		}
+		authStatus.innerText = `Logged in as ${data.displayName}`;
+		setToast("Profile updated.", "success");
+	});
+
+	document.getElementById("feedback-send").addEventListener("click", async () => {
+		const message = document.getElementById("feedback-text").value.trim();
+		if (!message) return;
+		await apiFetch("/feedback", {
+			method: "POST",
+			body: JSON.stringify({ message })
+		});
+		document.getElementById("feedback-text").value = "";
+		setToast("Thanks for the feedback.", "success");
+	});
+
+	document.getElementById("claim-daily").addEventListener("click", async () => {
+		const res = await apiFetch("/claim-daily", { method: "POST", body: JSON.stringify({}) });
+		const data = await res.json();
+		if (!data.ok) {
+			actionsStatus.innerText = data.error || "Claim failed";
+			setToast(actionsStatus.innerText, "error");
+			return;
+		}
+		actionsStatus.innerText = `Daily claim: +${data.reward} coins`;
+		setToast("Daily claim received.", "success");
+		await refreshPlayer();
+	});
+
+	document.getElementById("claim-activity").addEventListener("click", async () => {
+		const res = await apiFetch("/claim-activity", { method: "POST", body: JSON.stringify({}) });
+		const data = await res.json();
+		if (!data.ok) {
+			actionsStatus.innerText = data.error || "Claim failed";
+			setToast(actionsStatus.innerText, "error");
+			return;
+		}
+		actionsStatus.innerText = `Activity claim: +${data.reward} coins`;
+		setToast("Activity claim received.", "success");
+		await refreshPlayer();
+	});
+
+	document.getElementById("risk-roll").addEventListener("click", async () => {
+		const res = await apiFetch("/risk-roll", {
+			method: "POST",
+			body: JSON.stringify({ wager: 1 })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			actionsStatus.innerText = data.error || "Roll failed";
+			setToast(actionsStatus.innerText, "error");
+			return;
+		}
+		actionsStatus.innerText = data.won ? `Won +${data.payout}` : "No win this time";
+		setToast("Risk roll complete.", "success");
+		await refreshPlayer();
+	});
+
+	document.getElementById("dismiss-hint").addEventListener("click", () => {
+		localStorage.setItem("dismissedHint", "true");
+		onboarding.style.display = "none";
+	});
+
+	if (localStorage.getItem("dismissedHint") !== "true") {
+		onboarding.style.display = "block";
+	}
+
+	setInterval(() => {
+		if (currentUser) refreshPlayer();
+	}, 10000);
+	setInterval(() => {
+		if (currentUser) loadSeasons();
+	}, 15000);
+}
+
+function initSignup() {
+	signupInitialized = true;
+	document.getElementById("signup-btn").addEventListener("click", async () => {
+		const username = document.getElementById("signup-username").value;
+		const password = document.getElementById("signup-password").value;
+		const displayName = document.getElementById("signup-display-name").value;
+		const res = await apiFetch("/auth/signup", {
+			method: "POST",
+			body: JSON.stringify({ username, password, displayName })
+		});
+		const data = await res.json();
+		const toast = document.getElementById("signup-toast");
+		if (!data.ok) {
+			toast.innerText = data.error || "Signup failed";
+			toast.style.display = "block";
+			return;
+		}
+		location.hash = "#/home";
+	});
+}
+
+function initAdmin() {
+	adminInitialized = true;
+	document.getElementById("refresh").addEventListener("click", () => {
+		loadSummary();
+		loadAuction();
+	});
+
+	document.getElementById("save-key").addEventListener("click", async () => {
+		const setupKey = document.getElementById("admin-setup-key").value.trim();
+		const key = document.getElementById("admin-key").value.trim();
+		const res = await apiFetch("/admin/set-key", {
+			method: "POST",
+			headers: { "X-Admin-Setup": setupKey },
+			body: JSON.stringify({ adminKey: key })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("key-status").innerText = data.error || "Setup failed.";
+			return;
+		}
+		localStorage.setItem("adminKey", key);
+		document.getElementById("key-status").innerText = "Admin key set.";
+		await refreshAdminView();
+		loadSummary();
+		loadAuction();
+	});
+
+	document.getElementById("role-save").addEventListener("click", async () => {
+		const username = document.getElementById("role-username").value.trim();
+		const role = document.getElementById("role-value").value;
+		const res = await apiFetch("/admin/role", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ username, role })
+		});
+		const data = await res.json();
+		document.getElementById("role-status").innerText = data.ok ? "Role updated." : (data.error || "Role update failed.");
+	});
+
+	document.getElementById("user-key-save").addEventListener("click", async () => {
+		const username = document.getElementById("user-key-username").value.trim();
+		const adminKey = document.getElementById("user-key-value").value.trim();
+		const res = await apiFetch("/admin/set-user-key", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ username, adminKey })
+		});
+		const data = await res.json();
+		document.getElementById("user-key-status").innerText = data.ok ? "Admin key updated." : (data.error || "Key update failed.");
+	});
+
+	document.getElementById("mod-load").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username").value.trim();
+		const res = await apiFetch(`/moderator/profile?username=${encodeURIComponent(username)}`, {
+			headers: { "X-Admin-Key": getAdminKey() }
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("mod-status").innerText = data.error || "Load failed.";
+			return;
+		}
+		document.getElementById("mod-display-name").value = data.displayName || "";
+		document.getElementById("mod-status").innerText = "Profile loaded.";
+	});
+
+	document.getElementById("mod-save").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username").value.trim();
+		const displayName = document.getElementById("mod-display-name").value.trim();
+		const res = await apiFetch("/moderator/profile", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ username, displayName })
+		});
+		const data = await res.json();
+		document.getElementById("mod-status").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");
+	});
+
+	const storedKey = getAdminKey();
+	if (storedKey) {
+		document.getElementById("admin-key").value = storedKey;
+		document.getElementById("key-status").innerText = "Key loaded.";
+	}
+}
+
+async function refreshAdminView() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok || !data.isAdmin) {
+		document.getElementById("no-access").style.display = "block";
+		document.getElementById("admin-content").style.display = "none";
+		document.getElementById("auction-card").style.display = "none";
+		document.getElementById("role-management").style.display = "none";
+		document.getElementById("admin-key-management").style.display = "none";
+		document.getElementById("moderator-profile").style.display = "none";
+		document.getElementById("admin-setup").style.display = "block";
+		return false;
+	}
+	document.getElementById("no-access").style.display = "none";
+	document.getElementById("admin-setup").style.display = "none";
+	document.getElementById("admin-content").style.display = "block";
+	document.getElementById("auction-card").style.display = "block";
+	document.getElementById("role-management").style.display = "block";
+	document.getElementById("admin-key-management").style.display = "block";
+	document.getElementById("moderator-profile").style.display = "block";
+	return true;
+}
+
+async function loadSummary() {
+	const res = await fetch("/seasons");
+	const data = await res.json();
+	const season = data.seasons.find(s => s.seasonId === "season-1");
+	if (!season) {
+		document.getElementById("season-summary").innerText = "Season not found.";
+		return;
+	}
+	const hoursLeft = Math.floor(season.secondsRemaining / 3600);
+	document.getElementById("season-summary").innerText =
+		`Season 1 · ${hoursLeft}h left · Coins in circulation: ${season.coinsInCirculation} · Star price: ${season.currentStarPrice}`;
+}
+
+async function loadAuction() {
+	const res = await apiFetch("/auction-status", { headers: { "X-Admin-Key": getAdminKey() } });
+	const data = await res.json();
+	if (!data.ok || !data.status) {
+		document.getElementById("auction-status").innerText = "Auction unavailable.";
+		return;
+	}
+	const endsAt = new Date(data.status.endsAt).toLocaleString();
+	document.getElementById("auction-status").innerText =
+		`${data.status.itemKey} · min ${data.status.minBid} · current ${data.status.currentBid} · ends ${endsAt}`;
+}
+
+function initAdminEconomy() {
+	adminEconomyInitialized = true;
+	document.getElementById("emission").addEventListener("input", (e) => {
+		document.getElementById("emission-value").innerText = e.target.value;
+	});
+
+	document.getElementById("econ-save").addEventListener("click", async () => {
+		const payload = {
+			dailyEmissionTarget: parseInt(document.getElementById("emission").value, 10),
+			faucetsEnabled: document.getElementById("faucets").checked,
+			sinksEnabled: document.getElementById("sinks").checked,
+			telemetryEnabled: document.getElementById("telemetry").checked
+		};
+		const res = await apiFetch("/admin/economy", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify(payload)
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("econ-status").innerText = data.error || "Save failed";
+			return;
+		}
+		document.getElementById("econ-status").innerText = "Saved.";
+		loadEconomy();
+	});
+
+	document.getElementById("econ-save-key").addEventListener("click", () => {
+		const key = document.getElementById("econ-admin-key").value.trim();
+		localStorage.setItem("adminKey", key);
+		document.getElementById("econ-key-status").innerText = key ? "Key saved." : "Key cleared.";
+		loadEconomy();
+	});
+
+	const storedKey = getAdminKey();
+	if (storedKey) {
+		document.getElementById("econ-admin-key").value = storedKey;
+		document.getElementById("econ-key-status").innerText = "Key loaded.";
+	}
+}
+
+async function refreshAdminEconomyView() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok || !data.isAdmin) {
+		document.getElementById("econ-no-access").style.display = "block";
+		return false;
+	}
+	document.getElementById("econ-no-access").style.display = "none";
+	await loadEconomy();
+	return true;
+}
+
+async function loadEconomy() {
+	const res = await apiFetch("/admin/economy", { headers: { "X-Admin-Key": getAdminKey() } });
+	const data = await res.json();
+	if (!data.ok) {
+		document.getElementById("econ-status").innerText = "Unauthorized.";
+		return;
+	}
+	const emission = document.getElementById("emission");
+	emission.value = data.dailyEmissionTarget || 0;
+	document.getElementById("emission-value").innerText = emission.value;
+	document.getElementById("faucets").checked = !!data.faucetsEnabled;
+	document.getElementById("sinks").checked = !!data.sinksEnabled;
+	document.getElementById("telemetry").checked = !!data.telemetryEnabled;
+}
+
+function initAdminTelemetry() {
+	adminTelemetryInitialized = true;
+	document.getElementById("tele-save-key").addEventListener("click", () => {
+		const key = document.getElementById("tele-admin-key").value.trim();
+		localStorage.setItem("adminKey", key);
+		document.getElementById("tele-key-status").innerText = key ? "Key saved." : "Key cleared.";
+		loadTelemetry();
+	});
+
+	const storedKey = getAdminKey();
+	if (storedKey) {
+		document.getElementById("tele-admin-key").value = storedKey;
+		document.getElementById("tele-key-status").innerText = "Key loaded.";
+	}
+}
+
+async function refreshAdminTelemetryView() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok || !data.isAdmin) {
+		document.getElementById("tele-no-access").style.display = "block";
+		return false;
+	}
+	document.getElementById("tele-no-access").style.display = "none";
+	await loadTelemetry();
+	return true;
+}
+
+async function loadTelemetry() {
+	const res = await apiFetch("/admin/telemetry", { headers: { "X-Admin-Key": getAdminKey() } });
+	const data = await res.json();
+	if (!data.ok) {
+		document.getElementById("telemetry-body").innerHTML = "<tr><td colspan='3'>Unauthorized</td></tr>";
+		return;
+	}
+	const rows = data.series || [];
+	const tbody = document.getElementById("telemetry-body");
+	tbody.innerHTML = rows.map(row => {
+		const time = new Date(row.bucket).toLocaleString();
+		return `<tr><td>${time}</td><td>${row.eventType}</td><td>${row.count}</td></tr>`;
+	}).join("");
+
+	const feedback = data.feedback || [];
+	document.getElementById("feedback-list").innerHTML = feedback.map(item => {
+		const time = new Date(item.createdAt).toLocaleString();
+		const rating = item.rating !== null && item.rating !== undefined ? ` (${item.rating}/5)` : "";
+		return `<div class='label'>${time}${rating} — ${item.message}</div>`;
+	}).join("") || "<div class='label'>No feedback yet.</div>";
+}
+
+function initModerator() {
+	moderatorInitialized = true;
+	document.getElementById("mod-save-local-key").addEventListener("click", () => {
+		const key = document.getElementById("mod-local-key").value.trim();
+		if (!key) return;
+		localStorage.setItem("adminKey", key);
+		document.getElementById("mod-local-key-status").innerText = "Key saved locally.";
+	});
+
+	document.getElementById("mod-load-view").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const res = await apiFetch(`/moderator/profile?username=${encodeURIComponent(username)}`, {
+			headers: { "X-Admin-Key": getAdminKey() }
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			document.getElementById("mod-status-view").innerText = data.error || "Load failed.";
+			return;
+		}
+		document.getElementById("mod-display-name-view").value = data.displayName || "";
+		document.getElementById("mod-status-view").innerText = "Profile loaded.";
+	});
+
+	document.getElementById("mod-save-view").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const displayName = document.getElementById("mod-display-name-view").value.trim();
+		const res = await apiFetch("/moderator/profile", {
+			method: "POST",
+			headers: { "X-Admin-Key": getAdminKey() },
+			body: JSON.stringify({ username, displayName })
+		});
+		const data = await res.json();
+		document.getElementById("mod-status-view").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");
+	});
+
+	const storedKey = getAdminKey();
+	if (storedKey) {
+		document.getElementById("mod-local-key").value = storedKey;
+		document.getElementById("mod-local-key-status").innerText = "Key loaded.";
+	}
+}
+
+async function refreshModeratorView() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok || (!data.isModerator && !data.isAdmin)) {
+		document.getElementById("mod-no-access").style.display = "block";
+		document.getElementById("moderator-content").style.display = "none";
+		return false;
+	}
+	document.getElementById("mod-no-access").style.display = "none";
+	document.getElementById("moderator-content").style.display = "block";
+	return true;
+}
+
+window.addEventListener("hashchange", route);
+route();
 	</script>
-	<div class="label" style="margin-top:2rem; text-align:center;">Made by AI</div>
 </body>
 </html>
