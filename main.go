@@ -31,7 +31,13 @@ func main() {
 	}
 
 	log.Println("Connected to PostgreSQL")
-	startTickLoop()
+	
+	err = economy.load("season-1", db)
+	if err != nil {
+		log.Fatal("Failed to load economy state:", err)
+	}
+	
+	startTickLoop(db)
 
 	mux := http.NewServeMux()
 

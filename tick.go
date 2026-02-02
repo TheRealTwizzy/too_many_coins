@@ -1,14 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"time"
 )
 
-func startTickLoop() {
+func startTickLoop(db *sql.DB) {
 	ticker := time.NewTicker(60 * time.Second)
 
 	go func() {
+		tickCount := 0
 		for t := range ticker.C {
 			log.Println("Tick:", t.UTC())
 
@@ -26,6 +28,11 @@ func startTickLoop() {
 			}
 
 			economy.mu.Unlock()
+			
+			tickCount++
+			if tickCount%5 == 0 {
+				economy.persist("season-1", db)
+			}
 		}
 	}()
 }
