@@ -142,6 +142,18 @@ func notificationLevelForPriority(priority string) string {
 	}
 }
 
+func defaultNotificationLink(role string) string {
+	role = normalizeNotificationRole(role)
+	switch role {
+	case NotificationRoleAdmin:
+		return "/admin.html"
+	case NotificationRoleModerator:
+		return "/moderator.html"
+	default:
+		return "#/home"
+	}
+}
+
 func notificationRetentionWindow() time.Duration {
 	value := strings.TrimSpace(os.Getenv("NOTIFICATION_RETENTION_HOURS"))
 	if value == "" {
@@ -190,6 +202,12 @@ func insertNotification(db *sql.DB, input NotificationInput) error {
 		level = notificationLevelForPriority(priority)
 	}
 	link := strings.TrimSpace(input.Link)
+	if link == "" {
+		link = defaultNotificationLink(role)
+	}
+	if link == "" {
+		return nil
+	}
 
 	var payload []byte
 	if input.Payload != nil {
