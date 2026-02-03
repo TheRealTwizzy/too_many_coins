@@ -494,7 +494,7 @@
 								<div id="season-coins" class="stat-value">--</div>
 							</div>
 							<div class="metric">
-								<div class="label">Emission / min</div>
+								<div class="label">Coins / min</div>
 								<div id="season-emission" class="stat-value">--</div>
 							</div>
 						</div>
@@ -1469,7 +1469,7 @@ function updateSeasonSnapshot(season) {
 	if (seasonRemaining) seasonRemaining.innerText = formatRemaining(season.secondsRemaining || 0);
 	if (seasonStarPrice) seasonStarPrice.innerText = `${season.currentStarPrice} coins`;
 	if (seasonCoins) seasonCoins.innerText = `${season.coinsInCirculation} coins`;
-	if (seasonEmission) seasonEmission.innerText = `${(season.coinEmissionPerMinute || 0).toFixed(2)} / min`;
+	if (seasonEmission) seasonEmission.innerText = `${(season.coinEmissionPerMinute || 0).toFixed(2)}`;
 	if (heroSeasonId) heroSeasonId.innerText = "Season 1";
 	if (heroSeasonRemaining) heroSeasonRemaining.innerText = formatRemaining(season.secondsRemaining || 0);
 	if (heroStarPrice) heroStarPrice.innerText = `${season.currentStarPrice} coins`;
@@ -1489,7 +1489,7 @@ function updateSeasonCard(season) {
 	if (remainingEl) remainingEl.innerText = formatRemaining(season.secondsRemaining || 0);
 	if (priceEl) priceEl.innerText = `${season.currentStarPrice} coins`;
 	if (coinsEl) coinsEl.innerText = `${season.coinsInCirculation} coins`;
-	if (emissionEl) emissionEl.innerText = `${(season.coinEmissionPerMinute || 0).toFixed(2)} / min`;
+	if (emissionEl) emissionEl.innerText = `${(season.coinEmissionPerMinute || 0).toFixed(2)}`;
 }
 
 function applyLiveSnapshot(payload) {
@@ -1755,8 +1755,8 @@ async function loadSeasons() {
 					<div class="stat-value" data-season-coins>${season.coinsInCirculation} coins</div>
 				</div>
 				<div class="metric">
-					<div class="label">Emission / min</div>
-					<div class="stat-value" data-season-emission>${(season.coinEmissionPerMinute || 0).toFixed(2)} / min</div>
+					<div class="label">Coins / min</div>
+					<div class="stat-value" data-season-emission>${(season.coinEmissionPerMinute || 0).toFixed(2)}</div>
 				</div>
 			</div>
 			<div class="season-actions">
