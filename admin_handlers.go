@@ -180,8 +180,7 @@ func requireModerator(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Acco
 
 func adminTelemetryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		adminAccount, ok := requireAdmin(db, w, r)
-		if !ok {
+		if _, ok := requireAdmin(db, w, r); !ok {
 			return
 		}
 
@@ -220,8 +219,7 @@ func adminEconomyHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		adminAccount, ok := requireAdmin(db, w, r)
-		if !ok {
+		if _, ok := requireAdmin(db, w, r); !ok {
 			return
 		}
 
@@ -256,8 +254,7 @@ func adminAbuseEventsHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		adminAccount, ok := requireAdmin(db, w, r)
-		if !ok {
+		if _, ok := requireAdmin(db, w, r); !ok {
 			return
 		}
 
@@ -306,8 +303,7 @@ func adminOverviewHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		adminAccount, ok := requireAdmin(db, w, r)
-		if !ok {
+		if _, ok := requireAdmin(db, w, r); !ok {
 			return
 		}
 
@@ -708,7 +704,8 @@ func adminRoleHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 		var req AdminRoleRequest
@@ -934,7 +931,8 @@ func adminNotificationsHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 		var req AdminNotificationCreateRequest
@@ -1417,7 +1415,8 @@ func adminBotCreateHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -1484,7 +1483,8 @@ func adminBotDeleteHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 
