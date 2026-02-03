@@ -124,6 +124,11 @@
 		border-color: rgba(59, 130, 246, 0.5);
 		color: #93c5fd;
 	}
+	.badge.bot {
+		background: rgba(248, 113, 113, 0.15);
+		border-color: rgba(248, 113, 113, 0.5);
+		color: #fecaca;
+	}
 	.card {
 		border: 1px solid var(--border);
 		padding: 1.25rem;
@@ -408,6 +413,7 @@
 				<a href="#/home">Home</a>
 				<a href="#/about">About</a>
 				<a href="#/playtest">Playtest</a>
+				<a href="#/leaderboard">Leaderboard</a>
 				<a id="signup-link" href="#/signup">Sign up</a>
 				<a id="moderator-link" href="#/moderator" style="display:none;">Moderate</a>
 				<a id="admin-link" href="#/admin" style="display:none;">Admin</a>
@@ -633,6 +639,54 @@
 						<div class="label">Suggested cadence</div>
 						<div class="muted" style="margin-top:0.5rem;">Play 10–20 minutes per day and leave feedback in-app.</div>
 					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="view-leaderboard" class="view">
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Leaderboard</div>
+							<h2 style="margin:0.35rem 0 0;">Season rankings with bots labeled.</h2>
+							<div class="muted">Server-authoritative ordering with stable tiebreakers.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/home">Back to home</a>
+						</div>
+					</div>
+				</div>
+
+				<div class="card">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="leaderboard-search" placeholder="Search username or display name" />
+						<select id="leaderboard-sort">
+							<option value="stars_desc">Stars (high → low)</option>
+							<option value="stars_asc">Stars (low → high)</option>
+							<option value="coins_spent_desc">Coins spent (high → low)</option>
+							<option value="coins_spent_asc">Coins spent (low → high)</option>
+							<option value="last_star_time_asc">Last star time (earlier first)</option>
+							<option value="created_at_asc">Created at (oldest first)</option>
+						</select>
+						<select id="leaderboard-page-size">
+							<option value="25">25 / page</option>
+							<option value="50" selected>50 / page</option>
+							<option value="100">100 / page</option>
+						</select>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<label class="label"><input type="checkbox" id="leaderboard-include-bots" checked /> Include bots</label>
+						<label class="label"><input type="checkbox" id="leaderboard-bot-only" /> Bot-only</label>
+						<button id="leaderboard-apply" class="primary">Apply</button>
+					</div>
+				</div>
+
+				<div id="leaderboard-results" class="stack"></div>
+				<div class="row" style="justify-content:space-between; margin-top:0.5rem;">
+					<button id="leaderboard-prev">Previous</button>
+					<span id="leaderboard-page" class="label"></span>
+					<button id="leaderboard-next">Next</button>
 				</div>
 			</div>
 		</section>
@@ -891,6 +945,21 @@
 						<button id="pc-touch" class="primary">Touch active</button>
 						<button id="pc-save" class="primary">Apply</button>
 					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<label class="label"><input type="checkbox" id="pc-is-bot-enabled" /> Set bot status</label>
+						<select id="pc-is-bot" disabled>
+							<option value="">Bot status</option>
+							<option value="true">Bot</option>
+							<option value="false">Human</option>
+						</select>
+						<label class="label"><input type="checkbox" id="pc-bot-profile-enabled" /> Set bot profile</label>
+						<select id="pc-bot-profile" disabled>
+							<option value="">None</option>
+							<option value="threshold_buyer">Threshold buyer</option>
+							<option value="cautious_buyer">Cautious buyer</option>
+							<option value="late_fomo">Late FOMO</option>
+						</select>
+					</div>
 					<div id="pc-status" class="label"></div>
 				</div>
 			</div>
@@ -1089,6 +1158,16 @@
 							<input id="mod-display-name-view" placeholder="Display name" />
 							<button id="mod-save-view" class="primary">Update</button>
 						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<input id="mod-email-view" placeholder="Email" />
+							<input id="mod-pronouns-view" placeholder="Pronouns" />
+							<input id="mod-location-view" placeholder="Location" />
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<input id="mod-website-view" placeholder="Website" />
+							<input id="mod-avatar-view" placeholder="Avatar URL" />
+						</div>
+						<textarea id="mod-bio-view" rows="3" placeholder="Bio"></textarea>
 						<div id="mod-status-view" class="label"></div>
 					</div>
 				</div>
@@ -1146,12 +1225,15 @@ const seasonStatus = document.getElementById("season-status");
 const heroSeasonId = document.getElementById("hero-season-id");
 const heroSeasonRemaining = document.getElementById("hero-season-remaining");
 const heroStarPrice = document.getElementById("hero-star-price");
+const leaderboardResults = document.getElementById("leaderboard-results");
+const leaderboardPageLabel = document.getElementById("leaderboard-page");
 
 const views = Array.from(document.querySelectorAll(".view"));
 const viewMap = {
 	home: "view-home",
 	about: "view-about",
 	playtest: "view-playtest",
+	leaderboard: "view-leaderboard",
 	signup: "view-signup",
 	reset: "view-reset",
 	admin: "view-admin",
@@ -1173,6 +1255,7 @@ let adminStarLogInitialized = false;
 let moderatorInitialized = false;
 let signupInitialized = false;
 let resetInitialized = false;
+let leaderboardInitialized = false;
 let playerRefreshInterval = null;
 let seasonRefreshInterval = null;
 let notificationRefreshInterval = null;
@@ -1181,6 +1264,7 @@ let starLogRefreshInterval = null;
 let liveEventSource = null;
 const ALPHA_SEASON_ID = "season-1";
 let lastStarLogRows = [];
+let leaderboardPage = 1;
 
 if (joinedSeasonId && joinedSeasonId !== ALPHA_SEASON_ID) {
 	localStorage.removeItem("joinedSeasonId");
@@ -1337,6 +1421,17 @@ function setRangeValue(rangeId, value) {
 	if (!input || value === undefined || value === null || Number.isNaN(value)) return;
 	input.value = value;
 	input.dispatchEvent(new Event("input"));
+}
+
+function bindToggleSelect(toggleId, selectId) {
+	const toggle = document.getElementById(toggleId);
+	const select = document.getElementById(selectId);
+	if (!toggle || !select) return;
+	const update = () => {
+		select.disabled = !toggle.checked;
+	};
+	toggle.addEventListener("change", update);
+	update();
 }
 
 async function loadAuth() {
@@ -1572,6 +1667,80 @@ function setToast(message, type) {
 	}, 2500);
 }
 
+function initLeaderboard() {
+	leaderboardInitialized = true;
+	document.getElementById("leaderboard-apply").addEventListener("click", () => {
+		leaderboardPage = 1;
+		loadLeaderboard();
+	});
+	document.getElementById("leaderboard-prev").addEventListener("click", () => {
+		if (leaderboardPage > 1) {
+			leaderboardPage -= 1;
+			loadLeaderboard();
+		}
+	});
+	document.getElementById("leaderboard-next").addEventListener("click", () => {
+		leaderboardPage += 1;
+		loadLeaderboard();
+	});
+	document.getElementById("leaderboard-search").addEventListener("keydown", (event) => {
+		if (event.key === "Enter") {
+			leaderboardPage = 1;
+			loadLeaderboard();
+		}
+	});
+}
+
+async function loadLeaderboard() {
+	if (!leaderboardResults) return;
+	const params = new URLSearchParams();
+	const searchValue = document.getElementById("leaderboard-search").value.trim();
+	const includeBots = document.getElementById("leaderboard-include-bots").checked;
+	const botOnly = document.getElementById("leaderboard-bot-only").checked;
+	const sort = document.getElementById("leaderboard-sort").value;
+	const pageSize = parseInt(document.getElementById("leaderboard-page-size").value, 10) || 50;
+
+	if (searchValue) params.set("q", searchValue);
+	params.set("includeBots", includeBots ? "true" : "false");
+	params.set("botOnly", botOnly ? "true" : "false");
+	params.set("sort", sort);
+	params.set("page", `${leaderboardPage}`);
+	params.set("pageSize", `${pageSize}`);
+
+	const res = await apiFetch(`/leaderboard?${params.toString()}`);
+	const data = await res.json();
+	if (!data.results) {
+		leaderboardResults.innerHTML = "<div class='card'>Unable to load leaderboard.</div>";
+		return;
+	}
+
+	if (data.results.length === 0) {
+		leaderboardResults.innerHTML = "<div class='card'>No results found.</div>";
+		if (leaderboardPageLabel) leaderboardPageLabel.innerText = `Page ${data.page} of 1`;
+		return;
+	}
+
+	const totalPages = Math.max(1, Math.ceil((data.total || 0) / data.pageSize));
+	if (leaderboardPageLabel) leaderboardPageLabel.innerText = `Page ${data.page} of ${totalPages}`;
+
+	leaderboardResults.innerHTML = data.results.map(entry => {
+		const botBadge = entry.isBot ? `<span class="badge bot">BOT</span>` : "";
+		const botProfile = entry.isBot && entry.botProfile ? `<div class="label">${entry.botProfile}</div>` : "";
+		const lastStar = entry.lastStarAcquiredAt ? new Date(entry.lastStarAcquiredAt).toLocaleString() : "-";
+		return `
+			<div class="card">
+				<div class="row" style="justify-content:space-between;">
+					<div><strong>#${entry.rank}</strong> ${entry.displayName}</div>
+					${botBadge}
+				</div>
+				<div class="label">Stars ${entry.stars} · Coins spent ${entry.coinsSpentLifetime}</div>
+				<div class="label">Last star: ${lastStar}</div>
+				${botProfile}
+			</div>
+		`;
+	}).join("");
+}
+
 async function refreshNotifications() {
 	if (!currentUser) {
 		notificationPanel.style.display = "none";
@@ -1742,6 +1911,11 @@ async function route() {
 	if (routeKey === "moderator") {
 		if (!moderatorInitialized) initModerator();
 		await refreshModeratorView();
+		return;
+	}
+	if (routeKey === "leaderboard") {
+		if (!leaderboardInitialized) initLeaderboard();
+		await loadLeaderboard();
 		return;
 	}
 	stopStarLogRefresh();
@@ -1940,6 +2114,8 @@ function initAdmin() {
 	bindRangeToggle("pc-set-stars", "pc-set-stars-value", "pc-set-stars-enabled", value => `${value} stars`);
 	bindRangeToggle("pc-add-stars", "pc-add-stars-value", "pc-add-stars-enabled", value => `+${value} stars`);
 	bindRangeToggle("pc-drip-mult", "pc-drip-mult-value", "pc-drip-mult-enabled", value => `${value.toFixed(1)}x`);
+	bindToggleSelect("pc-is-bot-enabled", "pc-is-bot");
+	bindToggleSelect("pc-bot-profile-enabled", "pc-bot-profile");
 	document.getElementById("refresh").addEventListener("click", () => {
 		loadSummary();
 	});
@@ -2073,6 +2249,8 @@ function initAdmin() {
 		setRangeValue("pc-set-coins", data.coins);
 		setRangeValue("pc-set-stars", data.stars);
 		setRangeValue("pc-drip-mult", data.dripMultiplier);
+		document.getElementById("pc-is-bot").value = data.isBot ? "true" : "false";
+		document.getElementById("pc-bot-profile").value = data.botProfile || "";
 	});
 
 	document.getElementById("pc-save").addEventListener("click", async () => {
@@ -2083,11 +2261,15 @@ function initAdmin() {
 		const setStarsEnabled = document.getElementById("pc-set-stars-enabled").checked;
 		const addStarsEnabled = document.getElementById("pc-add-stars-enabled").checked;
 		const dripMultEnabled = document.getElementById("pc-drip-mult-enabled").checked;
+		const isBotEnabled = document.getElementById("pc-is-bot-enabled").checked;
+		const botProfileEnabled = document.getElementById("pc-bot-profile-enabled").checked;
 		const setCoins = parseInt(document.getElementById("pc-set-coins").value, 10);
 		const addCoins = parseInt(document.getElementById("pc-add-coins").value, 10);
 		const setStars = parseInt(document.getElementById("pc-set-stars").value, 10);
 		const addStars = parseInt(document.getElementById("pc-add-stars").value, 10);
 		const dripMultiplier = parseFloat(document.getElementById("pc-drip-mult").value);
+		const isBotValue = document.getElementById("pc-is-bot").value;
+		const botProfileValue = document.getElementById("pc-bot-profile").value;
 		const dripPausedValue = document.getElementById("pc-drip-paused").value;
 		const payload = { username, playerId };
 		if (setCoinsEnabled && !Number.isNaN(setCoins)) payload.setCoins = setCoins;
@@ -2095,6 +2277,8 @@ function initAdmin() {
 		if (setStarsEnabled && !Number.isNaN(setStars)) payload.setStars = setStars;
 		if (addStarsEnabled && !Number.isNaN(addStars)) payload.addStars = addStars;
 		if (dripMultEnabled && !Number.isNaN(dripMultiplier)) payload.dripMultiplier = dripMultiplier;
+		if (isBotEnabled && (isBotValue === "true" || isBotValue === "false")) payload.isBot = isBotValue === "true";
+		if (botProfileEnabled) payload.botProfile = botProfileValue;
 		if (dripPausedValue === "true") payload.dripPaused = true;
 		if (dripPausedValue === "false") payload.dripPaused = false;
 
@@ -2486,15 +2670,27 @@ function initModerator() {
 			return;
 		}
 		document.getElementById("mod-display-name-view").value = data.displayName || "";
+		document.getElementById("mod-email-view").value = data.email || "";
+		document.getElementById("mod-pronouns-view").value = data.pronouns || "";
+		document.getElementById("mod-location-view").value = data.location || "";
+		document.getElementById("mod-website-view").value = data.website || "";
+		document.getElementById("mod-avatar-view").value = data.avatarUrl || "";
+		document.getElementById("mod-bio-view").value = data.bio || "";
 		document.getElementById("mod-status-view").innerText = "Profile loaded.";
 	});
 
 	document.getElementById("mod-save-view").addEventListener("click", async () => {
 		const username = document.getElementById("mod-username-view").value.trim();
 		const displayName = document.getElementById("mod-display-name-view").value.trim();
+		const email = document.getElementById("mod-email-view").value.trim();
+		const pronouns = document.getElementById("mod-pronouns-view").value.trim();
+		const location = document.getElementById("mod-location-view").value.trim();
+		const website = document.getElementById("mod-website-view").value.trim();
+		const avatarUrl = document.getElementById("mod-avatar-view").value.trim();
+		const bio = document.getElementById("mod-bio-view").value.trim();
 		const res = await apiFetch("/moderator/profile", {
 			method: "POST",
-			body: JSON.stringify({ username, displayName })
+			body: JSON.stringify({ username, displayName, email, pronouns, location, website, avatarUrl, bio })
 		});
 		const data = await res.json();
 		document.getElementById("mod-status-view").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");

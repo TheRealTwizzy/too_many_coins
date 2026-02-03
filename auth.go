@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -9,11 +10,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const sessionTTL = 7 * 24 * time.Hour
+const (
+	sessionTTL      = 7 * 24 * time.Hour
+	accessTokenTTL  = 30 * time.Minute
+	refreshTokenTTL = 60 * 24 * time.Hour
+)
 
 type Account struct {
 	AccountID    string
@@ -173,6 +180,18 @@ func clearSession(db *sql.DB, sessionID string) {
 }
 
 func getSessionAccount(db *sql.DB, r *http.Request) (*Account, string, error) {
+	if auth := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+		token := strings.TrimSpace(auth[len("bearer "):])
+		if token != "" {
+			accountID, err := verifyAccessToken(token)
+			if err != nil {
+				return nil, "", err
+			}
+			account, err := loadAccountByID(db, accountID)
+			return account, "", err
+		}
+	}
+
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		return nil, "", err
@@ -228,6 +247,49 @@ func getSessionAccount(db *sql.DB, r *http.Request) (*Account, string, error) {
 	return &account, cookie.Value, nil
 }
 
+func loadAccountByID(db *sql.DB, accountID string) (*Account, error) {
+	var account Account
+	var adminKey sql.NullString
+	var role string
+	var email sql.NullString
+	var bio sql.NullString
+	var pronouns sql.NullString
+	var location sql.NullString
+	var website sql.NullString
+	var avatarURL sql.NullString
+	if err := db.QueryRow(`
+		SELECT account_id, username, display_name, player_id, admin_key_hash, role, email,
+			bio, pronouns, location, website, avatar_url
+		FROM accounts
+		WHERE account_id = $1
+	`, accountID).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &adminKey, &role, &email, &bio, &pronouns, &location, &website, &avatarURL); err != nil {
+		return nil, err
+	}
+	if email.Valid {
+		account.Email = email.String
+	}
+	if bio.Valid {
+		account.Bio = bio.String
+	}
+	if pronouns.Valid {
+		account.Pronouns = pronouns.String
+	}
+	if location.Valid {
+		account.Location = location.String
+	}
+	if website.Valid {
+		account.Website = website.String
+	}
+	if avatarURL.Valid {
+		account.AvatarURL = avatarURL.String
+	}
+	if adminKey.Valid {
+		account.AdminKeyHash = adminKey.String
+	}
+	account.Role = normalizeRole(role)
+	return &account, nil
+}
+
 func writeSessionCookie(w http.ResponseWriter, sessionID string, expiresAt time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
@@ -249,6 +311,160 @@ func clearSessionCookie(w http.ResponseWriter) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func accessTokenSecret() []byte {
+	secret := strings.TrimSpace(os.Getenv("ACCESS_TOKEN_SECRET"))
+	if secret == "" {
+		secret = "dev-insecure-access-token-secret"
+	}
+	return []byte(secret)
+}
+
+func issueAccessToken(accountID string, ttl time.Duration) (string, time.Time, error) {
+	if ttl <= 0 {
+		ttl = accessTokenTTL
+	}
+	expiresAt := time.Now().UTC().Add(ttl)
+	nonce, err := randomToken(6)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	payload := accountID + "|" + strconv.FormatInt(expiresAt.Unix(), 10) + "|" + nonce
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
+
+	mac := hmac.New(sha256.New, accessTokenSecret())
+	mac.Write([]byte(encoded))
+	sig := hex.EncodeToString(mac.Sum(nil))
+
+	return encoded + "." + sig, expiresAt, nil
+}
+
+func verifyAccessToken(token string) (string, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 {
+		return "", errors.New("INVALID_TOKEN")
+	}
+	encoded := parts[0]
+	sig := parts[1]
+
+	mac := hmac.New(sha256.New, accessTokenSecret())
+	mac.Write([]byte(encoded))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	if subtle.ConstantTimeCompare([]byte(sig), []byte(expected)) != 1 {
+		return "", errors.New("INVALID_TOKEN")
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", errors.New("INVALID_TOKEN")
+	}
+	partsPayload := strings.Split(string(payloadBytes), "|")
+	if len(partsPayload) < 2 {
+		return "", errors.New("INVALID_TOKEN")
+	}
+	accountID := partsPayload[0]
+	exp, err := strconv.ParseInt(partsPayload[1], 10, 64)
+	if err != nil {
+		return "", errors.New("INVALID_TOKEN")
+	}
+	if time.Now().UTC().After(time.Unix(exp, 0)) {
+		return "", errors.New("TOKEN_EXPIRED")
+	}
+	return accountID, nil
+}
+
+type sqlExecer interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
+func createRefreshToken(db sqlExecer, accountID string, purpose string, userAgent string, ip string) (string, time.Time, error) {
+	if purpose == "" {
+		purpose = "auth"
+	}
+	raw, err := randomToken(32)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	hash := hashToken(raw)
+	issuedAt := time.Now().UTC()
+	expiresAt := issuedAt.Add(refreshTokenTTL)
+	_, err = db.Exec(`
+		INSERT INTO refresh_tokens (
+			account_id,
+			token_hash,
+			issued_at,
+			expires_at,
+			user_agent,
+			ip,
+			purpose
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, accountID, hash, issuedAt, expiresAt, userAgent, ip, purpose)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return raw, expiresAt, nil
+}
+
+type refreshTokenRecord struct {
+	AccountID string
+	ExpiresAt time.Time
+	RevokedAt sql.NullTime
+}
+
+func rotateRefreshToken(db *sql.DB, rawToken string, userAgent string, ip string) (string, time.Time, string, time.Time, error) {
+	hash := hashToken(rawToken)
+	var record refreshTokenRecord
+
+	tx, err := db.Begin()
+	if err != nil {
+		return "", time.Time{}, "", time.Time{}, err
+	}
+	defer tx.Rollback()
+
+	if err := tx.QueryRow(`
+		SELECT account_id, expires_at, revoked_at
+		FROM refresh_tokens
+		WHERE token_hash = $1
+		FOR UPDATE
+	`, hash).Scan(&record.AccountID, &record.ExpiresAt, &record.RevokedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, "", time.Time{}, errors.New("INVALID_REFRESH_TOKEN")
+		}
+		return "", time.Time{}, "", time.Time{}, err
+	}
+	if record.RevokedAt.Valid {
+		return "", time.Time{}, "", time.Time{}, errors.New("REFRESH_TOKEN_REVOKED")
+	}
+	if time.Now().UTC().After(record.ExpiresAt) {
+		return "", time.Time{}, "", time.Time{}, errors.New("REFRESH_TOKEN_EXPIRED")
+	}
+
+	_, err = tx.Exec(`
+		UPDATE refresh_tokens
+		SET revoked_at = NOW()
+		WHERE token_hash = $1
+	`, hash)
+	if err != nil {
+		return "", time.Time{}, "", time.Time{}, err
+	}
+
+	newRefresh, newRefreshExpires, err := createRefreshToken(tx, record.AccountID, "auth", userAgent, ip)
+	if err != nil {
+		return "", time.Time{}, "", time.Time{}, err
+	}
+
+	accessToken, accessExpires, err := issueAccessToken(record.AccountID, accessTokenTTL)
+	if err != nil {
+		return "", time.Time{}, "", time.Time{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", time.Time{}, "", time.Time{}, err
+	}
+
+	return accessToken, accessExpires, newRefresh, newRefreshExpires, nil
 }
 
 func randomToken(bytesLen int) (string, error) {

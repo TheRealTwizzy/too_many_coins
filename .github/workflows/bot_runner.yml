@@ -1,0 +1,28 @@
+name: Bot Runner
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+env:
+  API_BASE_URL: ${{ secrets.API_BASE_URL }}
+  BOTS_ENABLED: ${{ secrets.BOTS_ENABLED }}
+  BOT_LIST: ${{ secrets.BOT_LIST }}
+  BOT_RATE_LIMIT_MIN_MS: "3000"
+  BOT_RATE_LIMIT_MAX_MS: "12000"
+  BOT_ACTION_PROBABILITY: "1.0"
+  BOT_MAX_ACTIONS_PER_RUN: "1"
+
+jobs:
+  run-bots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+      - name: Run bot runner
+        run: go run ./cmd/bot-runner

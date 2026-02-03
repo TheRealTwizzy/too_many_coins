@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -192,6 +193,29 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		isBot, _, err := getPlayerBotInfo(db, playerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if isBot && !botsEnabled() {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "BOTS_DISABLED"})
+			return
+		}
+		if isBot {
+			allowed, retryAfter, err := enforceBotStarRateLimit(db, playerID, 90*time.Second)
+			if err != nil {
+				json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if !allowed {
+				w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+				w.WriteHeader(http.StatusTooManyRequests)
+				json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "BOT_RATE_LIMIT"})
+				return
+			}
+		}
+
 		coinsBefore := player.Coins
 		starsBefore := player.Stars
 
@@ -292,6 +316,29 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
+		}
+
+		isBot, _, err := getPlayerBotInfo(db, playerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if isBot && !botsEnabled() {
+			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "BOTS_DISABLED"})
+			return
+		}
+		if isBot {
+			allowed, retryAfter, err := enforceBotStarRateLimit(db, playerID, 90*time.Second)
+			if err != nil {
+				json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if !allowed {
+				w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+				w.WriteHeader(http.StatusTooManyRequests)
+				json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "BOT_RATE_LIMIT"})
+				return
+			}
 		}
 
 		coinsBefore := player.Coins
@@ -746,11 +793,32 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		}
 		sessionID, expiresAt, err := createSession(db, account.AccountID)
 		if err != nil {
-			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
 		writeSessionCookie(w, sessionID, expiresAt)
-		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+
+		accessToken, accessExpires, err := issueAccessToken(account.AccountID, accessTokenTTL)
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		refreshToken, _, err := createRefreshToken(db, account.AccountID, "auth", r.UserAgent(), getClientIP(r))
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(AuthResponse{
+			OK:           true,
+			Username:     account.Username,
+			DisplayName:  account.DisplayName,
+			PlayerID:     account.PlayerID,
+			Role:         account.Role,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			ExpiresIn:    int64(time.Until(accessExpires).Seconds()),
+		})
 	}
 }
 
@@ -785,14 +853,28 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		writeSessionCookie(w, sessionID, expiresAt)
+
+		accessToken, accessExpires, err := issueAccessToken(account.AccountID, accessTokenTTL)
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		refreshToken, _, err := createRefreshToken(db, account.AccountID, "auth", r.UserAgent(), getClientIP(r))
+		if err != nil {
+			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
 		json.NewEncoder(w).Encode(AuthResponse{
-			OK:          true,
-			Username:    account.Username,
-			DisplayName: account.DisplayName,
-			PlayerID:    account.PlayerID,
-			IsAdmin:     account.Role == "admin",
-			IsModerator: account.Role == "moderator",
-			Role:        account.Role,
+			OK:           true,
+			Username:     account.Username,
+			DisplayName:  account.DisplayName,
+			PlayerID:     account.PlayerID,
+			IsAdmin:      account.Role == "admin",
+			IsModerator:  account.Role == "moderator",
+			Role:         account.Role,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			ExpiresIn:    int64(time.Until(accessExpires).Seconds()),
 		})
 	}
 }
@@ -828,6 +910,42 @@ func meHandler(db *sql.DB) http.HandlerFunc {
 			IsAdmin:     account.Role == "admin",
 			IsModerator: account.Role == "moderator",
 			Role:        account.Role,
+		})
+	}
+}
+
+func refreshTokenHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var token string
+		if auth := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+			token = strings.TrimSpace(auth[len("bearer "):])
+		}
+		if token == "" {
+			var req RefreshTokenRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			token = strings.TrimSpace(req.RefreshToken)
+		}
+		if token == "" {
+			json.NewEncoder(w).Encode(RefreshTokenResponse{OK: false, Error: "MISSING_REFRESH_TOKEN"})
+			return
+		}
+
+		accessToken, accessExpires, refreshToken, _, err := rotateRefreshToken(db, token, r.UserAgent(), getClientIP(r))
+		if err != nil {
+			json.NewEncoder(w).Encode(RefreshTokenResponse{OK: false, Error: err.Error()})
+			return
+		}
+
+		json.NewEncoder(w).Encode(RefreshTokenResponse{
+			OK:           true,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			ExpiresIn:    int64(time.Until(accessExpires).Seconds()),
 		})
 	}
 }

@@ -280,6 +280,30 @@ func ensureSchema(db *sql.DB) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		ALTER TABLE players
+		ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE players
+		ADD COLUMN IF NOT EXISTS bot_profile TEXT;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE players
+		ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'human';
+	`)
+	if err != nil {
+		return err
+	}
+
 	// 3️⃣ player_ip_associations table
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS player_ip_associations (
@@ -332,6 +356,31 @@ func ensureSchema(db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			expires_at TIMESTAMPTZ
 		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS refresh_tokens (
+			id BIGSERIAL PRIMARY KEY,
+			account_id TEXT NOT NULL,
+			token_hash TEXT NOT NULL UNIQUE,
+			issued_at TIMESTAMPTZ NOT NULL,
+			expires_at TIMESTAMPTZ NOT NULL,
+			revoked_at TIMESTAMPTZ,
+			user_agent TEXT,
+			ip TEXT,
+			purpose TEXT NOT NULL DEFAULT 'auth'
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_account_id
+		ON refresh_tokens (account_id, revoked_at);
 	`)
 	if err != nil {
 		return err

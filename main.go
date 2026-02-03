@@ -91,14 +91,47 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	OK          bool   `json:"ok"`
-	Error       string `json:"error,omitempty"`
-	Username    string `json:"username,omitempty"`
-	DisplayName string `json:"displayName,omitempty"`
-	PlayerID    string `json:"playerId,omitempty"`
-	IsAdmin     bool   `json:"isAdmin,omitempty"`
-	IsModerator bool   `json:"isModerator,omitempty"`
-	Role        string `json:"role,omitempty"`
+	OK           bool   `json:"ok"`
+	Error        string `json:"error,omitempty"`
+	Username     string `json:"username,omitempty"`
+	DisplayName  string `json:"displayName,omitempty"`
+	PlayerID     string `json:"playerId,omitempty"`
+	IsAdmin      bool   `json:"isAdmin,omitempty"`
+	IsModerator  bool   `json:"isModerator,omitempty"`
+	Role         string `json:"role,omitempty"`
+	AccessToken  string `json:"accessToken,omitempty"`
+	RefreshToken string `json:"refreshToken,omitempty"`
+	ExpiresIn    int64  `json:"expiresIn,omitempty"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+type RefreshTokenResponse struct {
+	OK           bool   `json:"ok"`
+	Error        string `json:"error,omitempty"`
+	AccessToken  string `json:"accessToken,omitempty"`
+	RefreshToken string `json:"refreshToken,omitempty"`
+	ExpiresIn    int64  `json:"expiresIn,omitempty"`
+}
+
+type LeaderboardResponse struct {
+	Page     int                `json:"page"`
+	PageSize int                `json:"pageSize"`
+	Total    int                `json:"total"`
+	Results  []LeaderboardEntry `json:"results"`
+}
+
+type LeaderboardEntry struct {
+	Rank               int    `json:"rank"`
+	PlayerID           string `json:"playerId"`
+	DisplayName        string `json:"displayName"`
+	Stars              int64  `json:"stars"`
+	CoinsSpentLifetime int64  `json:"coinsSpentLifetime"`
+	LastStarAcquiredAt string `json:"lastStarAcquiredAt,omitempty"`
+	IsBot              bool   `json:"isBot"`
+	BotProfile         string `json:"botProfile,omitempty"`
 }
 
 type ProfileUpdateRequest struct {
@@ -200,6 +233,8 @@ type AdminPlayerControlRequest struct {
 	AddStars       *int64   `json:"addStars,omitempty"`
 	DripMultiplier *float64 `json:"dripMultiplier,omitempty"`
 	DripPaused     *bool    `json:"dripPaused,omitempty"`
+	IsBot          *bool    `json:"isBot,omitempty"`
+	BotProfile     *string  `json:"botProfile,omitempty"`
 	TouchActive    bool     `json:"touchActive,omitempty"`
 }
 
@@ -211,6 +246,8 @@ type AdminPlayerControlResponse struct {
 	Stars          int64     `json:"stars,omitempty"`
 	DripMultiplier float64   `json:"dripMultiplier,omitempty"`
 	DripPaused     bool      `json:"dripPaused,omitempty"`
+	IsBot          bool      `json:"isBot,omitempty"`
+	BotProfile     string    `json:"botProfile,omitempty"`
 	LastActiveAt   time.Time `json:"lastActiveAt,omitempty"`
 	LastGrantAt    time.Time `json:"lastGrantAt,omitempty"`
 }
@@ -324,6 +361,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/auth/login", loginHandler(db))
 	mux.HandleFunc("/auth/logout", logoutHandler(db))
 	mux.HandleFunc("/auth/me", meHandler(db))
+	mux.HandleFunc("/auth/refresh", refreshTokenHandler(db))
 	mux.HandleFunc("/auth/request-reset", requestPasswordResetHandler(db))
 	mux.HandleFunc("/auth/reset-password", resetPasswordHandler(db))
 	mux.HandleFunc("/auth/request-whitelist", whitelistRequestHandler(db))
@@ -343,6 +381,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/admin/settings", adminSettingsHandler(db))
 	mux.HandleFunc("/admin/star-purchases", adminStarPurchaseLogHandler(db))
 	mux.HandleFunc("/moderator/profile", moderatorProfileHandler(db))
+	mux.HandleFunc("/leaderboard", leaderboardHandler(db))
 }
 
 /* ======================

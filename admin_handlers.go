@@ -271,7 +271,13 @@ func adminRoleHandler(db *sql.DB) http.HandlerFunc {
 
 type ModeratorProfileRequest struct {
 	Username    string `json:"username"`
-	DisplayName string `json:"displayName"`
+	DisplayName string `json:"displayName,omitempty"`
+	Email       string `json:"email,omitempty"`
+	Bio         string `json:"bio,omitempty"`
+	Pronouns    string `json:"pronouns,omitempty"`
+	Location    string `json:"location,omitempty"`
+	Website     string `json:"website,omitempty"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
 }
 
 type ModeratorProfileResponse struct {
@@ -279,6 +285,12 @@ type ModeratorProfileResponse struct {
 	Error       string `json:"error,omitempty"`
 	Username    string `json:"username,omitempty"`
 	DisplayName string `json:"displayName,omitempty"`
+	Email       string `json:"email,omitempty"`
+	Bio         string `json:"bio,omitempty"`
+	Pronouns    string `json:"pronouns,omitempty"`
+	Location    string `json:"location,omitempty"`
+	Website     string `json:"website,omitempty"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
 }
 
 func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
@@ -294,11 +306,17 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			var displayName string
+			var email sql.NullString
+			var bio sql.NullString
+			var pronouns sql.NullString
+			var location sql.NullString
+			var website sql.NullString
+			var avatarURL sql.NullString
 			err := db.QueryRow(`
-				SELECT display_name
+				SELECT display_name, email, bio, pronouns, location, website, avatar_url
 				FROM accounts
 				WHERE username = $1
-			`, strings.ToLower(username)).Scan(&displayName)
+			`, strings.ToLower(username)).Scan(&displayName, &email, &bio, &pronouns, &location, &website, &avatarURL)
 			if err == sql.ErrNoRows {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "NOT_FOUND"})
 				return
@@ -307,7 +325,30 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
 				return
 			}
-			json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: true, Username: strings.ToLower(username), DisplayName: displayName})
+			resp := ModeratorProfileResponse{
+				OK:          true,
+				Username:    strings.ToLower(username),
+				DisplayName: displayName,
+			}
+			if email.Valid {
+				resp.Email = email.String
+			}
+			if bio.Valid {
+				resp.Bio = bio.String
+			}
+			if pronouns.Valid {
+				resp.Pronouns = pronouns.String
+			}
+			if location.Valid {
+				resp.Location = location.String
+			}
+			if website.Valid {
+				resp.Website = website.String
+			}
+			if avatarURL.Valid {
+				resp.AvatarURL = avatarURL.String
+			}
+			json.NewEncoder(w).Encode(resp)
 			return
 		case http.MethodPost:
 			var req ModeratorProfileRequest
@@ -315,21 +356,64 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_REQUEST"})
 				return
 			}
-			displayName := strings.TrimSpace(req.DisplayName)
-			if displayName == "" || len(displayName) > 32 {
-				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_DISPLAY_NAME"})
+			updates := []string{}
+			args := []interface{}{}
+			argIndex := 1
+			username := strings.ToLower(req.Username)
+
+			if strings.TrimSpace(req.DisplayName) != "" {
+				displayName := strings.TrimSpace(req.DisplayName)
+				if len(displayName) > 32 {
+					json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_DISPLAY_NAME"})
+					return
+				}
+				updates = append(updates, "display_name = $"+strconv.Itoa(argIndex))
+				args = append(args, displayName)
+				argIndex++
+			}
+			if req.Email != "" {
+				updates = append(updates, "email = $"+strconv.Itoa(argIndex))
+				args = append(args, strings.TrimSpace(req.Email))
+				argIndex++
+			}
+			if req.Bio != "" {
+				updates = append(updates, "bio = $"+strconv.Itoa(argIndex))
+				args = append(args, strings.TrimSpace(req.Bio))
+				argIndex++
+			}
+			if req.Pronouns != "" {
+				updates = append(updates, "pronouns = $"+strconv.Itoa(argIndex))
+				args = append(args, strings.TrimSpace(req.Pronouns))
+				argIndex++
+			}
+			if req.Location != "" {
+				updates = append(updates, "location = $"+strconv.Itoa(argIndex))
+				args = append(args, strings.TrimSpace(req.Location))
+				argIndex++
+			}
+			if req.Website != "" {
+				updates = append(updates, "website = $"+strconv.Itoa(argIndex))
+				args = append(args, strings.TrimSpace(req.Website))
+				argIndex++
+			}
+			if req.AvatarURL != "" {
+				updates = append(updates, "avatar_url = $"+strconv.Itoa(argIndex))
+				args = append(args, strings.TrimSpace(req.AvatarURL))
+				argIndex++
+			}
+
+			if len(updates) == 0 {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "NO_UPDATES"})
 				return
 			}
-			_, err := db.Exec(`
-				UPDATE accounts
-				SET display_name = $2
-				WHERE username = $1
-			`, strings.ToLower(req.Username), displayName)
+			args = append(args, username)
+			query := "UPDATE accounts SET " + strings.Join(updates, ", ") + " WHERE username = $" + strconv.Itoa(argIndex)
+			_, err := db.Exec(query, args...)
 			if err != nil {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
 				return
 			}
-			json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: true, Username: strings.ToLower(req.Username), DisplayName: displayName})
+			json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: true, Username: username})
 			return
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -615,6 +699,29 @@ func adminPlayerControlsHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 		}
+		if req.IsBot != nil {
+			_, err := db.Exec(`
+				UPDATE players
+				SET is_bot = $2
+				WHERE player_id = $1
+			`, playerID, *req.IsBot)
+			if err != nil {
+				json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+		}
+		if req.BotProfile != nil {
+			profile := strings.TrimSpace(*req.BotProfile)
+			_, err := db.Exec(`
+				UPDATE players
+				SET bot_profile = NULLIF($2, '')
+				WHERE player_id = $1
+			`, playerID, profile)
+			if err != nil {
+				json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+		}
 		if req.TouchActive {
 			_, err := db.Exec(`
 				UPDATE players
@@ -633,11 +740,13 @@ func adminPlayerControlsHandler(db *sql.DB) http.HandlerFunc {
 		var dripPaused bool
 		var lastActive time.Time
 		var lastGrant time.Time
+		var isBot bool
+		var botProfile sql.NullString
 		if err := db.QueryRow(`
-			SELECT coins, stars, drip_multiplier, drip_paused, last_active_at, last_coin_grant_at
+			SELECT coins, stars, drip_multiplier, drip_paused, last_active_at, last_coin_grant_at, is_bot, bot_profile
 			FROM players
 			WHERE player_id = $1
-		`, playerID).Scan(&coins, &stars, &dripMultiplier, &dripPaused, &lastActive, &lastGrant); err != nil {
+		`, playerID).Scan(&coins, &stars, &dripMultiplier, &dripPaused, &lastActive, &lastGrant, &isBot, &botProfile); err != nil {
 			json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
@@ -649,6 +758,8 @@ func adminPlayerControlsHandler(db *sql.DB) http.HandlerFunc {
 			Stars:          stars,
 			DripMultiplier: dripMultiplier,
 			DripPaused:     dripPaused,
+			IsBot:          isBot,
+			BotProfile:     botProfile.String,
 			LastActiveAt:   lastActive,
 			LastGrantAt:    lastGrant,
 		})
