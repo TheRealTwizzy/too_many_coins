@@ -421,11 +421,14 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-		params := economy.Calibration()
-		activeDripInterval := time.Duration(params.PassiveActiveIntervalSeconds) * time.Second
-		idleDripInterval := time.Duration(params.PassiveIdleIntervalSeconds) * time.Second
-		activeDripAmount := params.PassiveActiveAmount
-		idleDripAmount := params.PassiveIdleAmount
+	}
+
+	addr := ":" + port
+	log.Println("Listening on", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		log.Fatal("server failed:", err)
+	}
+
 }
 
 /* ======================
@@ -485,29 +488,34 @@ func runPassiveDrip(db *sql.DB) {
 	if isSeasonEnded(now) {
 		return
 	}
-			adjusted := int(float64(dripAmount) * dripMultiplier)
-			if adjusted < 1 {
-				adjusted = 1
-			}
-			remainingCap, err := RemainingDailyCap(db, playerID, now)
-			if err != nil {
-				continue
-			}
-			if remainingCap <= 0 {
-				continue
-			}
-			if adjusted > remainingCap {
-				adjusted = remainingCap
-			}
-			if !economy.TryDistributeCoins(adjusted) {
+
+	settings := GetGlobalSettings()
+	if !settings.DripEnabled {
+		return
+	}
+
+	activeDripInterval := time.Duration(settings.ActiveDripIntervalSeconds) * time.Second
 	idleDripInterval := time.Duration(settings.IdleDripIntervalSeconds) * time.Second
 	activeDripAmount := settings.ActiveDripAmount
-			if _, _, err := GrantCoinsWithCap(db, playerID, adjusted, now); err != nil {
-				log.Println("drip update failed:", err)
-				continue
-			}
+	idleDripAmount := settings.IdleDripAmount
+
+	params := economy.Calibration()
+	if activeDripInterval <= 0 {
+		activeDripInterval = time.Duration(params.PassiveActiveIntervalSeconds) * time.Second
+	}
+	if idleDripInterval <= 0 {
+		idleDripInterval = time.Duration(params.PassiveIdleIntervalSeconds) * time.Second
+	}
+	if activeDripAmount <= 0 {
+		activeDripAmount = params.PassiveActiveAmount
+	}
+	if idleDripAmount <= 0 {
+		idleDripAmount = params.PassiveIdleAmount
+	}
+	if idleDripAmount < 1 {
 		idleDripAmount = 1
 	}
+
 	activityWindow := ActiveActivityWindow()
 
 	rows, err := db.Query(`
@@ -559,19 +567,22 @@ func runPassiveDrip(db *sql.DB) {
 		if adjusted < 1 {
 			adjusted = 1
 		}
+		remainingCap, err := RemainingDailyCap(db, playerID, now)
+		if err != nil {
+			continue
+		}
+		if remainingCap <= 0 {
+			continue
+		}
+		if adjusted > remainingCap {
+			adjusted = remainingCap
+		}
 		if !economy.TryDistributeCoins(adjusted) {
 			return
 		}
-
-		_, err = db.Exec(`
-			UPDATE players
-			SET coins = coins + $3,
-			    last_coin_grant_at = $2
-			WHERE player_id = $1
-		`, playerID, now, adjusted)
-
-		if err != nil {
+		if _, _, err := GrantCoinsWithCap(db, playerID, adjusted, now); err != nil {
 			log.Println("drip update failed:", err)
+			continue
 		}
 	}
 }
