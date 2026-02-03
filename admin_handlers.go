@@ -1060,3 +1060,172 @@ func adminBotListHandler(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(AdminBotListResponse{OK: true, Bots: bots})
 	}
 }
+
+func adminBotCreateHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+
+		var req AdminBotCreateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(AdminBotCreateResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		username := strings.TrimSpace(req.Username)
+		if username == "" {
+			json.NewEncoder(w).Encode(AdminBotCreateResponse{OK: false, Error: "INVALID_USERNAME"})
+			return
+		}
+		password := strings.TrimSpace(req.Password)
+		if password == "" {
+			generated, err := randomToken(9)
+			if err != nil {
+				json.NewEncoder(w).Encode(AdminBotCreateResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			password = generated
+		}
+
+		account, err := createAccount(db, username, password, req.DisplayName, "")
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminBotCreateResponse{OK: false, Error: "CREATE_FAILED"})
+			return
+		}
+
+		if _, err := LoadOrCreatePlayer(db, account.PlayerID); err != nil {
+			_, _ = db.Exec(`DELETE FROM accounts WHERE account_id = $1`, account.AccountID)
+			json.NewEncoder(w).Encode(AdminBotCreateResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		if _, err := db.Exec(`
+			UPDATE players
+			SET is_bot = TRUE, bot_profile = $2
+			WHERE player_id = $1
+		`, account.PlayerID, strings.TrimSpace(req.BotProfile)); err != nil {
+			_, _ = db.Exec(`DELETE FROM players WHERE player_id = $1`, account.PlayerID)
+			_, _ = db.Exec(`DELETE FROM accounts WHERE account_id = $1`, account.AccountID)
+			json.NewEncoder(w).Encode(AdminBotCreateResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(AdminBotCreateResponse{
+			OK:          true,
+			PlayerID:    account.PlayerID,
+			Username:    account.Username,
+			DisplayName: account.DisplayName,
+			Password:    password,
+		})
+	}
+}
+
+func adminBotDeleteHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+
+		var req AdminBotDeleteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		playerID := strings.TrimSpace(req.PlayerID)
+		username := strings.TrimSpace(strings.ToLower(req.Username))
+		if playerID == "" && username == "" {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		var accountID sql.NullString
+		var resolvedPlayerID string
+		var isBot bool
+		err := db.QueryRow(`
+			SELECT p.player_id, a.account_id, p.is_bot
+			FROM players p
+			LEFT JOIN accounts a ON a.player_id = p.player_id
+			WHERE p.player_id = $1 OR a.username = $2
+			LIMIT 1
+		`, playerID, username).Scan(&resolvedPlayerID, &accountID, &isBot)
+		if err == sql.ErrNoRows {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "NOT_FOUND"})
+			return
+		}
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !isBot {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "NOT_BOT"})
+			return
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if accountID.Valid {
+			if _, err := tx.Exec(`DELETE FROM refresh_tokens WHERE account_id = $1`, accountID.String); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM sessions WHERE account_id = $1`, accountID.String); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM notification_reads WHERE account_id = $1`, accountID.String); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM accounts WHERE account_id = $1`, accountID.String); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+		}
+		if _, err := tx.Exec(`DELETE FROM player_boosts WHERE player_id = $1`, resolvedPlayerID); err != nil {
+			tx.Rollback()
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM player_star_variants WHERE player_id = $1`, resolvedPlayerID); err != nil {
+			tx.Rollback()
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM player_faucet_claims WHERE player_id = $1`, resolvedPlayerID); err != nil {
+			tx.Rollback()
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM player_ip_associations WHERE player_id = $1`, resolvedPlayerID); err != nil {
+			tx.Rollback()
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM players WHERE player_id = $1`, resolvedPlayerID); err != nil {
+			tx.Rollback()
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: true, PlayerID: resolvedPlayerID})
+	}
+}

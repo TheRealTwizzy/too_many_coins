@@ -263,6 +263,10 @@
 		background: #3b82f6;
 		border-color: #3b82f6;
 	}
+	button.danger {
+		background: var(--danger);
+		border-color: var(--danger);
+	}
 	.row {
 		display: flex;
 		align-items: center;
@@ -1171,6 +1175,30 @@
 					</div>
 				</div>
 
+				<div class="card" data-collapsible="true" id="bots-create" style="display:none;">
+					<div class="card-toggle">
+						<div class="label">Create bot</div>
+						<button class="toggle-btn" type="button">Hide</button>
+					</div>
+					<div class="card-body">
+						<div class="row" style="margin-top:0.5rem;">
+							<input id="bot-create-username" placeholder="Username" />
+							<input id="bot-create-display" placeholder="Display name" />
+							<select id="bot-create-profile">
+								<option value="">Bot profile</option>
+								<option value="threshold_buyer">Threshold buyer</option>
+								<option value="cautious_buyer">Cautious buyer</option>
+								<option value="late_fomo">Late FOMO</option>
+							</select>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<input id="bot-create-password" placeholder="Password (leave empty to auto-generate)" />
+							<button id="bot-create" class="primary">Create bot</button>
+						</div>
+						<div id="bot-create-status" class="label"></div>
+					</div>
+				</div>
+
 				<div class="card" data-collapsible="true" id="bots-individual" style="display:none;">
 					<div class="card-toggle">
 						<div class="label">Individual bot control</div>
@@ -1182,6 +1210,7 @@
 								<option value="">Select bot</option>
 							</select>
 							<button id="bot-load" class="primary">Load</button>
+							<button id="bot-delete" class="danger">Delete bot</button>
 						</div>
 						<div class="row" style="margin-top:0.5rem;">
 							<label class="label"><input type="checkbox" id="bot-is-bot-enabled" /> Set bot status</label>
@@ -2453,6 +2482,44 @@ function initAdminBots() {
 		status.innerText = "Bot settings saved.";
 	});
 
+	document.getElementById("bot-create").addEventListener("click", async () => {
+		const username = document.getElementById("bot-create-username").value.trim();
+		const displayName = document.getElementById("bot-create-display").value.trim();
+		const botProfile = document.getElementById("bot-create-profile").value;
+		const password = document.getElementById("bot-create-password").value.trim();
+		const status = document.getElementById("bot-create-status");
+		if (!username) {
+			status.innerText = "Username is required.";
+			return;
+		}
+		if (!confirm(`Create bot ${username}?`)) {
+			return;
+		}
+		const confirmText = prompt("Type CREATE to confirm bot creation:");
+		if (confirmText !== "CREATE") {
+			status.innerText = "Creation canceled.";
+			return;
+		}
+		const res = await apiFetch("/admin/bots/create", {
+			method: "POST",
+			body: JSON.stringify({ username, displayName, password, botProfile })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			status.innerText = data.error || "Create failed.";
+			return;
+		}
+		status.innerText = `Bot created. Username: ${data.username} · Password: ${data.password}`;
+		document.getElementById("bot-create-username").value = "";
+		document.getElementById("bot-create-display").value = "";
+		document.getElementById("bot-create-password").value = "";
+		document.getElementById("bot-create-profile").value = "";
+		await loadBotList();
+		if (data.playerId) {
+			document.getElementById("bot-select").value = data.playerId;
+		}
+	});
+
 	document.getElementById("bot-load").addEventListener("click", async () => {
 		const playerId = document.getElementById("bot-select").value;
 		if (!playerId) {
@@ -2535,6 +2602,35 @@ function initAdminBots() {
 		const status = document.getElementById("bot-status");
 		status.innerText = data.ok ? `Updated ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}` : (data.error || "Update failed.");
 	});
+
+	document.getElementById("bot-delete").addEventListener("click", async () => {
+		const playerId = document.getElementById("bot-select").value;
+		const status = document.getElementById("bot-status");
+		if (!playerId) {
+			status.innerText = "Select a bot.";
+			return;
+		}
+		if (!confirm("Delete this bot and its account?")) {
+			return;
+		}
+		const confirmText = prompt("Type DELETE to confirm bot deletion:");
+		if (confirmText !== "DELETE") {
+			status.innerText = "Deletion canceled.";
+			return;
+		}
+		const res = await apiFetch("/admin/bots/delete", {
+			method: "POST",
+			body: JSON.stringify({ playerId })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			status.innerText = data.error || "Delete failed.";
+			return;
+		}
+		status.innerText = `Deleted bot ${data.playerId}`;
+		document.getElementById("bot-select").value = "";
+		await loadBotList();
+	});
 }
 
 async function refreshAdminBotsView() {
@@ -2543,11 +2639,13 @@ async function refreshAdminBotsView() {
 	if (!data.ok || !data.isAdmin) {
 		document.getElementById("bots-no-access").style.display = "block";
 		document.getElementById("bots-global").style.display = "none";
+		document.getElementById("bots-create").style.display = "none";
 		document.getElementById("bots-individual").style.display = "none";
 		return false;
 	}
 	document.getElementById("bots-no-access").style.display = "none";
 	document.getElementById("bots-global").style.display = "block";
+	document.getElementById("bots-create").style.display = "block";
 	document.getElementById("bots-individual").style.display = "block";
 	await loadBotSettings();
 	await loadBotList();

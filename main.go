@@ -283,6 +283,33 @@ type AdminBotListResponse struct {
 	Bots  []AdminBotListItem `json:"bots,omitempty"`
 }
 
+type AdminBotCreateRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName,omitempty"`
+	Password    string `json:"password,omitempty"`
+	BotProfile  string `json:"botProfile,omitempty"`
+}
+
+type AdminBotCreateResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	PlayerID    string `json:"playerId,omitempty"`
+	Username    string `json:"username,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Password    string `json:"password,omitempty"`
+}
+
+type AdminBotDeleteRequest struct {
+	PlayerID string `json:"playerId,omitempty"`
+	Username string `json:"username,omitempty"`
+}
+
+type AdminBotDeleteResponse struct {
+	OK       bool   `json:"ok"`
+	Error    string `json:"error,omitempty"`
+	PlayerID string `json:"playerId,omitempty"`
+}
+
 /* ======================
    main()
    ====================== */
@@ -397,6 +424,8 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/admin/settings", adminSettingsHandler(db))
 	mux.HandleFunc("/admin/star-purchases", adminStarPurchaseLogHandler(db))
 	mux.HandleFunc("/admin/bots", adminBotListHandler(db))
+	mux.HandleFunc("/admin/bots/create", adminBotCreateHandler(db))
+	mux.HandleFunc("/admin/bots/delete", adminBotDeleteHandler(db))
 	mux.HandleFunc("/moderator/profile", moderatorProfileHandler(db))
 	mux.HandleFunc("/leaderboard", leaderboardHandler(db))
 }
