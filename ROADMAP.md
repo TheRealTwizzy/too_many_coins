@@ -108,6 +108,7 @@ The project follows a principle of **server authority first**, with the frontend
 ## 🧱 STEP 10 — Star Purchases (END-TO-END)
 
 - [x] `/buy-star` endpoint
+- [x] Bulk star purchase support (quantity + penalties)
 - [x] Require valid `playerId`
 - [x] Reject insufficient funds
 - [x] Deduct coins atomically
@@ -258,9 +259,9 @@ The project follows a principle of **server authority first**, with the frontend
 - [ ] Rate-limit pressure changes per tick
 - [ ] Apply market pressure multiplicatively to star prices
 - [ ] Implement late-season spike in final week
-- [ ] Implement non-linear bulk purchase scaling
-- [ ] Re-check price & balance at confirmation time
-- [ ] Append-only purchase log for every buy
+- [x] Implement non-linear bulk purchase scaling
+- [x] Re-check price & balance at confirmation time
+- [x] Append-only purchase log for every buy
 
 ---
 
@@ -291,25 +292,25 @@ The project follows a principle of **server authority first**, with the frontend
 
 ## 🧱 STEP 22 — Real-Time Updates
 
-- [ ] Server-sent events or WebSockets for season state
-- [ ] Broadcast star price updates
-- [ ] Broadcast season time remaining
+- [x] Server-sent events or WebSockets for season state
+- [x] Broadcast star price updates
+- [x] Broadcast season time remaining
 - [ ] Broadcast economy pressure changes
 
 ---
 
 ## 🧱 STEP 23 — Frontend MVP Pages
 
-- [ ] Landing page
-- [ ] Auth/signup/login
+- [x] Landing page
+- [x] Auth/signup/login
 - [ ] Season lobby
-- [ ] Main season dashboard
-- [ ] Bulk purchase UI with cost breakdown + warnings
-- [ ] Leaderboard page
+- [x] Main season dashboard
+- [x] Bulk purchase UI with cost breakdown + warnings
+- [x] Leaderboard page
 - [ ] Player profile + collection page
 - [ ] Settings + accessibility
-- [ ] Whitelist request page
-- [ ] Admin console entry point
+- [x] Whitelist request page
+- [x] Admin console entry point
 
 ---
 
@@ -335,10 +336,10 @@ The project follows a principle of **server authority first**, with the frontend
 
 ## 🧱 STEP 26 — Admin Tools & Moderation
 
-- [ ] Whitelist review dashboard
+- [x] Whitelist review dashboard
 - [ ] Abuse event review and resolution
-- [ ] Economy monitoring (emission, pressure, purchases)
-- [ ] Manual throttles and flags
+- [x] Economy monitoring (emission, pressure, purchases)
+- [x] Manual throttles and flags
 
 ---
 
