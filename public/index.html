@@ -1624,9 +1624,14 @@ function disconnectLiveStream() {
 }
 
 async function loadAuth() {
-	const res = await apiFetch("/auth/me");
-	const data = await res.json();
-	if (!data.ok) {
+	let data = null;
+	try {
+		const res = await apiFetch("/auth/me");
+		data = await res.json();
+	} catch (e) {
+		data = { ok: false };
+	}
+	if (!data || !data.ok) {
 		currentUser = null;
 		authStatus.innerText = "Log in to save your profile.";
 		authForms.style.display = "block";
@@ -1783,11 +1788,18 @@ async function loadProfile() {
 }
 
 async function loadSeasons() {
-	const res = await fetch("/seasons");
-	const data = await res.json();
 	const container = document.getElementById("seasons");
+	if (!container) return;
+	let data = null;
+	try {
+		const res = await fetch("/seasons");
+		data = await res.json();
+	} catch (e) {
+		container.innerHTML = "<div class='card'>Unable to load seasons.</div>";
+		return;
+	}
 	container.innerHTML = "";
-	const alphaSeason = data.seasons.find(season => season.seasonId === ALPHA_SEASON_ID);
+	const alphaSeason = (data.seasons || []).find(season => season.seasonId === ALPHA_SEASON_ID);
 	if (!alphaSeason) {
 		container.innerHTML = "<div class='card'>Season unavailable.</div>";
 		return;
