@@ -161,8 +161,8 @@ type WhitelistRequestPayload struct {
 }
 
 type AdminWhitelistRequestListResponse struct {
-	OK       bool                `json:"ok"`
-	Error    string              `json:"error,omitempty"`
+	OK       bool                   `json:"ok"`
+	Error    string                 `json:"error,omitempty"`
 	Requests []WhitelistRequestView `json:"requests,omitempty"`
 }
 
@@ -175,16 +175,16 @@ type WhitelistRequestView struct {
 }
 
 type AdminWhitelistResolveRequest struct {
-	RequestID  string `json:"requestId"`
-	Decision   string `json:"decision"`
-	MaxAccounts int   `json:"maxAccounts,omitempty"`
+	RequestID   string `json:"requestId"`
+	Decision    string `json:"decision"`
+	MaxAccounts int    `json:"maxAccounts,omitempty"`
 }
 
 type NotificationItem struct {
-	ID        int64     `json:"id"`
-	Message   string    `json:"message"`
-	Level     string    `json:"level"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        int64      `json:"id"`
+	Message   string     `json:"message"`
+	Level     string     `json:"level"`
+	CreatedAt time.Time  `json:"createdAt"`
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 }
 
@@ -304,6 +304,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/auth/request-whitelist", whitelistRequestHandler(db))
 	mux.HandleFunc("/notifications", notificationsHandler(db))
 	mux.HandleFunc("/notifications/ack", notificationsAckHandler(db))
+	mux.HandleFunc("/activity", activityHandler(db))
 	mux.HandleFunc("/profile", profileHandler(db))
 	mux.HandleFunc("/telemetry", telemetryHandler(db))
 	mux.HandleFunc("/feedback", feedbackHandler(db))
@@ -327,9 +328,13 @@ func runPassiveDrip(db *sql.DB) {
 	if isSeasonEnded(now) {
 		return
 	}
+	const activeDripInterval = time.Minute
+	const idleDripInterval = 4 * time.Minute
+	const activeDripAmount = 2
+	const idleDripAmount = 1
 
 	rows, err := db.Query(`
-		SELECT player_id, last_active_at
+		SELECT player_id, last_active_at, last_coin_grant_at
 		FROM players
 	`)
 	if err != nil {
@@ -340,13 +345,22 @@ func runPassiveDrip(db *sql.DB) {
 
 	for rows.Next() {
 		var playerID string
-		var last time.Time
+		var lastActive time.Time
+		var lastGrant time.Time
 
-		if err := rows.Scan(&playerID, &last); err != nil {
+		if err := rows.Scan(&playerID, &lastActive, &lastGrant); err != nil {
 			continue
 		}
 
-		if !CanDrip(last, now) {
+		inactiveFor := now.Sub(lastActive)
+		dripInterval := idleDripInterval
+		dripAmount := idleDripAmount
+		if inactiveFor <= activeActivityWindow {
+			dripInterval = activeDripInterval
+			dripAmount = activeDripAmount
+		}
+
+		if now.Sub(lastGrant) < dripInterval {
 			continue
 		}
 
@@ -359,16 +373,16 @@ func runPassiveDrip(db *sql.DB) {
 			continue
 		}
 
-		if !economy.TryDistributeCoins(1) {
+		if !economy.TryDistributeCoins(dripAmount) {
 			return
 		}
 
 		_, err = db.Exec(`
 			UPDATE players
-			SET coins = coins + 1,
-			    last_active_at = $2
+			SET coins = coins + $3,
+			    last_coin_grant_at = $2
 			WHERE player_id = $1
-		`, playerID, now)
+		`, playerID, now, dripAmount)
 
 		if err != nil {
 			log.Println("drip update failed:", err)

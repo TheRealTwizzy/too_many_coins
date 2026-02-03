@@ -527,6 +527,10 @@ let adminTelemetryInitialized = false;
 let moderatorInitialized = false;
 let signupInitialized = false;
 let resetInitialized = false;
+let playerRefreshInterval = null;
+let seasonRefreshInterval = null;
+let notificationRefreshInterval = null;
+let activityPingInterval = null;
 const ALPHA_SEASON_ID = "season-1";
 
 if (joinedSeasonId && joinedSeasonId !== ALPHA_SEASON_ID) {
@@ -599,6 +603,56 @@ async function loadAuth() {
 	adminLink.style.display = data.isAdmin ? "inline" : "none";
 	document.getElementById("seasons").style.display = "grid";
 	document.getElementById("locked-message").innerText = "";
+}
+
+async function pingActivity() {
+	if (!currentUser) return;
+	try {
+		await apiFetch("/activity", { method: "POST", body: JSON.stringify({}) });
+	} catch (e) {}
+}
+
+function startActiveLoops() {
+	if (playerRefreshInterval || seasonRefreshInterval || notificationRefreshInterval || activityPingInterval) {
+		return;
+	}
+	refreshPlayer();
+	loadSeasons();
+	refreshNotifications();
+	pingActivity();
+	playerRefreshInterval = setInterval(() => {
+		if (currentUser) refreshPlayer();
+	}, 10000);
+	seasonRefreshInterval = setInterval(() => {
+		if (currentUser) loadSeasons();
+	}, 15000);
+	notificationRefreshInterval = setInterval(() => {
+		if (currentUser) refreshNotifications();
+	}, 15000);
+	activityPingInterval = setInterval(() => {
+		if (currentUser) pingActivity();
+	}, 20000);
+}
+
+function stopActiveLoops() {
+	if (playerRefreshInterval) clearInterval(playerRefreshInterval);
+	if (seasonRefreshInterval) clearInterval(seasonRefreshInterval);
+	if (notificationRefreshInterval) clearInterval(notificationRefreshInterval);
+	if (activityPingInterval) clearInterval(activityPingInterval);
+	playerRefreshInterval = null;
+	seasonRefreshInterval = null;
+	notificationRefreshInterval = null;
+	activityPingInterval = null;
+}
+
+function handleVisibility() {
+	if (document.hidden) {
+		stopActiveLoops();
+		return;
+	}
+	if (currentUser) {
+		startActiveLoops();
+	}
 }
 
 async function refreshPlayer() {
@@ -777,8 +831,8 @@ async function route() {
 	if (routeKey === "home") {
 		if (!homeInitialized) initHome();
 		await refreshPlayer();
-		if (currentUser) {
-			await loadSeasons();
+		if (currentUser && !document.hidden) {
+			startActiveLoops();
 		}
 		return;
 	}
@@ -850,6 +904,9 @@ function initHome() {
 			await refreshPlayer();
 			await loadSeasons();
 			setToast("Logged in.", "success");
+			if (!document.hidden) {
+				startActiveLoops();
+			}
 			track("login", {});
 		} catch (e) {
 			setToast("Login failed (network error)", "error");
@@ -859,6 +916,7 @@ function initHome() {
 	logoutBtn.addEventListener("click", async () => {
 		await apiFetch("/auth/logout", { method: "POST" });
 		currentUser = null;
+		stopActiveLoops();
 		await loadAuth();
 	});
 
@@ -952,15 +1010,8 @@ function initHome() {
 		onboarding.style.display = "block";
 	}
 
-	setInterval(() => {
-		if (currentUser) refreshPlayer();
-	}, 10000);
-	setInterval(() => {
-		if (currentUser) loadSeasons();
-	}, 15000);
-	setInterval(() => {
-		if (currentUser) refreshNotifications();
-	}, 15000);
+	document.addEventListener("visibilitychange", handleVisibility);
+	handleVisibility();
 }
 
 function initSignup() {

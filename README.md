@@ -113,7 +113,9 @@ If multiple accounts originate from the same IP:
 They are blocked from joining a season unless whitelisted  
 
 A whitelist request system must exist for households, schools, and shared networks.  
-Whitelist approvals must occur in periodic waves, not instantly.
+Whitelist approvals must be reviewed and approved manually by admins.
+
+Players earn Coins faster while actively using the site. If the browser/tab is hidden or inactive, passive coin drip slows but does not stop.
 
 Additional protections:
 Rate-limited account creation  

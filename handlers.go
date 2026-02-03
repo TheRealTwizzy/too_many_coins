@@ -799,6 +799,29 @@ func notificationsAckHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func activityHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+		_, err := db.Exec(`
+			UPDATE players
+			SET last_active_at = NOW()
+			WHERE player_id = $1
+		`, account.PlayerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+	}
+}
+
 func loginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

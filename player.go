@@ -10,12 +10,14 @@ type Player struct {
 	Coins           int64
 	Stars           int64
 	LastCoinGrantAt time.Time
+	LastActiveAt    time.Time
 }
 
 const (
 	maxPlayersPerIP            = 2
 	ipDampeningPriceMultiplier = 1.5
 	ipDampeningDelay           = 10 * time.Minute
+	activeActivityWindow       = 2 * time.Minute
 )
 
 func LoadOrCreatePlayer(
@@ -26,63 +28,16 @@ func LoadOrCreatePlayer(
 	var p Player
 
 	err := db.QueryRow(`
-		SELECT player_id, coins, stars, last_coin_grant_at
+		SELECT player_id, coins, stars, last_coin_grant_at, last_active_at
 		FROM players
 		WHERE player_id = $1
-	`, playerID).Scan(&p.PlayerID, &p.Coins, &p.Stars, &p.LastCoinGrantAt)
+	`, playerID).Scan(&p.PlayerID, &p.Coins, &p.Stars, &p.LastCoinGrantAt, &p.LastActiveAt)
 
 	if err == nil {
 		now := time.Now().UTC()
 		if isSeasonEnded(now) {
-			_, _ = db.Exec(`
-				UPDATE players
-				SET last_active_at = NOW()
-				WHERE player_id = $1
-			`, playerID)
 			return &p, nil
 		}
-
-		elapsed := now.Sub(p.LastCoinGrantAt)
-		minutes := int64(elapsed / time.Minute)
-
-		if minutes > 0 {
-			available := economy.AvailableCoins()
-			grant := int64(minutes)
-
-			if int(grant) > available {
-				grant = int64(available)
-			}
-
-			if grant > 0 {
-				p.Coins += grant
-				economy.mu.Lock()
-				economy.coinsDistributed += int(grant)
-				economy.mu.Unlock()
-				p.LastCoinGrantAt = now
-			}
-
-			p.LastCoinGrantAt = now
-
-			_, err = db.Exec(`
-			UPDATE players
-			SET coins = $2,
-				last_coin_grant_at = $3,
-				last_active_at = NOW()
-			WHERE player_id = $1
-		`, p.PlayerID, p.Coins, p.LastCoinGrantAt)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Update last_active_at
-		_, _ = db.Exec(`
-			UPDATE players
-			SET last_active_at = NOW()
-			WHERE player_id = $1
-		`, playerID)
-
 		return &p, nil
 	}
 
