@@ -713,7 +713,6 @@
 			<div class="row">
 				<span class="badge">ALPHA 1</span>
 				<span id="stat-pill" class="badge accent" style="display:none;"></span>
-				<span id="js-status" class="badge">JS not running</span>
 				<span id="live-status" class="live-status">Live updates</span>
 			</div>
 			<nav class="nav-links">
@@ -1135,6 +1134,10 @@
 										<div id="admin-overview-flags" class="stat-value">--</div>
 									</div>
 								</div>
+								<div class="row" style="margin-top:0.85rem;">
+									<label class="label"><input id="admin-debug-toggle" type="checkbox" /> Show debug banner</label>
+									<span class="muted">Local only. For diagnostics.</span>
+								</div>
 								<div class="muted" style="margin-top:0.75rem;">Live indicators are sourced from server streams. No client-side authority.</div>
 							</div>
 						</section>
@@ -1362,10 +1365,6 @@
 	</main>
 
 	<div class="footer">Made by AI</div>
-	<script>
-		const jsStatus = document.getElementById("js-status");
-		if (jsStatus) jsStatus.innerText = "JS booted";
-	</script>
 	<div id="debug-status" class="toast" style="display:none; position:fixed; left:1rem; bottom:1rem; z-index:40; max-width:420px;"></div>
 
 	<script>
@@ -1433,7 +1432,7 @@ const adminSeasonEmpty = document.getElementById("admin-season-empty");
 const adminSeasonDetail = document.getElementById("admin-season-detail");
 const adminSeasonMetrics = document.getElementById("admin-season-metrics");
 const debugStatus = document.getElementById("debug-status");
-const jsStatus = document.getElementById("js-status");
+const adminDebugToggle = document.getElementById("admin-debug-toggle");
 const adminToggleIP = document.getElementById("admin-toggle-ip");
 const adminToggleCluster = document.getElementById("admin-toggle-cluster");
 const adminToggleThrottle = document.getElementById("admin-toggle-throttle");
@@ -1504,7 +1503,15 @@ function apiFetch(url, options = {}) {
 
 function isDebugEnabled() {
 	const query = location.search || "";
-	return Boolean(window.__DEV_MODE__) || query.includes("debug=1") || location.hash.includes("debug=1");
+	if (query.includes("debug=1") || location.hash.includes("debug=1")) {
+		return true;
+	}
+	return localStorage.getItem("tmc_debug_banner") === "true";
+}
+
+function updateDebugVisibility() {
+	if (!debugStatus) return;
+	debugStatus.style.display = isDebugEnabled() ? "block" : "none";
 }
 
 function setDebugStatus(message) {
@@ -1512,10 +1519,6 @@ function setDebugStatus(message) {
 	debugStatus.style.display = "block";
 	debugStatus.className = "toast";
 	debugStatus.innerText = message;
-}
-
-if (jsStatus) {
-	jsStatus.innerText = "JS running";
 }
 
 async function apiFetchJson(url, options = {}, timeoutMs = 3000) {
@@ -2432,6 +2435,14 @@ function initAdmin() {
 			}
 		});
 	}
+	if (adminDebugToggle) {
+		adminDebugToggle.checked = isDebugEnabled();
+		adminDebugToggle.addEventListener("change", () => {
+			localStorage.setItem("tmc_debug_banner", adminDebugToggle.checked ? "true" : "false");
+			updateDebugVisibility();
+		});
+	}
+	updateDebugVisibility();
 }
 
 function refreshAdminView() {
@@ -3222,6 +3233,7 @@ window.addEventListener("hashchange", () => {
 route().catch((err) => {
 	const message = err && err.message ? err.message : "route failed";
 	setToast(`Error: ${message}`, "error");
+	updateDebugVisibility();
 });
 	</script>
 </body>
