@@ -123,12 +123,17 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 		coins := economy.CoinsInCirculation()
 		emission := economy.EffectiveEmissionPerMinute(remaining, coins)
 
+		currentPrice := ComputeStarPrice(coins, remaining)
+		if account, _, err := getSessionAccount(db, r); err == nil && account != nil {
+			currentPrice = computePlayerStarPrice(db, account.PlayerID, coins, remaining)
+		}
+
 		response := []SeasonView{{
 			SeasonID:              currentSeasonID(),
 			SecondsRemaining:      remaining,
 			CoinsInCirculation:    coins,
 			CoinEmissionPerMinute: emission,
-			CurrentStarPrice:      ComputeStarPrice(coins, remaining),
+			CurrentStarPrice:      currentPrice,
 		}}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -136,6 +141,16 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 			"seasons":             response,
 		})
 	}
+}
+
+func computePlayerStarPrice(db *sql.DB, playerID string, coinsInCirculation int64, secondsRemaining int64) int {
+	basePrice := ComputeStarPrice(coinsInCirculation, secondsRemaining)
+	dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePrice)
+	if err != nil {
+		return basePrice
+	}
+	enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
+	return int(float64(dampenedPrice)*enforcement.PriceMultiplier + 0.9999)
 }
 
 func buyStarHandler(db *sql.DB) http.HandlerFunc {

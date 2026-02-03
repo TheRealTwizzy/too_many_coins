@@ -45,6 +45,7 @@ func buildLiveSnapshot(db *sql.DB, r *http.Request) liveSnapshot {
 
 	if account, _, err := getSessionAccount(db, r); err == nil && account != nil {
 		snapshot.Authenticated = true
+		snapshot.Season.CurrentStarPrice = computePlayerStarPrice(db, account.PlayerID, coins, remaining)
 		if player, err := LoadPlayer(db, account.PlayerID); err == nil && player != nil {
 			snapshot.PlayerCoins = player.Coins
 			snapshot.PlayerStars = player.Stars
