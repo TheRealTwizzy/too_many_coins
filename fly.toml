@@ -1,4 +1,4 @@
-app = "too-many-coins"
+app = "too-many-coins-2e--pw"
 
 [build]
   dockerfile = "Dockerfile"
