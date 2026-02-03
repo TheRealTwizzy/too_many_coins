@@ -34,9 +34,22 @@ func nextEmissionSeconds(now time.Time) int64 {
 	return int64(remaining.Seconds())
 }
 
+func refreshCoinsInWallets(db *sql.DB) {
+	var total int64
+	if err := db.QueryRow(`
+		SELECT COALESCE(SUM(coins), 0)
+		FROM players
+	`).Scan(&total); err != nil {
+		log.Println("coins-in-wallets query failed:", err)
+		return
+	}
+	economy.SetCoinsInWallets(total)
+}
+
 func startTickLoop(db *sql.DB) {
 	ticker := time.NewTicker(emissionTickInterval)
 	setNextEmissionTick(time.Now().UTC().Add(emissionTickInterval))
+	refreshCoinsInWallets(db)
 
 	go func() {
 		tickCount := 0
@@ -54,6 +67,8 @@ func startTickLoop(db *sql.DB) {
 				}
 				continue
 			}
+
+			refreshCoinsInWallets(db)
 
 			// Emission: release coins evenly over the day using dynamic season pressure
 			coinsInCirculation := economy.CoinsInCirculation()

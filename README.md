@@ -63,6 +63,8 @@ Purchase quantity, with non-linear scaling for bulk purchases
 Market pressure based on recent star-buying activity  
 A late-season spike that sharply increases prices in the final week  
 
+Star prices must remain affordable relative to per-player coin emission. Prices should track average coins per player so most active players can still buy stars throughout the season.
+
 Bulk purchases must scale so aggressively that they become almost infeasible late in the season. Bulk buying should only be viable early for players attempting to gain an early lead.
 
 Market pressure must be smoothed using rolling averages and rate limits so prices cannot spike instantly. Coordinated manipulation on day one must be ineffective.

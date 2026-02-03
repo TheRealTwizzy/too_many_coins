@@ -12,6 +12,7 @@ type EconomyState struct {
 	mu                   sync.Mutex
 	globalCoinPool       int
 	coinsDistributed     int
+	coinsInWallets       int64
 	globalStarsPurchased int
 	dailyEmissionTarget  int
 	emissionRemainder    float64
@@ -107,7 +108,7 @@ func (e *EconomyState) IncrementStars() {
 func (e *EconomyState) Snapshot() (int, int, int) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.coinsDistributed, e.globalStarsPurchased, e.coinsDistributed
+	return int(e.coinsInWallets), e.globalStarsPurchased, e.coinsDistributed
 }
 
 func (e *EconomyState) StarsPurchased() int {
@@ -752,7 +753,19 @@ func ensureSchema(db *sql.DB) error {
 func (e *EconomyState) CoinsInCirculation() int64 {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return int64(e.coinsDistributed)
+	if e.coinsInWallets < 0 {
+		return 0
+	}
+	return e.coinsInWallets
+}
+
+func (e *EconomyState) SetCoinsInWallets(total int64) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if total < 0 {
+		total = 0
+	}
+	e.coinsInWallets = total
 }
 
 func (e *EconomyState) Calibration() CalibrationParams {
@@ -870,7 +883,25 @@ func ComputeStarPriceRaw(
 	}
 
 	scarcityMultiplier := 1 + (float64(starsPurchased) / params.SScale)
-	coinMultiplier := 1 + (float64(coinsInCirculation) / params.GScale)
+
+	capEarly := float64(params.DailyCapEarly)
+	if capEarly <= 0 {
+		capEarly = 1
+	}
+	expectedPlayers := float64(params.CBase) / (capEarly * 0.6)
+	if expectedPlayers < 10 {
+		expectedPlayers = 10
+	}
+	coinsPerPlayer := float64(coinsInCirculation) / expectedPlayers
+	if coinsPerPlayer < 0 {
+		coinsPerPlayer = 0
+	}
+	coinPressure := coinsPerPlayer / capEarly
+	if coinPressure < 0 {
+		coinPressure = 0
+	}
+	coinMultiplier := 1 + 0.55*math.Log1p(coinPressure)
+
 	timeMultiplier := 1 + params.Alpha*math.Pow(progress, 2)
 
 	lateSpike := 1.0
@@ -899,6 +930,14 @@ func ComputeStarPriceRaw(
 			timeMultiplier *
 			lateSpike *
 			marketPressure
+
+	affordabilityCap := coinsPerPlayer * 0.9
+	if affordabilityCap < float64(params.P0) {
+		affordabilityCap = float64(params.P0)
+	}
+	if price > affordabilityCap {
+		price = affordabilityCap
+	}
 
 	return int(price + 0.9999)
 }

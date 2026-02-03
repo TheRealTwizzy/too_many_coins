@@ -16,6 +16,8 @@ Inflation model: server-emitted coin pool, time-sliced, global daily budget decr
 
 Late-season: star prices higher, coin supply lower
 
+Affordability: star prices stay aligned with per-player coin emission so most active players can buy stars throughout the season
+
 Anti-abuse: 1 active account per IP per season by default; whitelist request + wave approvals
 
 Rewards: cosmetics/titles/badges persist between seasons; coins/stars reset per season

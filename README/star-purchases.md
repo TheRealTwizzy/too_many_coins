@@ -15,6 +15,8 @@ A market pressure factor based on recent purchase activity
 
 A late-season spike applied during the final week
 
+An affordability guardrail that keeps prices aligned to average coins per player and emission so stars remain purchasable through the season
+
 Quantity scaling:
 
 The quantity multiplier must grow faster than linear.

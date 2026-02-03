@@ -68,6 +68,7 @@ func RunSeasonSimulation(params CalibrationParams) (SimulationReport, error) {
 
 	globalCoinPool := 0
 	coinsDistributed := 0
+	coinsInWallets := 0
 	starsPurchased := 0
 	coinsBurned := 0
 	totalCoinsSpent := 0
@@ -86,7 +87,7 @@ func RunSeasonSimulation(params CalibrationParams) (SimulationReport, error) {
 
 	for minute := 0; minute < seasonMinutes; minute++ {
 		secondsRemaining := int64((seasonMinutes - minute) * 60)
-		price := ComputeStarPriceRaw(params, starsPurchased, int64(globalCoinPool), secondsRemaining, marketPressure)
+		price := ComputeStarPriceRaw(params, starsPurchased, int64(coinsInWallets), secondsRemaining, marketPressure)
 		if price < simPriceFloor {
 			price = simPriceFloor
 		}
@@ -101,7 +102,7 @@ func RunSeasonSimulation(params CalibrationParams) (SimulationReport, error) {
 			priceCurve = append(priceCurve, PricePoint{Minute: minute, Price: price})
 		}
 
-		dailyTarget := EffectiveDailyEmissionTargetForParams(params, secondsRemaining, int64(globalCoinPool))
+		dailyTarget := EffectiveDailyEmissionTargetForParams(params, secondsRemaining, int64(coinsInWallets))
 		coinsPerMinute := float64(dailyTarget) / (24 * 60)
 		emissionRemainder += coinsPerMinute
 		emitNow := int(emissionRemainder)
@@ -129,6 +130,7 @@ func RunSeasonSimulation(params CalibrationParams) (SimulationReport, error) {
 				grant := minInt(params.DailyLoginReward, dailyCap-p.DailyEarnTotal)
 				if grant > 0 && tryDistribute(&globalCoinPool, &coinsDistributed, grant) {
 					p.Coins += grant
+					coinsInWallets += grant
 					p.DailyEarnTotal += grant
 				}
 				p.NextDailyMinute = minute + params.DailyLoginCooldownHours*60
@@ -140,21 +142,23 @@ func RunSeasonSimulation(params CalibrationParams) (SimulationReport, error) {
 				grant := minInt(params.ActivityReward, dailyCap-p.DailyEarnTotal)
 				if grant > 0 && tryDistribute(&globalCoinPool, &coinsDistributed, grant) {
 					p.Coins += grant
+					coinsInWallets += grant
 					p.DailyEarnTotal += grant
 				}
 				p.NextActivityMinute = minute + maxInt(1, params.ActivityCooldownSeconds/60)
 			}
 
 			if active {
-				price := ComputeStarPriceRaw(params, starsPurchased, int64(globalCoinPool), secondsRemaining, marketPressure)
+				price := ComputeStarPriceRaw(params, starsPurchased, int64(coinsInWallets), secondsRemaining, marketPressure)
 				if price < simPriceFloor {
 					price = simPriceFloor
 				}
 				buyQty := decidePurchaseQty(rng, p, price)
 				if buyQty > 0 {
-					cost := bulkCost(params, starsPurchased, int64(globalCoinPool), secondsRemaining, marketPressure, simPriceFloor, buyQty)
+					cost := bulkCost(params, starsPurchased, int64(coinsInWallets), secondsRemaining, marketPressure, simPriceFloor, buyQty)
 					if cost > 0 && p.Coins >= cost {
 						p.Coins -= cost
+						coinsInWallets -= cost
 						p.Stars += buyQty
 						starsPurchased += buyQty
 						coinsBurned += cost

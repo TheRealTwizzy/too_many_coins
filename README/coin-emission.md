@@ -44,3 +44,5 @@ Coins are never created directly by player actions.
 Coins cannot exceed the remaining global budget for the day.
 
 All coin grants are validated server-side and recorded in an append-only log.
+
+Star pricing is balanced against emission and average per-player coin availability to keep stars purchasable throughout the season.
