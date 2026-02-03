@@ -969,6 +969,37 @@ func ensureSchema(db *sql.DB) error {
 		return err
 	}
 
+	// 1️⃣2️⃣ admin audit log table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS admin_audit_log (
+			id BIGSERIAL PRIMARY KEY,
+			admin_account_id TEXT NOT NULL,
+			action_type TEXT NOT NULL,
+			scope_type TEXT NOT NULL,
+			scope_id TEXT NOT NULL,
+			reason TEXT,
+			details JSONB,
+			created_at TIMESTAMPTZ NOT NULL
+		);
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created_at
+		ON admin_audit_log (created_at DESC);
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_admin_audit_log_action
+		ON admin_audit_log (action_type);
+	`)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

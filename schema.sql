@@ -324,3 +324,20 @@ CREATE INDEX IF NOT EXISTS idx_abuse_events_created_at
 CREATE INDEX IF NOT EXISTS idx_player_abuse_state_score
     ON player_abuse_state (season_id, score);
 
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    admin_account_id TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    scope_type TEXT NOT NULL,
+    scope_id TEXT NOT NULL,
+    reason TEXT,
+    details JSONB,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created_at
+    ON admin_audit_log (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_log_action
+    ON admin_audit_log (action_type);
+

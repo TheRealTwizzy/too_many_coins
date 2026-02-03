@@ -131,6 +131,27 @@ type AdminPlayerSearchResponse struct {
 	Status string                  `json:"trustStatus,omitempty"`
 }
 
+type AdminAuditLogItem struct {
+	ID            int64           `json:"id"`
+	AdminAccount  string          `json:"adminAccount"`
+	AdminUsername string          `json:"adminUsername"`
+	ActionType    string          `json:"actionType"`
+	ScopeType     string          `json:"scopeType"`
+	ScopeID       string          `json:"scopeId"`
+	Reason        string          `json:"reason,omitempty"`
+	Details       json.RawMessage `json:"details,omitempty"`
+	CreatedAt     time.Time       `json:"createdAt"`
+}
+
+type AdminAuditLogResponse struct {
+	OK    bool                `json:"ok"`
+	Error string              `json:"error,omitempty"`
+	Items []AdminAuditLogItem `json:"items,omitempty"`
+	Total int                 `json:"total"`
+	Limit int                 `json:"limit"`
+	Query string              `json:"query,omitempty"`
+}
+
 func requireAdmin(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Account, bool) {
 	account, _, err := getSessionAccount(db, r)
 	if err != nil || account == nil {
@@ -159,7 +180,8 @@ func requireModerator(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Acco
 
 func adminTelemetryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -198,7 +220,8 @@ func adminEconomyHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -233,7 +256,8 @@ func adminAbuseEventsHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -282,7 +306,8 @@ func adminOverviewHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 
@@ -536,6 +561,88 @@ func adminPlayerSearchHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func adminAuditLogHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+
+		query := strings.TrimSpace(r.URL.Query().Get("q"))
+		limit := 50
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+				limit = parsed
+			}
+		}
+		if limit > 200 {
+			limit = 200
+		}
+
+		clauses := []string{}
+		args := []interface{}{}
+		argIndex := 1
+		if query != "" {
+			clauses = append(clauses, "(a.username ILIKE $"+strconv.Itoa(argIndex)+" OR l.action_type ILIKE $"+strconv.Itoa(argIndex)+" OR l.scope_id ILIKE $"+strconv.Itoa(argIndex)+" OR l.reason ILIKE $"+strconv.Itoa(argIndex)+")")
+			args = append(args, "%"+query+"%")
+			argIndex++
+		}
+		where := ""
+		if len(clauses) > 0 {
+			where = "WHERE " + strings.Join(clauses, " AND ")
+		}
+
+		sqlQuery := `
+			SELECT l.id, l.admin_account_id, COALESCE(a.username, ''), l.action_type, l.scope_type, l.scope_id, l.reason, l.details, l.created_at
+			FROM admin_audit_log l
+			LEFT JOIN accounts a ON a.account_id = l.admin_account_id
+			` + where + `
+			ORDER BY l.created_at DESC
+			LIMIT ` + strconv.Itoa(limit)
+
+		rows, err := db.Query(sqlQuery, args...)
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminAuditLogResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer rows.Close()
+
+		items := []AdminAuditLogItem{}
+		for rows.Next() {
+			var item AdminAuditLogItem
+			var details sql.NullString
+			if err := rows.Scan(
+				&item.ID,
+				&item.AdminAccount,
+				&item.AdminUsername,
+				&item.ActionType,
+				&item.ScopeType,
+				&item.ScopeID,
+				&item.Reason,
+				&details,
+				&item.CreatedAt,
+			); err != nil {
+				continue
+			}
+			if details.Valid {
+				item.Details = json.RawMessage(details.String)
+			}
+			items = append(items, item)
+		}
+
+		json.NewEncoder(w).Encode(AdminAuditLogResponse{
+			OK:    true,
+			Items: items,
+			Total: len(items),
+			Limit: limit,
+			Query: query,
+		})
+	}
+}
+
 type AdminKeySetRequest struct {
 }
 
@@ -636,6 +743,9 @@ func adminRoleHandler(db *sql.DB) http.HandlerFunc {
 				"username": strings.ToLower(strings.TrimSpace(req.Username)),
 				"role":     normalizeRole(req.Role),
 			},
+		})
+		_ = logAdminAction(db, adminAccount.AccountID, "role_update", "account", strings.ToLower(strings.TrimSpace(req.Username)), "", map[string]interface{}{
+			"role": normalizeRole(req.Role),
 		})
 		json.NewEncoder(w).Encode(AdminRoleResponse{OK: true})
 	}
@@ -901,6 +1011,14 @@ func adminNotificationsHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 		}
+		_ = logAdminAction(db, adminAccount.AccountID, "notification_create", "notification", role, "", map[string]interface{}{
+			"category":  category,
+			"type":      strings.TrimSpace(req.Type),
+			"priority":  priority,
+			"message":   strings.TrimSpace(req.Message),
+			"seasonId":  strings.TrimSpace(req.SeasonID),
+			"accountId": accountID,
+		})
 		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
 	}
 }
@@ -974,6 +1092,10 @@ func adminPlayerControlsHandler(db *sql.DB) http.HandlerFunc {
 					return
 				}
 				_ = logAdminBotToggle(db, adminAccount.AccountID, playerID, currentIsBot, *req.IsBot, nil)
+				_ = logAdminAction(db, adminAccount.AccountID, "bot_toggle", "player", playerID, "", map[string]interface{}{
+					"wasBot": currentIsBot,
+					"nowBot": *req.IsBot,
+				})
 			}
 		}
 		if req.BotProfile != nil {
@@ -1349,6 +1471,10 @@ func adminBotCreateHandler(db *sql.DB) http.HandlerFunc {
 			DisplayName: account.DisplayName,
 			Password:    password,
 		})
+		_ = logAdminAction(db, adminAccount.AccountID, "bot_create", "player", account.PlayerID, "", map[string]interface{}{
+			"username":    account.Username,
+			"displayName": account.DisplayName,
+		})
 	}
 }
 
@@ -1455,6 +1581,10 @@ func adminBotDeleteHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: true, PlayerID: resolvedPlayerID})
+		_ = logAdminAction(db, adminAccount.AccountID, "bot_delete", "player", resolvedPlayerID, "", map[string]interface{}{
+			"accountId": accountID.String,
+			"username":  username,
+		})
 	}
 }
 
@@ -1520,6 +1650,11 @@ func adminProfileActionHandler(db *sql.DB) http.HandlerFunc {
 					"action":   "freeze",
 				},
 			})
+			_ = logAdminAction(db, adminAccount.AccountID, "profile_freeze", "account", accountID, "", map[string]interface{}{
+				"username":     username,
+				"playerId":     playerID,
+				"previousRole": role,
+			})
 			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: true, Username: username, Role: baseRoleFromRaw(frozenRole), Frozen: true})
 			return
 		case "unfreeze":
@@ -1542,6 +1677,11 @@ func adminProfileActionHandler(db *sql.DB) http.HandlerFunc {
 					"username": username,
 					"action":   "unfreeze",
 				},
+			})
+			_ = logAdminAction(db, adminAccount.AccountID, "profile_unfreeze", "account", accountID, "", map[string]interface{}{
+				"username":     username,
+				"playerId":     playerID,
+				"previousRole": role,
 			})
 			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: true, Username: username, Role: baseRole, Frozen: false})
 			return
@@ -1611,6 +1751,11 @@ func adminProfileActionHandler(db *sql.DB) http.HandlerFunc {
 					"action":   "delete",
 				},
 			})
+			_ = logAdminAction(db, adminAccount.AccountID, "profile_delete", "account", accountID, "", map[string]interface{}{
+				"username":     username,
+				"playerId":     playerID,
+				"previousRole": role,
+			})
 			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: true, Username: username})
 			return
 		}
@@ -1636,6 +1781,25 @@ func isHumanSessionActive(db *sql.DB, accountID string, lastActive time.Time) (b
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func logAdminAction(db *sql.DB, adminAccountID string, actionType string, scopeType string, scopeID string, reason string, details map[string]interface{}) error {
+	if strings.TrimSpace(adminAccountID) == "" || strings.TrimSpace(actionType) == "" || strings.TrimSpace(scopeType) == "" || strings.TrimSpace(scopeID) == "" {
+		return nil
+	}
+	var payload interface{}
+	if details != nil {
+		bytes, err := json.Marshal(details)
+		if err != nil {
+			return err
+		}
+		payload = string(bytes)
+	}
+	_, err := db.Exec(`
+		INSERT INTO admin_audit_log (admin_account_id, action_type, scope_type, scope_id, reason, details, created_at)
+		VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, NOW())
+	`, adminAccountID, actionType, scopeType, scopeID, reason, payload)
+	return err
 }
 
 func logAdminBotToggle(db *sql.DB, adminAccountID string, playerID string, wasBot bool, nowBot bool, botProfile *string) error {

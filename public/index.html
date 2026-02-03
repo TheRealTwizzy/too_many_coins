@@ -2376,6 +2376,19 @@ function initAdmin() {
 	if (trustSelect) {
 		trustSelect.addEventListener("change", () => loadAdminPlayerSearch());
 	}
+	const auditBtn = document.getElementById("admin-audit-run");
+	const auditInput = document.getElementById("admin-audit-search");
+	if (auditBtn) {
+		auditBtn.disabled = false;
+		auditBtn.addEventListener("click", () => loadAdminAuditLog());
+	}
+	if (auditInput) {
+		auditInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				loadAdminAuditLog();
+			}
+		});
+	}
 }
 
 function refreshAdminView() {
@@ -2389,6 +2402,7 @@ function refreshAdminView() {
 	if (adminDenied) adminDenied.style.display = "none";
 	if (adminShell) adminShell.style.display = "grid";
 	loadAdminPlayerSearch();
+	loadAdminAuditLog();
 }
 
 function setIndicator(el, text, level) {
@@ -2511,6 +2525,49 @@ async function loadAdminPlayerSearch() {
 			<div class="label">Flag count ${item.flagCount || 0}</div>
 		</div>
 	`).join("");
+}
+
+async function loadAdminAuditLog() {
+	if (!currentUser || !currentUser.isAdmin) return;
+	const query = document.getElementById("admin-audit-search");
+	const results = document.getElementById("admin-audit-results");
+	const empty = document.getElementById("admin-audit-empty");
+	if (!query || !results || !empty) return;
+	const searchValue = query.value.trim();
+	const params = new URLSearchParams();
+	if (searchValue) params.set("q", searchValue);
+	params.set("limit", "50");
+	const res = await apiFetch(`/admin/audit-log?${params.toString()}`);
+	const data = await res.json();
+	if (!data.ok) {
+		empty.innerText = "Unable to load audit log.";
+		empty.style.display = "block";
+		results.innerHTML = "";
+		return;
+	}
+	const items = data.items || [];
+	if (!items.length) {
+		empty.innerText = "No audit entries yet.";
+		empty.style.display = "block";
+		results.innerHTML = "";
+		return;
+	}
+	empty.style.display = "none";
+	results.innerHTML = items.map((item) => {
+		const actor = item.adminUsername ? `@${escapeHtml(item.adminUsername)}` : escapeHtml(item.adminAccount || "unknown");
+		const reason = item.reason ? `Reason: ${escapeHtml(item.reason)}` : "";
+		const when = item.createdAt ? formatRelativeTime(item.createdAt) : "";
+		return `
+			<div class="card">
+				<div class="row" style="justify-content:space-between;">
+					<div><strong>${escapeHtml(item.actionType || "action")}</strong> · ${escapeHtml(item.scopeType)} ${escapeHtml(item.scopeId)}</div>
+					<span class="badge">${actor}</span>
+				</div>
+				<div class="label">${reason}</div>
+				<div class="label">${when}</div>
+			</div>
+		`;
+	}).join("");
 }
 
 async function loadAdminSeasons() {
