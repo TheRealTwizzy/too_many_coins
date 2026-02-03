@@ -325,7 +325,6 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
-		quantity := req.Quantity
 		for i := 0; i < quantity; i++ {
 			economy.IncrementStars()
 		}
