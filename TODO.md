@@ -70,9 +70,9 @@ Allowed to be rough or missing in Alpha:
   - [ ] [POST-ALPHA] Per‑season tick scheduling
   - [ ] [POST-ALPHA] Up to 4 concurrent seasons, staggered 7 days
   - [ ] [POST-ALPHA] Allow join any active season
-- [ ] [ALPHA REQUIRED] 2.5 Make season selection honest for Alpha (single season)
-  - [ ] [ALPHA REQUIRED] /seasons endpoint must return only the real active season (remove hardcoded fake seasons)
-  - [ ] [ALPHA REQUIRED] Join state must be server-driven or auto‑join (no client‑only join state)
+- [x] [DONE] 2.5 Make season selection honest for Alpha (single season)
+  - [x] [DONE] /seasons endpoint must return only the real active season (remove hardcoded fake seasons)
+  - [x] [DONE] Join state must be server-driven or auto-join (no client-only join state)
 
 ---
 

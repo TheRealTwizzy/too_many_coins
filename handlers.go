@@ -103,48 +103,20 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		now := time.Now().UTC()
+		remaining := seasonSecondsRemaining(now)
+		coins := economy.CoinsInCirculation()
+		emission := economy.EffectiveEmissionPerMinute(remaining, coins)
 
-		seasons := []struct {
-			id        string
-			startTime time.Time
-			coins     int64
-		}{
-			{currentSeasonID(), seasonStart(), economy.CoinsInCirculation()},
-			{"season-2", now.Add(-14 * 24 * time.Hour), 12000},
-			{"season-3", now.Add(-7 * 24 * time.Hour), 6000},
-			{"season-4", now, 1000},
-		}
-
-		const seasonLength = 28 * 24 * time.Hour
-
-		var response []SeasonView
-		var recommended string
-		var maxRemaining int64 = -1
-
-		for _, s := range seasons {
-			remaining := seasonLength - now.Sub(s.startTime)
-			if remaining < 0 {
-				continue
-			}
-
-			seconds := int64(remaining.Seconds())
-			if seconds > maxRemaining {
-				maxRemaining = seconds
-				recommended = s.id
-			}
-
-			emission := economy.EffectiveEmissionPerMinute(seconds, s.coins)
-			response = append(response, SeasonView{
-				SeasonID:              s.id,
-				SecondsRemaining:      seconds,
-				CoinsInCirculation:    s.coins,
-				CoinEmissionPerMinute: emission,
-				CurrentStarPrice:      ComputeStarPrice(s.coins, seconds),
-			})
-		}
+		response := []SeasonView{{
+			SeasonID:              currentSeasonID(),
+			SecondsRemaining:      remaining,
+			CoinsInCirculation:    coins,
+			CoinEmissionPerMinute: emission,
+			CurrentStarPrice:      ComputeStarPrice(coins, remaining),
+		}}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"recommendedSeasonId": recommended,
+			"recommendedSeasonId": currentSeasonID(),
 			"seasons":             response,
 		})
 	}

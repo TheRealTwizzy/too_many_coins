@@ -889,7 +889,6 @@ const viewMap = {
 	moderator: "view-moderator"
 };
 
-let joinedSeasonId = localStorage.getItem("joinedSeasonId");
 let playerCoins = 0;
 let playerStars = 0;
 let currentUser = null;
@@ -906,11 +905,6 @@ let liveEventSource = null;
 const ALPHA_SEASON_ID = "season-1";
 const bulkStarMax = 5;
 let leaderboardPage = 1;
-
-if (joinedSeasonId && joinedSeasonId !== ALPHA_SEASON_ID) {
-	localStorage.removeItem("joinedSeasonId");
-	joinedSeasonId = null;
-}
 
 function apiFetch(url, options = {}) {
 	return fetch(url, {
@@ -1169,16 +1163,13 @@ async function loadSeasons() {
 
 	[alphaSeason].forEach(season => {
 		const div = document.createElement("div");
-		const isJoined = joinedSeasonId !== null;
-		const isThisSeasonJoined = season.seasonId === joinedSeasonId;
+		const isJoined = Boolean(currentUser);
+		const isThisSeasonJoined = isJoined;
 		const starPrice = season.currentStarPrice;
 		updateSeasonSnapshot(season);
 
 		div.className = "card season-card";
 		div.dataset.seasonId = season.seasonId;
-		if (isJoined && !isThisSeasonJoined) {
-			div.style.opacity = "0.5";
-		}
 		if (season.seasonId === data.recommendedSeasonId) {
 			div.classList.add("recommended");
 		}
@@ -1217,9 +1208,7 @@ async function loadSeasons() {
 						<div class="label bulk-warning"></div>
 						<div class="label bulk-breakdown"></div>
 					`
-					: isJoined
-						? "<div class='label'>Locked to another season</div>"
-						: "<button class='join-btn primary'>Join this season</button>"
+					: "<div class='label'>Log in to join the season.</div>"
 				}
 			</div>
 		`;
@@ -1303,15 +1292,6 @@ async function loadSeasons() {
 				setToast(label, "success");
 				track("buy_star", { seasonId: season.seasonId, quantity: data.starsPurchased || 1 });
 				refreshQuote();
-			});
-		}
-
-		const button = div.querySelector(".join-btn");
-		if (button) {
-			button.addEventListener("click", () => {
-				localStorage.setItem("joinedSeasonId", season.seasonId);
-				track("join_season", { seasonId: season.seasonId });
-				location.reload();
 			});
 		}
 
