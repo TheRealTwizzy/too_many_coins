@@ -751,8 +751,6 @@
 				<div class="card-body">
 					<div class="row" style="margin-top:0.5rem;">
 						<input id="ip-whitelist-value" placeholder="IP address" />
-						<input id="ip-whitelist-max" type="range" min="1" max="10" step="1" value="2" />
-						<span id="ip-whitelist-max-value" class="label"></span>
 						<button id="ip-whitelist-save" class="primary">Allow</button>
 						<button id="ip-whitelist-remove">Remove</button>
 					</div>
@@ -1932,7 +1930,6 @@ function initReset() {
 
 function initAdmin() {
 	adminInitialized = true;
-	bindRangeValue("ip-whitelist-max", "ip-whitelist-max-value", value => `${value} max`);
 	bindRangeValue("gs-active-interval", "gs-active-interval-value", value => `${value}s`);
 	bindRangeValue("gs-idle-interval", "gs-idle-interval-value", value => `${value}s`);
 	bindRangeValue("gs-active-amount", "gs-active-amount-value", value => `${value} coins`);
@@ -1978,7 +1975,7 @@ function initAdmin() {
 
 	document.getElementById("ip-whitelist-save").addEventListener("click", async () => {
 		const ip = document.getElementById("ip-whitelist-value").value.trim();
-		const maxAccounts = parseInt(document.getElementById("ip-whitelist-max").value, 10) || 2;
+		const maxAccounts = 2;
 		const res = await apiFetch("/admin/ip-whitelist", {
 			method: "POST",
 			body: JSON.stringify({ ip, maxAccounts, action: "set" })
