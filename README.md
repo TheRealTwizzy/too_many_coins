@@ -273,7 +273,42 @@ Email delivery requires SMTP configuration via environment variables (SMTP_HOST,
 
 ## Roles and Admin Workflow
 
-Admins are created by setting ADMIN_SETUP_KEY and calling POST /admin/set-key with the X-Admin-Setup header while logged in. Admins can then assign roles via POST /admin/role. Moderators have access to the moderator view and limited tooling.
+See the admin governance sections below. Admin creation is not a runtime feature during Alpha.
+
+## Admin Bootstrap (Alpha)
+
+- /admin/set-key is a one-time bootstrap endpoint.
+- It is permanently disabled once any admin exists.
+- Bootstrap cannot be repeated without a database reset.
+- This is intentional and a security invariant.
+
+## Admin Management During Alpha
+
+- Additional admins are assigned via direct database updates only.
+- This is an operational (ops) action, not a gameplay feature.
+- Changes should be deliberate and auditable.
+- No client or API-based admin escalation exists during Alpha.
+
+### Standardized DB Procedures (psql-safe)
+
+Promote an account to admin:
+
+UPDATE accounts
+SET role = 'admin'
+WHERE account_id = 'ACCOUNT_ID_HERE';
+
+Demote an admin:
+
+UPDATE accounts
+SET role = 'player'
+WHERE account_id = 'ACCOUNT_ID_HERE';
+
+Verify current admins:
+
+SELECT account_id, username, role
+FROM accounts
+WHERE role IN ('admin', 'frozen:admin')
+ORDER BY username;
 
 ---
 
@@ -285,7 +320,7 @@ The server auto-creates schema on startup. For Railway:
 - Start: ./app
 - Health check: /health
 
-Set DATABASE_URL and any required secrets (ADMIN_SETUP_KEY, SMTP_* if enabling email). For manual migrations, use schema.sql.
+Set DATABASE_URL and any required secrets (SMTP_* if enabling email). For manual migrations, use schema.sql.
 
 ---
 

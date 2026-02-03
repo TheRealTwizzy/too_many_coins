@@ -664,6 +664,7 @@ func adminKeySetHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		ctx := r.Context()
+		// Bootstrap is intentionally sealed after the first admin; admin creation should not occur again in Alpha.
 		if AdminExists(ctx, db) {
 			w.WriteHeader(http.StatusForbidden)
 			return
