@@ -200,6 +200,26 @@
 		gap: 0.5rem;
 		flex-wrap: wrap;
 	}
+	.section-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.section-nav {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		font-size: 0.85rem;
+	}
+	.section-nav a {
+		color: #c5cae9;
+		text-decoration: none;
+	}
+	.split-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+		gap: 1rem;
+	}
 	.card-toggle {
 		display: flex;
 		align-items: center;
@@ -549,66 +569,148 @@
 		</section>
 
 		<section id="view-about" class="view">
-			<div class="card">
-				<p>Earn coins over time and spend them on stars. Stars are your season score.</p>
-				<p>This alpha focuses on the core loop, auth stability, and pacing.</p>
-				<p><a href="#/home">Back to login</a></p>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">About Too Many Coins</div>
+							<h2 style="margin:0.35rem 0 0;">A server-authoritative economy built on scarcity.</h2>
+							<div class="muted">Coins inflate, stars stay scarce, and every purchase is priced on the server.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/home">Back to home</a>
+							<a href="#/playtest">Playtest notes</a>
+						</div>
+					</div>
+				</div>
+
+				<div class="split-grid">
+					<div class="card">
+						<div class="label">Core loop</div>
+						<ul class="muted" style="margin:0.5rem 0 0; padding-left:1.2rem;">
+							<li>Earn coins through limited faucets.</li>
+							<li>Buy stars as the season score.</li>
+							<li>Prices rise as time passes and demand grows.</li>
+						</ul>
+					</div>
+					<div class="card">
+						<div class="label">Design ideals</div>
+						<ul class="muted" style="margin:0.5rem 0 0; padding-left:1.2rem;">
+							<li>Simple, transparent, and fair.</li>
+							<li>Server authority for all economy logic.</li>
+							<li>Late-season scarcity stays meaningful.</li>
+						</ul>
+					</div>
+				</div>
 			</div>
 		</section>
 
 		<section id="view-playtest" class="view">
-			<div class="card">
-				<p>Please focus on: clarity of the loop, faucet pacing, and star pricing feel.</p>
-				<p>Play 10–20 minutes per day when possible, and leave feedback in the app.</p>
-				<p><a href="#/home">Back to login</a></p>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Playtest focus</div>
+							<h2 style="margin:0.35rem 0 0;">Verify pacing, clarity, and late-season pressure.</h2>
+							<div class="muted">Short sessions are fine—every data point helps tune the economy.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/home">Back to home</a>
+							<a href="#/about">About</a>
+						</div>
+					</div>
+				</div>
+				<div class="split-grid">
+					<div class="card">
+						<div class="label">What to test</div>
+						<ul class="muted" style="margin:0.5rem 0 0; padding-left:1.2rem;">
+							<li>Clarity of the core loop.</li>
+							<li>Faucet pacing vs. star price growth.</li>
+							<li>Perceived late-season scarcity.</li>
+						</ul>
+					</div>
+					<div class="card">
+						<div class="label">Suggested cadence</div>
+						<div class="muted" style="margin-top:0.5rem;">Play 10–20 minutes per day and leave feedback in-app.</div>
+					</div>
+				</div>
 			</div>
 		</section>
 
 		<section id="view-signup" class="view">
-			<div class="card" style="max-width: 520px;">
-				<div class="stack">
-					<input id="signup-username" placeholder="Username" />
-					<input id="signup-display-name" placeholder="Display name" />
-					<input id="signup-email" placeholder="Email" />
-					<input id="signup-password" type="password" placeholder="Password" />
-					<button class="primary" id="signup-btn">Sign up</button>
-					<div class="label"><a href="#/home">Back to login</a></div>
-					<div id="signup-toast" class="toast" style="display:none;"></div>
+			<div class="section-stack" style="max-width: 560px;">
+				<div class="card hero-card">
+					<div class="label">Create account</div>
+					<h2 style="margin:0.35rem 0 0;">Join the season in minutes.</h2>
+					<div class="muted">All economy logic is enforced server-side.</div>
+				</div>
+				<div class="card">
+					<div class="stack">
+						<input id="signup-username" placeholder="Username" />
+						<input id="signup-display-name" placeholder="Display name" />
+						<input id="signup-email" placeholder="Email" />
+						<input id="signup-password" type="password" placeholder="Password" />
+						<button class="primary" id="signup-btn">Sign up</button>
+						<div class="label"><a href="#/home">Back to login</a></div>
+						<div id="signup-toast" class="toast" style="display:none;"></div>
+					</div>
 				</div>
 			</div>
 		</section>
 
 		<section id="view-reset" class="view">
-			<div class="card" style="max-width: 520px;">
-				<div class="stack">
-					<div class="label">Request reset link</div>
-					<input id="reset-identifier" placeholder="Email or username" />
-					<button class="primary" id="reset-request-btn">Send reset email</button>
-					<div id="reset-request-status" class="label"></div>
-					<hr style="border:0; border-top:1px solid #2a2f55; width:100%;" />
-					<div class="label">Have a token?</div>
-					<input id="reset-token" placeholder="Reset token" />
-					<input id="reset-new-password" type="password" placeholder="New password" />
-					<button class="primary" id="reset-confirm-btn">Reset password</button>
-					<div id="reset-confirm-status" class="label"></div>
-					<div class="label"><a href="#/home">Back to login</a></div>
+			<div class="section-stack" style="max-width: 560px;">
+				<div class="card hero-card">
+					<div class="label">Account recovery</div>
+					<h2 style="margin:0.35rem 0 0;">Reset access securely.</h2>
+					<div class="muted">Reset tokens are validated on the server.</div>
+				</div>
+				<div class="card">
+					<div class="stack">
+						<div class="label">Request reset link</div>
+						<input id="reset-identifier" placeholder="Email or username" />
+						<button class="primary" id="reset-request-btn">Send reset email</button>
+						<div id="reset-request-status" class="label"></div>
+						<hr style="border:0; border-top:1px solid #2a2f55; width:100%;" />
+						<div class="label">Have a token?</div>
+						<input id="reset-token" placeholder="Reset token" />
+						<input id="reset-new-password" type="password" placeholder="New password" />
+						<button class="primary" id="reset-confirm-btn">Reset password</button>
+						<div id="reset-confirm-status" class="label"></div>
+						<div class="label"><a href="#/home">Back to login</a></div>
+					</div>
 				</div>
 			</div>
 		</section>
 
 		<section id="view-admin" class="view">
-			<p class="label"><a href="#/home">Back to game</a> · <a href="#/admin-telemetry">Telemetry</a> · <a href="#/admin-economy">Economy</a> · <a href="#/admin-star-log">Star log</a></p>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Admin console</div>
+							<h2 style="margin:0.35rem 0 0;">Monitor the economy and keep the system fair.</h2>
+							<div class="muted">All adjustments are applied server-side.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/home">Back to game</a>
+							<a href="#/admin-telemetry">Telemetry</a>
+							<a href="#/admin-economy">Economy</a>
+							<a href="#/admin-star-log">Star log</a>
+						</div>
+					</div>
+				</div>
 
-			<div class="card" id="admin-setup" style="display:none;">
-				<div class="card-toggle">
-					<div class="label">Admin setup</div>
+				<div class="card" id="admin-setup" style="display:none;">
+					<div class="card-toggle">
+						<div class="label">Admin setup</div>
+					</div>
+					<div class="card-body">
+						<input id="admin-setup-key" placeholder="Setup key" />
+						<button id="save-key" class="primary">Save</button>
+						<div id="key-status" class="label"></div>
+					</div>
 				</div>
-				<div class="card-body">
-					<input id="admin-setup-key" placeholder="Setup key" />
-					<button id="save-key" class="primary">Save</button>
-					<div id="key-status" class="label"></div>
-				</div>
-			</div>
 
 			<div class="card" id="admin-content" data-collapsible="true" style="display:none;">
 				<div class="card-toggle">
@@ -754,149 +856,208 @@
 				</div>
 			</div>
 
-			<div class="card" id="no-access" style="display:none;">
-				<div class="label">Not authorized</div>
-				<div class="label">You need an admin account to view this page.</div>
+				<div class="card" id="no-access" style="display:none;">
+					<div class="label">Not authorized</div>
+					<div class="label">You need an admin account to view this page.</div>
+				</div>
 			</div>
 		</section>
 
 		<section id="view-admin-economy" class="view">
-			<p class="label"><a href="#/admin">Admin home</a></p>
-
-			<div class="card" id="econ-no-access" style="display:none;">
-				<div class="label">Not authorized</div>
-			</div>
-
-			<div class="card" data-collapsible="true">
-				<div class="card-toggle">
-					<div class="label">Daily emission target</div>
-					<button class="toggle-btn" type="button">Hide</button>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Economy controls</div>
+							<h2 style="margin:0.35rem 0 0;">Tune daily emission and feature gates.</h2>
+							<div class="muted">Changes apply instantly on the server.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/admin">Admin home</a>
+							<a href="#/admin-telemetry">Telemetry</a>
+							<a href="#/admin-star-log">Star log</a>
+						</div>
+					</div>
 				</div>
-				<div class="card-body">
-					<div class="row">
-						<input id="emission" type="range" min="0" max="5000" step="50" />
-						<span id="emission-value"></span>
+
+				<div class="card" id="econ-no-access" style="display:none;">
+					<div class="label">Not authorized</div>
+				</div>
+
+				<div class="card" data-collapsible="true">
+					<div class="card-toggle">
+						<div class="label">Daily emission target</div>
+						<button class="toggle-btn" type="button">Hide</button>
 					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<label><input type="checkbox" id="faucets" /> Faucets enabled</label>
-						<label><input type="checkbox" id="sinks" /> Sinks enabled</label>
-						<label><input type="checkbox" id="telemetry" /> Telemetry enabled</label>
+					<div class="card-body">
+						<div class="row">
+							<input id="emission" type="range" min="0" max="5000" step="50" />
+							<span id="emission-value"></span>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<label><input type="checkbox" id="faucets" /> Faucets enabled</label>
+							<label><input type="checkbox" id="sinks" /> Sinks enabled</label>
+							<label><input type="checkbox" id="telemetry" /> Telemetry enabled</label>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<button id="econ-save" class="primary">Save</button>
+						</div>
+						<div id="econ-status" class="label"></div>
 					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<button id="econ-save" class="primary">Save</button>
-					</div>
-					<div id="econ-status" class="label"></div>
 				</div>
 			</div>
 		</section>
 
 		<section id="view-admin-telemetry" class="view">
-			<p class="label"><a href="#/admin">Admin home</a></p>
-
-			<div class="card" id="tele-no-access" style="display:none;">
-				<div class="label">Not authorized</div>
-			</div>
-
-			<div class="card" data-collapsible="true">
-				<div class="card-toggle">
-					<div class="label">Events by hour (last 48h)</div>
-					<button class="toggle-btn" type="button">Hide</button>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Telemetry</div>
+							<h2 style="margin:0.35rem 0 0;">Observe live activity and usage patterns.</h2>
+							<div class="muted">Aggregates are server-tracked for fairness.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/admin">Admin home</a>
+							<a href="#/admin-economy">Economy</a>
+							<a href="#/admin-star-log">Star log</a>
+						</div>
+					</div>
 				</div>
-				<div class="card-body">
-					<table>
-						<thead>
-							<tr><th>Hour</th><th>Event</th><th>Count</th></tr>
-						</thead>
-						<tbody id="telemetry-body"></tbody>
-					</table>
+
+				<div class="card" id="tele-no-access" style="display:none;">
+					<div class="label">Not authorized</div>
+				</div>
+
+				<div class="card" data-collapsible="true">
+					<div class="card-toggle">
+						<div class="label">Events by hour (last 48h)</div>
+						<button class="toggle-btn" type="button">Hide</button>
+					</div>
+					<div class="card-body">
+						<table>
+							<thead>
+								<tr><th>Hour</th><th>Event</th><th>Count</th></tr>
+							</thead>
+							<tbody id="telemetry-body"></tbody>
+						</table>
+					</div>
 				</div>
 			</div>
 
 		</section>
 
 		<section id="view-admin-star-log" class="view">
-			<p class="label"><a href="#/admin">Admin home</a></p>
-
-			<div class="card" data-collapsible="true">
-				<div class="card-toggle">
-					<div class="label">Star purchase log</div>
-					<button class="toggle-btn" type="button">Hide</button>
-				</div>
-				<div class="card-body">
-					<div class="row" style="margin-top:0.5rem;">
-						<select id="star-log-filter-key">
-							<option value="">Filter by...</option>
-							<option value="accountId">Account ID</option>
-							<option value="playerId">Player ID</option>
-							<option value="seasonId">Season ID</option>
-							<option value="purchaseType">Purchase type</option>
-							<option value="variant">Variant</option>
-							<option value="from">From (RFC3339)</option>
-							<option value="to">To (RFC3339)</option>
-							<option value="minPrice">Min price</option>
-							<option value="maxPrice">Max price</option>
-							<option value="minCoinsBefore">Min coins before</option>
-							<option value="maxCoinsBefore">Max coins before</option>
-							<option value="minCoinsAfter">Min coins after</option>
-							<option value="maxCoinsAfter">Max coins after</option>
-							<option value="minStarsBefore">Min stars before</option>
-							<option value="maxStarsBefore">Max stars before</option>
-							<option value="minStarsAfter">Min stars after</option>
-							<option value="maxStarsAfter">Max stars after</option>
-							<option value="limit">Limit</option>
-						</select>
-						<input id="star-log-filter-value" placeholder="Value" />
-						<button id="star-log-load" class="primary">Apply</button>
-						<button id="star-log-clear">Clear</button>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Star purchases</div>
+							<h2 style="margin:0.35rem 0 0;">Audit pricing and transaction flow.</h2>
+							<div class="muted">All entries are server-validated.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/admin">Admin home</a>
+							<a href="#/admin-telemetry">Telemetry</a>
+							<a href="#/admin-economy">Economy</a>
+						</div>
 					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<button id="star-log-export-csv">Export CSV</button>
-						<button id="star-log-export-json">Export JSON</button>
+				</div>
+
+				<div class="card" data-collapsible="true">
+					<div class="card-toggle">
+						<div class="label">Star purchase log</div>
+						<button class="toggle-btn" type="button">Hide</button>
 					</div>
-					<div id="star-log-status" class="label"></div>
+					<div class="card-body">
+						<div class="row" style="margin-top:0.5rem;">
+							<select id="star-log-filter-key">
+								<option value="">Filter by...</option>
+								<option value="accountId">Account ID</option>
+								<option value="playerId">Player ID</option>
+								<option value="seasonId">Season ID</option>
+								<option value="purchaseType">Purchase type</option>
+								<option value="variant">Variant</option>
+								<option value="from">From (RFC3339)</option>
+								<option value="to">To (RFC3339)</option>
+								<option value="minPrice">Min price</option>
+								<option value="maxPrice">Max price</option>
+								<option value="minCoinsBefore">Min coins before</option>
+								<option value="maxCoinsBefore">Max coins before</option>
+								<option value="minCoinsAfter">Min coins after</option>
+								<option value="maxCoinsAfter">Max coins after</option>
+								<option value="minStarsBefore">Min stars before</option>
+								<option value="maxStarsBefore">Max stars before</option>
+								<option value="minStarsAfter">Min stars after</option>
+								<option value="maxStarsAfter">Max stars after</option>
+								<option value="limit">Limit</option>
+							</select>
+							<input id="star-log-filter-value" placeholder="Value" />
+							<button id="star-log-load" class="primary">Apply</button>
+							<button id="star-log-clear">Clear</button>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<button id="star-log-export-csv">Export CSV</button>
+							<button id="star-log-export-json">Export JSON</button>
+						</div>
+						<div id="star-log-status" class="label"></div>
+					</div>
 				</div>
-			</div>
 
-			<div class="card" data-collapsible="true">
-				<div class="card-toggle">
-					<div class="label">Live purchase feed</div>
-					<button class="toggle-btn" type="button">Hide</button>
+				<div class="card" data-collapsible="true">
+					<div class="card-toggle">
+						<div class="label">Live purchase feed</div>
+						<button class="toggle-btn" type="button">Hide</button>
+					</div>
+					<div class="card-body">
+						<div id="star-log-list" class="stack"></div>
+					</div>
 				</div>
-				<div class="card-body">
-					<div id="star-log-list" class="stack"></div>
-				</div>
-			</div>
 
-			<div class="card" id="star-log-no-access" style="display:none;">
-				<div class="label">Not authorized</div>
-				<div class="label">You need an admin account to view this page.</div>
+				<div class="card" id="star-log-no-access" style="display:none;">
+					<div class="label">Not authorized</div>
+					<div class="label">You need an admin account to view this page.</div>
+				</div>
 			</div>
 		</section>
 
 		<section id="view-moderator" class="view">
-			<p class="label"><a href="#/home">Back to game</a></p>
-
-			<div class="card" id="moderator-content" data-collapsible="true" style="display:none;">
-				<div class="card-toggle">
-					<div class="label">Edit profile</div>
-					<button class="toggle-btn" type="button">Hide</button>
-				</div>
-				<div class="card-body">
-					<div class="row" style="margin-top:0.5rem;">
-						<input id="mod-username-view" placeholder="Username" />
-						<button id="mod-load-view" class="primary">Load</button>
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Moderator tools</div>
+							<h2 style="margin:0.35rem 0 0;">Keep profiles clean and accurate.</h2>
+							<div class="muted">Edits are validated and stored server-side.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/home">Back to game</a>
+						</div>
 					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<input id="mod-display-name-view" placeholder="Display name" />
-						<button id="mod-save-view" class="primary">Update</button>
-					</div>
-					<div id="mod-status-view" class="label"></div>
 				</div>
-			</div>
 
-			<div class="card" id="mod-no-access" style="display:none;">
-				<div class="label">Not authorized</div>
-				<div class="label">You need a moderator or admin account to view this page.</div>
+				<div class="card" id="moderator-content" data-collapsible="true" style="display:none;">
+					<div class="card-toggle">
+						<div class="label">Edit profile</div>
+						<button class="toggle-btn" type="button">Hide</button>
+					</div>
+					<div class="card-body">
+						<div class="row" style="margin-top:0.5rem;">
+							<input id="mod-username-view" placeholder="Username" />
+							<button id="mod-load-view" class="primary">Load</button>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<input id="mod-display-name-view" placeholder="Display name" />
+							<button id="mod-save-view" class="primary">Update</button>
+						</div>
+						<div id="mod-status-view" class="label"></div>
+					</div>
+				</div>
+
+				<div class="card" id="mod-no-access" style="display:none;">
+					<div class="label">Not authorized</div>
+					<div class="label">You need a moderator or admin account to view this page.</div>
+				</div>
 			</div>
 		</section>
 	</main>
