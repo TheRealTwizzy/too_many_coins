@@ -1633,6 +1633,9 @@ func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
 		reward = abuseAdjustedReward(reward, enforcement.EarnMultiplier)
 		cooldown += abuseCooldownJitter(cooldown, enforcement.CooldownJitterFactor)
+		scaling := currentFaucetScaling(time.Now().UTC())
+		reward = applyFaucetRewardScaling(reward, scaling.RewardMultiplier)
+		cooldown = applyFaucetCooldownScaling(cooldown, scaling.CooldownMultiplier)
 		reward, err = ApplyIPDampeningReward(db, playerID, reward)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
@@ -1773,6 +1776,9 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
 		reward = abuseAdjustedReward(reward, enforcement.EarnMultiplier)
 		cooldown += abuseCooldownJitter(cooldown, enforcement.CooldownJitterFactor)
+		scaling := currentFaucetScaling(time.Now().UTC())
+		reward = applyFaucetRewardScaling(reward, scaling.RewardMultiplier)
+		cooldown = applyFaucetCooldownScaling(cooldown, scaling.CooldownMultiplier)
 		reward, err = ApplyIPDampeningReward(db, playerID, reward)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})

@@ -152,6 +152,9 @@ func verifyDailyPlayability(db *sql.DB, playerID string, accountID *string) {
 		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
 		dailyReward = abuseAdjustedReward(dailyReward, enforcement.EarnMultiplier)
 		dailyCooldown += abuseCooldownJitter(dailyCooldown, enforcement.CooldownJitterFactor)
+		scaling := currentFaucetScaling(now)
+		dailyReward = applyFaucetRewardScaling(dailyReward, scaling.RewardMultiplier)
+		dailyCooldown = applyFaucetCooldownScaling(dailyCooldown, scaling.CooldownMultiplier)
 		if reward, err := ApplyIPDampeningReward(db, playerID, dailyReward); err == nil {
 			dailyReward = reward
 		}
@@ -174,6 +177,8 @@ func verifyDailyPlayability(db *sql.DB, playerID string, accountID *string) {
 		}
 		activityReward = abuseAdjustedReward(activityReward, enforcement.EarnMultiplier)
 		activityCooldown += abuseCooldownJitter(activityCooldown, enforcement.CooldownJitterFactor)
+		activityReward = applyFaucetRewardScaling(activityReward, scaling.RewardMultiplier)
+		activityCooldown = applyFaucetCooldownScaling(activityCooldown, scaling.CooldownMultiplier)
 		if reward, err := ApplyIPDampeningReward(db, playerID, activityReward); err == nil {
 			activityReward = reward
 		}

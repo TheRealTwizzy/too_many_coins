@@ -536,6 +536,12 @@ func runPassiveDrip(db *sql.DB) {
 		idleDripAmount = 1
 	}
 
+	scaling := currentFaucetScaling(now)
+	activeDripInterval = applyFaucetCooldownScaling(activeDripInterval, scaling.CooldownMultiplier)
+	idleDripInterval = applyFaucetCooldownScaling(idleDripInterval, scaling.CooldownMultiplier)
+	activeDripAmount = applyFaucetRewardScaling(activeDripAmount, scaling.RewardMultiplier)
+	idleDripAmount = applyFaucetRewardScaling(idleDripAmount, scaling.RewardMultiplier)
+
 	activityWindow := ActiveActivityWindow()
 
 	rows, err := db.Query(`

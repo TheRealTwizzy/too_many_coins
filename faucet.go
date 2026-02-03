@@ -81,3 +81,52 @@ func RecordFaucetClaim(db *sql.DB, playerID string, faucetKey string) error {
 
 	return err
 }
+
+type FaucetScaling struct {
+	RewardMultiplier   float64
+	CooldownMultiplier float64
+}
+
+func currentFaucetScaling(now time.Time) FaucetScaling {
+	progress := seasonProgress(now)
+	reward := 1.35 - (0.65 * progress)
+	if reward < 0.7 {
+		reward = 0.7
+	} else if reward > 1.5 {
+		reward = 1.5
+	}
+
+	cooldown := 0.7 + (0.9 * progress)
+	if cooldown < 0.6 {
+		cooldown = 0.6
+	} else if cooldown > 1.8 {
+		cooldown = 1.8
+	}
+
+	return FaucetScaling{
+		RewardMultiplier:   reward,
+		CooldownMultiplier: cooldown,
+	}
+}
+
+func applyFaucetRewardScaling(reward int, multiplier float64) int {
+	if reward <= 0 {
+		return reward
+	}
+	adjusted := int(float64(reward)*multiplier + 0.9999)
+	if adjusted < 1 {
+		return 1
+	}
+	return adjusted
+}
+
+func applyFaucetCooldownScaling(cooldown time.Duration, multiplier float64) time.Duration {
+	if cooldown <= 0 {
+		return cooldown
+	}
+	adjusted := time.Duration(float64(cooldown) * multiplier)
+	if adjusted < time.Second {
+		return time.Second
+	}
+	return adjusted
+}
