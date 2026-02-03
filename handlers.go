@@ -203,7 +203,7 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		if isBot {
-			allowed, retryAfter, err := enforceBotStarRateLimit(db, playerID, 90*time.Second)
+			allowed, retryAfter, err := enforceBotStarRateLimit(db, playerID, botMinStarInterval())
 			if err != nil {
 				json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 				return
@@ -328,7 +328,7 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		if isBot {
-			allowed, retryAfter, err := enforceBotStarRateLimit(db, playerID, 90*time.Second)
+			allowed, retryAfter, err := enforceBotStarRateLimit(db, playerID, botMinStarInterval())
 			if err != nil {
 				json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 				return

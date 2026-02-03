@@ -259,12 +259,28 @@ type AdminGlobalSettingsRequest struct {
 	IdleDripAmount            *int  `json:"idleDripAmount,omitempty"`
 	ActivityWindowSeconds     *int  `json:"activityWindowSeconds,omitempty"`
 	DripEnabled               *bool `json:"dripEnabled,omitempty"`
+	BotsEnabled               *bool `json:"botsEnabled,omitempty"`
+	BotMinStarIntervalSeconds *int  `json:"botMinStarIntervalSeconds,omitempty"`
 }
 
 type AdminGlobalSettingsResponse struct {
 	OK       bool           `json:"ok"`
 	Error    string         `json:"error,omitempty"`
 	Settings GlobalSettings `json:"settings,omitempty"`
+}
+
+type AdminBotListItem struct {
+	PlayerID    string `json:"playerId"`
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+	IsBot       bool   `json:"isBot"`
+	BotProfile  string `json:"botProfile,omitempty"`
+}
+
+type AdminBotListResponse struct {
+	OK    bool               `json:"ok"`
+	Error string             `json:"error,omitempty"`
+	Bots  []AdminBotListItem `json:"bots,omitempty"`
 }
 
 /* ======================
@@ -380,6 +396,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/admin/player-controls", adminPlayerControlsHandler(db))
 	mux.HandleFunc("/admin/settings", adminSettingsHandler(db))
 	mux.HandleFunc("/admin/star-purchases", adminStarPurchaseLogHandler(db))
+	mux.HandleFunc("/admin/bots", adminBotListHandler(db))
 	mux.HandleFunc("/moderator/profile", moderatorProfileHandler(db))
 	mux.HandleFunc("/leaderboard", leaderboardHandler(db))
 }

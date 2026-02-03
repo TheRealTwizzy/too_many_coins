@@ -15,6 +15,8 @@ type GlobalSettings struct {
 	IdleDripAmount            int
 	ActivityWindowSeconds     int
 	DripEnabled               bool
+	BotsEnabled               bool
+	BotMinStarIntervalSeconds int
 }
 
 var (
@@ -26,6 +28,8 @@ var (
 		IdleDripAmount:            1,
 		ActivityWindowSeconds:     120,
 		DripEnabled:               true,
+		BotsEnabled:               true,
+		BotMinStarIntervalSeconds: 90,
 	}
 )
 
@@ -101,6 +105,14 @@ func applySetting(target *GlobalSettings, key string, value string) {
 	case "drip_enabled":
 		if v, err := parseBool(value); err == nil {
 			target.DripEnabled = v
+		}
+	case "bots_enabled":
+		if v, err := parseBool(value); err == nil {
+			target.BotsEnabled = v
+		}
+	case "bot_min_star_interval_seconds":
+		if v, err := strconv.Atoi(value); err == nil {
+			target.BotMinStarIntervalSeconds = v
 		}
 	}
 }

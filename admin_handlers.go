@@ -800,6 +800,12 @@ func adminSettingsHandler(db *sql.DB) http.HandlerFunc {
 			if req.DripEnabled != nil {
 				updates["drip_enabled"] = strconv.FormatBool(*req.DripEnabled)
 			}
+			if req.BotsEnabled != nil {
+				updates["bots_enabled"] = strconv.FormatBool(*req.BotsEnabled)
+			}
+			if req.BotMinStarIntervalSeconds != nil {
+				updates["bot_min_star_interval_seconds"] = strconv.Itoa(*req.BotMinStarIntervalSeconds)
+			}
 			if len(updates) == 0 {
 				json.NewEncoder(w).Encode(AdminGlobalSettingsResponse{OK: false, Error: "NO_UPDATES"})
 				return
@@ -1012,5 +1018,45 @@ func adminStarPurchaseLogHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(AdminStarPurchaseLogResponse{OK: true, Items: items})
+	}
+}
+
+func adminBotListHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if _, ok := requireAdmin(db, w, r); !ok {
+			return
+		}
+
+		rows, err := db.Query(`
+			SELECT p.player_id, a.username, a.display_name, p.is_bot, p.bot_profile
+			FROM players p
+			LEFT JOIN accounts a ON a.player_id = p.player_id
+			WHERE p.is_bot = TRUE
+			ORDER BY a.username ASC
+		`)
+		if err != nil {
+			json.NewEncoder(w).Encode(AdminBotListResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer rows.Close()
+
+		bots := []AdminBotListItem{}
+		for rows.Next() {
+			var item AdminBotListItem
+			var botProfile sql.NullString
+			if err := rows.Scan(&item.PlayerID, &item.Username, &item.DisplayName, &item.IsBot, &botProfile); err != nil {
+				continue
+			}
+			if botProfile.Valid {
+				item.BotProfile = botProfile.String
+			}
+			bots = append(bots, item)
+		}
+
+		json.NewEncoder(w).Encode(AdminBotListResponse{OK: true, Bots: bots})
 	}
 }

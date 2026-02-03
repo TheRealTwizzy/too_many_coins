@@ -751,6 +751,7 @@
 							<a href="#/admin-telemetry">Telemetry</a>
 							<a href="#/admin-economy">Economy</a>
 							<a href="#/admin-star-log">Star log</a>
+							<a href="#/admin-bots">Bots</a>
 						</div>
 					</div>
 				</div>
@@ -1129,6 +1130,116 @@
 			</div>
 		</section>
 
+		<section id="view-admin-bots" class="view">
+			<div class="section-stack">
+				<div class="card hero-card">
+					<div class="card-header">
+						<div>
+							<div class="label">Bot control</div>
+							<h2 style="margin:0.35rem 0 0;">Manage bots globally and individually.</h2>
+							<div class="muted">Bot actions remain server-authoritative.</div>
+						</div>
+						<div class="section-nav">
+							<a href="#/admin">Admin home</a>
+							<a href="#/admin-telemetry">Telemetry</a>
+							<a href="#/admin-economy">Economy</a>
+							<a href="#/admin-star-log">Star log</a>
+						</div>
+					</div>
+				</div>
+
+				<div class="card" id="bots-no-access" style="display:none;">
+					<div class="label">Not authorized</div>
+				</div>
+
+				<div class="card" data-collapsible="true" id="bots-global" style="display:none;">
+					<div class="card-toggle">
+						<div class="label">Global bot controls</div>
+						<button class="toggle-btn" type="button">Hide</button>
+					</div>
+					<div class="card-body">
+						<div class="row" style="margin-top:0.5rem;">
+							<label class="label"><input type="checkbox" id="bots-enabled-toggle" /> Bots enabled</label>
+							<div class="stack" style="min-width:200px;">
+								<label class="label">Min seconds between bot star buys</label>
+								<input id="bot-min-interval" type="range" min="30" max="600" step="30" value="90" />
+								<span id="bot-min-interval-value" class="label"></span>
+							</div>
+							<button id="bots-global-save" class="primary">Save</button>
+						</div>
+						<div id="bots-global-status" class="label"></div>
+					</div>
+				</div>
+
+				<div class="card" data-collapsible="true" id="bots-individual" style="display:none;">
+					<div class="card-toggle">
+						<div class="label">Individual bot control</div>
+						<button class="toggle-btn" type="button">Hide</button>
+					</div>
+					<div class="card-body">
+						<div class="row" style="margin-top:0.5rem;">
+							<select id="bot-select">
+								<option value="">Select bot</option>
+							</select>
+							<button id="bot-load" class="primary">Load</button>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<label class="label"><input type="checkbox" id="bot-is-bot-enabled" /> Set bot status</label>
+							<select id="bot-is-bot" disabled>
+								<option value="">Bot status</option>
+								<option value="true">Bot</option>
+								<option value="false">Human</option>
+							</select>
+							<label class="label"><input type="checkbox" id="bot-profile-enabled" /> Set bot profile</label>
+							<select id="bot-profile" disabled>
+								<option value="">None</option>
+								<option value="threshold_buyer">Threshold buyer</option>
+								<option value="cautious_buyer">Cautious buyer</option>
+								<option value="late_fomo">Late FOMO</option>
+							</select>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<div class="stack" style="min-width:160px;">
+								<label class="label"><input type="checkbox" id="bot-set-coins-enabled" /> Set coins</label>
+								<input id="bot-set-coins" type="range" min="0" max="10000" step="50" value="0" disabled />
+								<span id="bot-set-coins-value" class="label"></span>
+							</div>
+							<div class="stack" style="min-width:160px;">
+								<label class="label"><input type="checkbox" id="bot-add-coins-enabled" /> Add coins</label>
+								<input id="bot-add-coins" type="range" min="0" max="2000" step="25" value="0" disabled />
+								<span id="bot-add-coins-value" class="label"></span>
+							</div>
+							<div class="stack" style="min-width:160px;">
+								<label class="label"><input type="checkbox" id="bot-set-stars-enabled" /> Set stars</label>
+								<input id="bot-set-stars" type="range" min="0" max="500" step="1" value="0" disabled />
+								<span id="bot-set-stars-value" class="label"></span>
+							</div>
+							<div class="stack" style="min-width:160px;">
+								<label class="label"><input type="checkbox" id="bot-add-stars-enabled" /> Add stars</label>
+								<input id="bot-add-stars" type="range" min="0" max="100" step="1" value="0" disabled />
+								<span id="bot-add-stars-value" class="label"></span>
+							</div>
+						</div>
+						<div class="row" style="margin-top:0.5rem;">
+							<div class="stack" style="min-width:200px;">
+								<label class="label"><input type="checkbox" id="bot-drip-mult-enabled" /> Drip multiplier</label>
+								<input id="bot-drip-mult" type="range" min="0.1" max="3" step="0.1" value="1" disabled />
+								<span id="bot-drip-mult-value" class="label"></span>
+							</div>
+							<select id="bot-drip-paused">
+								<option value="">Pause?</option>
+								<option value="true">Pause drip</option>
+								<option value="false">Resume drip</option>
+							</select>
+							<button id="bot-touch" class="primary">Touch active</button>
+							<button id="bot-save" class="primary">Apply</button>
+						</div>
+						<div id="bot-status" class="label"></div>
+					</div>
+				</div>
+			</div>
+		</section>
+
 		<section id="view-moderator" class="view">
 			<div class="section-stack">
 				<div class="card hero-card">
@@ -1237,6 +1348,7 @@ const viewMap = {
 	signup: "view-signup",
 	reset: "view-reset",
 	admin: "view-admin",
+	"admin-bots": "view-admin-bots",
 	"admin-economy": "view-admin-economy",
 	"admin-telemetry": "view-admin-telemetry",
 	"admin-star-log": "view-admin-star-log",
@@ -1249,6 +1361,7 @@ let playerStars = 0;
 let currentUser = null;
 let homeInitialized = false;
 let adminInitialized = false;
+let adminBotsInitialized = false;
 let adminEconomyInitialized = false;
 let adminTelemetryInitialized = false;
 let adminStarLogInitialized = false;
@@ -1893,6 +2006,11 @@ async function route() {
 		await refreshAdminView();
 		return;
 	}
+	if (routeKey === "admin-bots") {
+		if (!adminBotsInitialized) initAdminBots();
+		await refreshAdminBotsView();
+		return;
+	}
 	if (routeKey === "admin-economy") {
 		if (!adminEconomyInitialized) initAdminEconomy();
 		await refreshAdminEconomyView();
@@ -2304,6 +2422,178 @@ function initAdmin() {
 	});
 
 	loadWhitelistRequests();
+}
+
+function initAdminBots() {
+	adminBotsInitialized = true;
+	bindRangeValue("bot-min-interval", "bot-min-interval-value", value => `${value}s`);
+	bindRangeToggle("bot-set-coins", "bot-set-coins-value", "bot-set-coins-enabled", value => `${value} coins`);
+	bindRangeToggle("bot-add-coins", "bot-add-coins-value", "bot-add-coins-enabled", value => `+${value} coins`);
+	bindRangeToggle("bot-set-stars", "bot-set-stars-value", "bot-set-stars-enabled", value => `${value} stars`);
+	bindRangeToggle("bot-add-stars", "bot-add-stars-value", "bot-add-stars-enabled", value => `+${value} stars`);
+	bindRangeToggle("bot-drip-mult", "bot-drip-mult-value", "bot-drip-mult-enabled", value => `${value.toFixed(1)}x`);
+	bindToggleSelect("bot-is-bot-enabled", "bot-is-bot");
+	bindToggleSelect("bot-profile-enabled", "bot-profile");
+
+	document.getElementById("bots-global-save").addEventListener("click", async () => {
+		const payload = {
+			botsEnabled: document.getElementById("bots-enabled-toggle").checked,
+			botMinStarIntervalSeconds: parseInt(document.getElementById("bot-min-interval").value, 10)
+		};
+		const res = await apiFetch("/admin/settings", {
+			method: "POST",
+			body: JSON.stringify(payload)
+		});
+		const data = await res.json();
+		const status = document.getElementById("bots-global-status");
+		if (!data.ok) {
+			status.innerText = data.error || "Save failed.";
+			return;
+		}
+		status.innerText = "Bot settings saved.";
+	});
+
+	document.getElementById("bot-load").addEventListener("click", async () => {
+		const playerId = document.getElementById("bot-select").value;
+		if (!playerId) {
+			document.getElementById("bot-status").innerText = "Select a bot.";
+			return;
+		}
+		const res = await apiFetch("/admin/player-controls", {
+			method: "POST",
+			body: JSON.stringify({ playerId })
+		});
+		const data = await res.json();
+		const status = document.getElementById("bot-status");
+		if (!data.ok) {
+			status.innerText = data.error || "Load failed.";
+			return;
+		}
+		status.innerText = `Loaded ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}`;
+		setRangeValue("bot-set-coins", data.coins);
+		setRangeValue("bot-set-stars", data.stars);
+		setRangeValue("bot-add-coins", 0);
+		setRangeValue("bot-add-stars", 0);
+		setRangeValue("bot-drip-mult", data.dripMultiplier);
+		document.getElementById("bot-is-bot").value = data.isBot ? "true" : "false";
+		document.getElementById("bot-profile").value = data.botProfile || "";
+		document.getElementById("bot-drip-paused").value = "";
+	});
+
+	document.getElementById("bot-touch").addEventListener("click", async () => {
+		const playerId = document.getElementById("bot-select").value;
+		if (!playerId) {
+			document.getElementById("bot-status").innerText = "Select a bot.";
+			return;
+		}
+		const res = await apiFetch("/admin/player-controls", {
+			method: "POST",
+			body: JSON.stringify({ playerId, touchActive: true })
+		});
+		const data = await res.json();
+		const status = document.getElementById("bot-status");
+		status.innerText = data.ok ? `Touched active for ${data.playerId}` : (data.error || "Touch failed.");
+	});
+
+	document.getElementById("bot-save").addEventListener("click", async () => {
+		const playerId = document.getElementById("bot-select").value;
+		if (!playerId) {
+			document.getElementById("bot-status").innerText = "Select a bot.";
+			return;
+		}
+		const setCoinsEnabled = document.getElementById("bot-set-coins-enabled").checked;
+		const addCoinsEnabled = document.getElementById("bot-add-coins-enabled").checked;
+		const setStarsEnabled = document.getElementById("bot-set-stars-enabled").checked;
+		const addStarsEnabled = document.getElementById("bot-add-stars-enabled").checked;
+		const dripMultEnabled = document.getElementById("bot-drip-mult-enabled").checked;
+		const isBotEnabled = document.getElementById("bot-is-bot-enabled").checked;
+		const botProfileEnabled = document.getElementById("bot-profile-enabled").checked;
+		const setCoins = parseInt(document.getElementById("bot-set-coins").value, 10);
+		const addCoins = parseInt(document.getElementById("bot-add-coins").value, 10);
+		const setStars = parseInt(document.getElementById("bot-set-stars").value, 10);
+		const addStars = parseInt(document.getElementById("bot-add-stars").value, 10);
+		const dripMultiplier = parseFloat(document.getElementById("bot-drip-mult").value);
+		const isBotValue = document.getElementById("bot-is-bot").value;
+		const botProfileValue = document.getElementById("bot-profile").value;
+		const dripPausedValue = document.getElementById("bot-drip-paused").value;
+		const payload = { playerId };
+		if (setCoinsEnabled && !Number.isNaN(setCoins)) payload.setCoins = setCoins;
+		if (addCoinsEnabled && !Number.isNaN(addCoins)) payload.addCoins = addCoins;
+		if (setStarsEnabled && !Number.isNaN(setStars)) payload.setStars = setStars;
+		if (addStarsEnabled && !Number.isNaN(addStars)) payload.addStars = addStars;
+		if (dripMultEnabled && !Number.isNaN(dripMultiplier)) payload.dripMultiplier = dripMultiplier;
+		if (isBotEnabled && (isBotValue === "true" || isBotValue === "false")) payload.isBot = isBotValue === "true";
+		if (botProfileEnabled) payload.botProfile = botProfileValue;
+		if (dripPausedValue === "true") payload.dripPaused = true;
+		if (dripPausedValue === "false") payload.dripPaused = false;
+
+		const res = await apiFetch("/admin/player-controls", {
+			method: "POST",
+			body: JSON.stringify(payload)
+		});
+		const data = await res.json();
+		const status = document.getElementById("bot-status");
+		status.innerText = data.ok ? `Updated ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}` : (data.error || "Update failed.");
+	});
+}
+
+async function refreshAdminBotsView() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok || !data.isAdmin) {
+		document.getElementById("bots-no-access").style.display = "block";
+		document.getElementById("bots-global").style.display = "none";
+		document.getElementById("bots-individual").style.display = "none";
+		return false;
+	}
+	document.getElementById("bots-no-access").style.display = "none";
+	document.getElementById("bots-global").style.display = "block";
+	document.getElementById("bots-individual").style.display = "block";
+	await loadBotSettings();
+	await loadBotList();
+	return true;
+}
+
+async function loadBotSettings() {
+	const res = await apiFetch("/admin/settings");
+	const data = await res.json();
+	const status = document.getElementById("bots-global-status");
+	if (!data.ok) {
+		status.innerText = data.error || "Load failed.";
+		return;
+	}
+	const s = data.settings || {};
+	if (typeof s.botsEnabled === "boolean") {
+		document.getElementById("bots-enabled-toggle").checked = s.botsEnabled;
+	}
+	if (typeof s.botMinStarIntervalSeconds === "number") {
+		setRangeValue("bot-min-interval", s.botMinStarIntervalSeconds);
+	}
+	status.innerText = "Bot settings loaded.";
+}
+
+async function loadBotList() {
+	const res = await apiFetch("/admin/bots");
+	const data = await res.json();
+	const select = document.getElementById("bot-select");
+	if (!data.ok) {
+		select.innerHTML = "<option value=\"\">No bots available</option>";
+		return;
+	}
+	const current = select.value;
+	const bots = data.bots || [];
+	if (bots.length === 0) {
+		select.innerHTML = "<option value=\"\">No bots found</option>";
+		return;
+	}
+	select.innerHTML = ["<option value=\"\">Select bot</option>", ...bots.map(bot => {
+		const name = bot.displayName ? ` · ${bot.displayName}` : "";
+		const label = `${bot.username || bot.playerId}${name}`;
+		return `<option value=\"${bot.playerId}\">${label}</option>`;
+	})].join("");
+	if (current) {
+		select.value = current;
+	}
 }
 
 async function refreshAdminView() {

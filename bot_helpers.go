@@ -8,11 +8,23 @@ import (
 )
 
 func botsEnabled() bool {
+	settings := GetGlobalSettings()
+	if !settings.BotsEnabled {
+		return false
+	}
 	value := strings.TrimSpace(strings.ToLower(os.Getenv("BOTS_ENABLED")))
 	if value == "" {
 		return true
 	}
 	return value == "true" || value == "1" || value == "yes" || value == "on"
+}
+
+func botMinStarInterval() time.Duration {
+	settings := GetGlobalSettings()
+	if settings.BotMinStarIntervalSeconds <= 0 {
+		return 90 * time.Second
+	}
+	return time.Duration(settings.BotMinStarIntervalSeconds) * time.Second
 }
 
 func getPlayerBotInfo(db *sql.DB, playerID string) (bool, string, error) {
