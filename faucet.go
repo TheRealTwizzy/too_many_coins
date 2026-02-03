@@ -89,18 +89,18 @@ type FaucetScaling struct {
 
 func currentFaucetScaling(now time.Time) FaucetScaling {
 	progress := seasonProgress(now)
-	reward := 1.35 - (0.65 * progress)
-	if reward < 0.7 {
-		reward = 0.7
-	} else if reward > 1.5 {
-		reward = 1.5
+	reward := 1.6 - (1.0 * progress)
+	if reward < 0.6 {
+		reward = 0.6
+	} else if reward > 1.6 {
+		reward = 1.6
 	}
 
-	cooldown := 0.7 + (0.9 * progress)
-	if cooldown < 0.6 {
-		cooldown = 0.6
-	} else if cooldown > 1.8 {
-		cooldown = 1.8
+	cooldown := 0.55 + (1.15 * progress)
+	if cooldown < 0.5 {
+		cooldown = 0.5
+	} else if cooldown > 1.7 {
+		cooldown = 1.7
 	}
 
 	return FaucetScaling{

@@ -37,6 +37,16 @@ func DailyEarnCapForParams(params CalibrationParams, progress float64) int {
 	if cap < float64(params.DailyCapLate) {
 		cap = float64(params.DailyCapLate)
 	}
+	capMultiplier := 1.2 - (0.4 * progress)
+	if capMultiplier < 0.8 {
+		capMultiplier = 0.8
+	} else if capMultiplier > 1.2 {
+		capMultiplier = 1.2
+	}
+	cap = cap * capMultiplier
+	if cap < float64(params.DailyCapLate) {
+		cap = float64(params.DailyCapLate)
+	}
 	return int(cap + 0.5)
 }
 
