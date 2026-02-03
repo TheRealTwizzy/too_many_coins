@@ -1007,6 +1007,7 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		ip := getClientIP(r)
 		allowed, err := CanSignupFromIP(db, ip)
 		if err != nil {
+			log.Println("signup: CanSignupFromIP error:", err)
 			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
@@ -1016,6 +1017,7 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		}
 		account, err := createAccount(db, req.Username, req.Password, req.DisplayName, req.Email)
 		if err != nil {
+			log.Println("signup: createAccount error:", err)
 			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: err.Error()})
 			return
 		}
@@ -1026,11 +1028,13 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 			}
 		}
 		if _, err := LoadOrCreatePlayer(db, account.PlayerID); err != nil {
+			log.Println("signup: LoadOrCreatePlayer error:", err)
 			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
 		sessionID, expiresAt, err := createSession(db, account.AccountID)
 		if err != nil {
+			log.Println("signup: createSession error:", err)
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
@@ -1038,11 +1042,13 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 
 		accessToken, accessExpires, err := issueAccessToken(account.AccountID, accessTokenTTL)
 		if err != nil {
+			log.Println("signup: issueAccessToken error:", err)
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
 		refreshToken, _, err := createRefreshToken(db, account.AccountID, "auth", r.UserAgent(), getClientIP(r))
 		if err != nil {
+			log.Println("signup: createRefreshToken error:", err)
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
