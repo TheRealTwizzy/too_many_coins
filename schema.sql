@@ -105,6 +105,21 @@ CREATE TABLE IF NOT EXISTS notifications (
     expires_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    issued_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    user_agent TEXT,
+    ip TEXT,
+    purpose TEXT NOT NULL DEFAULT 'auth'
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_account_id
+    ON refresh_tokens (account_id, revoked_at);
+
 ALTER TABLE notifications
     ADD COLUMN IF NOT EXISTS link TEXT;
 
