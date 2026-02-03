@@ -3,16 +3,46 @@ package main
 import (
 	"database/sql"
 	"log"
+	"sync"
 	"time"
 )
 
+const emissionTickInterval = 60 * time.Second
+
+var (
+	emissionTickMu   sync.RWMutex
+	nextEmissionTick time.Time
+)
+
+func setNextEmissionTick(t time.Time) {
+	emissionTickMu.Lock()
+	nextEmissionTick = t
+	emissionTickMu.Unlock()
+}
+
+func nextEmissionSeconds(now time.Time) int64 {
+	emissionTickMu.RLock()
+	next := nextEmissionTick
+	emissionTickMu.RUnlock()
+	if next.IsZero() {
+		return int64(emissionTickInterval.Seconds())
+	}
+	remaining := next.Sub(now)
+	if remaining < 0 {
+		return 0
+	}
+	return int64(remaining.Seconds())
+}
+
 func startTickLoop(db *sql.DB) {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(emissionTickInterval)
+	setNextEmissionTick(time.Now().UTC().Add(emissionTickInterval))
 
 	go func() {
 		tickCount := 0
 		for t := range ticker.C {
 			now := t.UTC()
+			setNextEmissionTick(now.Add(emissionTickInterval))
 			log.Println("Tick:", now)
 
 			if isSeasonEnded(now) {

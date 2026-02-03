@@ -497,6 +497,10 @@
 								<div class="label">Coins / min</div>
 								<div id="season-emission" class="stat-value">--</div>
 							</div>
+							<div class="metric">
+								<div class="label">Next coin wave</div>
+								<div id="season-next-emission" class="stat-value">--</div>
+							</div>
 						</div>
 					</div>
 					<div id="seasons" class="grid">Loading season…</div>
@@ -1363,6 +1367,7 @@ const seasonRemaining = document.getElementById("season-remaining");
 const seasonStarPrice = document.getElementById("season-star-price");
 const seasonCoins = document.getElementById("season-coins");
 const seasonEmission = document.getElementById("season-emission");
+const seasonNextEmission = document.getElementById("season-next-emission");
 const seasonTitle = document.getElementById("season-title");
 const seasonStatus = document.getElementById("season-status");
 const heroSeasonId = document.getElementById("hero-season-id");
@@ -1470,6 +1475,7 @@ function updateSeasonSnapshot(season) {
 	if (seasonStarPrice) seasonStarPrice.innerText = `${season.currentStarPrice} coins`;
 	if (seasonCoins) seasonCoins.innerText = `${season.coinsInCirculation} coins`;
 	if (seasonEmission) seasonEmission.innerText = `${(season.coinEmissionPerMinute || 0).toFixed(2)}`;
+	if (seasonNextEmission) seasonNextEmission.innerText = `${season.nextEmissionInSeconds || 0}s`;
 	if (heroSeasonId) heroSeasonId.innerText = "Season 1";
 	if (heroSeasonRemaining) heroSeasonRemaining.innerText = formatRemaining(season.secondsRemaining || 0);
 	if (heroStarPrice) heroStarPrice.innerText = `${season.currentStarPrice} coins`;
