@@ -67,16 +67,18 @@ func (e *EconomyState) persist(seasonID string, db *sql.DB) {
 			season_id,
 			global_coin_pool,
 			global_stars_purchased,
+			coins_distributed,
 			emission_remainder,
 			market_pressure,
 			price_floor,
 			last_updated
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 		ON CONFLICT (season_id)
 		DO UPDATE SET
 			global_coin_pool = EXCLUDED.global_coin_pool,
 			global_stars_purchased = EXCLUDED.global_stars_purchased,
+			coins_distributed = EXCLUDED.coins_distributed,
 			emission_remainder = EXCLUDED.emission_remainder,
 			market_pressure = EXCLUDED.market_pressure,
 			price_floor = EXCLUDED.price_floor,
@@ -85,6 +87,7 @@ func (e *EconomyState) persist(seasonID string, db *sql.DB) {
 		seasonID,
 		e.globalCoinPool,
 		e.globalStarsPurchased,
+		e.coinsDistributed,
 		e.emissionRemainder,
 		e.marketPressure,
 		e.priceFloor,
@@ -104,7 +107,7 @@ func (e *EconomyState) IncrementStars() {
 func (e *EconomyState) Snapshot() (int, int, int) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.globalCoinPool, e.globalStarsPurchased, e.coinsDistributed
+	return e.coinsDistributed, e.globalStarsPurchased, e.coinsDistributed
 }
 
 func (e *EconomyState) StarsPurchased() int {
@@ -163,6 +166,7 @@ func ensureSchema(db *sql.DB) error {
 			season_id TEXT PRIMARY KEY,
 			global_coin_pool BIGINT NOT NULL,
 			global_stars_purchased BIGINT NOT NULL,
+			coins_distributed BIGINT NOT NULL,
 			emission_remainder DOUBLE PRECISION NOT NULL,
 			market_pressure DOUBLE PRECISION NOT NULL DEFAULT 1.0,
 			price_floor BIGINT NOT NULL DEFAULT 0,
@@ -183,6 +187,13 @@ func ensureSchema(db *sql.DB) error {
 	_, err = db.Exec(`
 		ALTER TABLE season_economy
 			ADD COLUMN IF NOT EXISTS price_floor BIGINT NOT NULL DEFAULT 0;
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		ALTER TABLE season_economy
+			ADD COLUMN IF NOT EXISTS coins_distributed BIGINT NOT NULL DEFAULT 0;
 	`)
 	if err != nil {
 		return err
@@ -741,7 +752,7 @@ func ensureSchema(db *sql.DB) error {
 func (e *EconomyState) CoinsInCirculation() int64 {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return int64(e.globalCoinPool)
+	return int64(e.coinsDistributed)
 }
 
 func (e *EconomyState) Calibration() CalibrationParams {

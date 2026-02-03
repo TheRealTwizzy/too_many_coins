@@ -1,7 +1,11 @@
 CREATE TABLE IF NOT EXISTS season_economy (
     season_id TEXT PRIMARY KEY,
     global_coin_pool BIGINT NOT NULL,
+    global_stars_purchased BIGINT NOT NULL,
+    coins_distributed BIGINT NOT NULL,
     emission_remainder DOUBLE PRECISION NOT NULL,
+    market_pressure DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    price_floor BIGINT NOT NULL DEFAULT 0,
     last_updated TIMESTAMPTZ NOT NULL
 );
 
