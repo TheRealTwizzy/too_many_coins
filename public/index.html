@@ -163,7 +163,7 @@
 						<input id="password" type="password" placeholder="Password" />
 					</div>
 					<div class="row">
-						<button class="primary" id="login-btn">Log in</button>
+						<button class="primary" id="login-btn" type="button">Log in</button>
 						<a class="muted" href="#/signup">Create account</a>
 					</div>
 					<div class="row">
@@ -825,6 +825,7 @@ function initHome() {
 			setToast("Enter username and password.", "error");
 			return;
 		}
+		setToast("Logging in...", "success");
 		try {
 			const res = await apiFetch("/auth/login", {
 				method: "POST",
@@ -1433,6 +1434,14 @@ async function refreshModeratorView() {
 
 window.addEventListener("hashchange", route);
 route();
+
+window.addEventListener("error", (event) => {
+	setToast(`Error: ${event.message}`, "error");
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+	setToast("Error: unexpected failure", "error");
+});
 	</script>
 </body>
 </html>
