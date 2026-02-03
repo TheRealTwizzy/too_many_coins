@@ -52,18 +52,3 @@ func seasonSecondsRemaining(now time.Time) int64 {
 	}
 	return int64(remaining.Seconds())
 }
-
-func seasonProgress(now time.Time) float64 {
-	if seasonLength <= 0 {
-		return 1
-	}
-	remaining := seasonSecondsRemaining(now)
-	progress := 1 - (float64(remaining) / seasonLength.Seconds())
-	if progress < 0 {
-		return 0
-	}
-	if progress > 1 {
-		return 1
-	}
-	return progress
-}
