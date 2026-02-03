@@ -154,6 +154,17 @@ func notificationRetentionWindow() time.Duration {
 	return time.Duration(parsed) * time.Hour
 }
 
+func notificationExpiryForPriority(priority string) time.Duration {
+	switch normalizeNotificationPriority(priority) {
+	case NotificationPriorityCritical:
+		return 14 * 24 * time.Hour
+	case NotificationPriorityHigh:
+		return 7 * 24 * time.Hour
+	default:
+		return notificationRetentionWindow()
+	}
+}
+
 func createNotification(db *sql.DB, input NotificationInput) error {
 	return insertNotification(db, input)
 }
@@ -193,7 +204,7 @@ func insertNotification(db *sql.DB, input NotificationInput) error {
 	if input.ExpiresAt != nil {
 		expires = sql.NullTime{Time: *input.ExpiresAt, Valid: true}
 	} else {
-		retention := now.Add(notificationRetentionWindow())
+		retention := now.Add(notificationExpiryForPriority(priority))
 		expires = sql.NullTime{Time: retention, Valid: true}
 	}
 
@@ -369,7 +380,11 @@ func fetchNotifications(db *sql.DB, accountID string, accountRole string, afterI
 
 func pruneNotifications(db *sql.DB) {
 	cutoff := time.Now().UTC().Add(-notificationRetentionWindow())
-	if _, err := db.Exec(`DELETE FROM notifications WHERE created_at < $1`, cutoff); err != nil {
+	if _, err := db.Exec(`
+		DELETE FROM notifications
+		WHERE (expires_at IS NOT NULL AND expires_at < NOW())
+			OR (expires_at IS NULL AND created_at < $1)
+	`, cutoff); err != nil {
 		log.Println("notification prune failed:", err)
 	}
 	_, _ = db.Exec(`DELETE FROM notification_reads WHERE notification_id NOT IN (SELECT id FROM notifications)`)

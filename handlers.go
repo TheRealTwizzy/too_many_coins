@@ -1041,10 +1041,7 @@ func notificationsDeleteHandler(db *sql.DB) http.HandlerFunc {
 				INSERT INTO notification_deletes (notification_id, account_id, deleted_at)
 				SELECT n.id, $1, NOW()
 				FROM notifications n
-				LEFT JOIN notification_acks a
-					ON a.notification_id = n.id AND a.account_id = $1
 				WHERE n.id = $3
-					AND (COALESCE(n.priority, 'normal') = 'normal' OR a.notification_id IS NOT NULL)
 `+notificationAccessSQL+`
 				ON CONFLICT (notification_id, account_id) DO NOTHING
 			`, account.AccountID, role, id)
@@ -1062,7 +1059,7 @@ func notificationsSettingsHandler(db *sql.DB) http.HandlerFunc {
 		switch r.Method {
 		case http.MethodGet:
 			rows, err := db.Query(`
-				SELECT category, enabled
+				SELECT category, enabled, push_enabled
 				FROM notification_settings
 				WHERE account_id = $1
 			`, account.AccountID)
@@ -1072,21 +1069,28 @@ func notificationsSettingsHandler(db *sql.DB) http.HandlerFunc {
 			}
 			defer rows.Close()
 			settings := map[string]bool{}
+			pushSettings := map[string]bool{}
 			for rows.Next() {
 				var category string
 				var enabled bool
-				if err := rows.Scan(&category, &enabled); err != nil {
+				var pushEnabled bool
+				if err := rows.Scan(&category, &enabled, &pushEnabled); err != nil {
 					continue
 				}
 				settings[category] = enabled
+				pushSettings[category] = pushEnabled
 			}
 			items := []NotificationSettingItem{}
 			for _, category := range NotificationCategories() {
 				enabled := true
+				pushEnabled := false
 				if value, ok := settings[category]; ok {
 					enabled = value
 				}
-				items = append(items, NotificationSettingItem{Category: category, Enabled: enabled})
+				if value, ok := pushSettings[category]; ok {
+					pushEnabled = value
+				}
+				items = append(items, NotificationSettingItem{Category: category, Enabled: enabled, PushEnabled: pushEnabled})
 			}
 			json.NewEncoder(w).Encode(NotificationSettingsResponse{OK: true, Settings: items})
 			return
@@ -1099,11 +1103,11 @@ func notificationsSettingsHandler(db *sql.DB) http.HandlerFunc {
 			for _, item := range req.Categories {
 				category := normalizeNotificationCategory(item.Category)
 				_, _ = db.Exec(`
-					INSERT INTO notification_settings (account_id, category, enabled, updated_at)
-					VALUES ($1, $2, $3, NOW())
+					INSERT INTO notification_settings (account_id, category, enabled, push_enabled, updated_at)
+					VALUES ($1, $2, $3, $4, NOW())
 					ON CONFLICT (account_id, category)
-					DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = NOW()
-				`, account.AccountID, category, item.Enabled)
+					DO UPDATE SET enabled = EXCLUDED.enabled, push_enabled = EXCLUDED.push_enabled, updated_at = NOW()
+				`, account.AccountID, category, item.Enabled, item.PushEnabled)
 			}
 			json.NewEncoder(w).Encode(SimpleResponse{OK: true})
 			return

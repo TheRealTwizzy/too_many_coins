@@ -346,6 +346,151 @@
 		color: #cbd5f5;
 		border: 1px solid #2a2f55;
 	}
+	.notification-bell {
+		position: fixed;
+		right: 1.5rem;
+		bottom: 1.5rem;
+		width: 48px;
+		height: 48px;
+		border-radius: 999px;
+		background: #1a2140;
+		border: 1px solid #2a2f55;
+		display: grid;
+		place-items: center;
+		cursor: pointer;
+		z-index: 30;
+		box-shadow: 0 18px 28px rgba(0, 0, 0, 0.35);
+	}
+	.notification-bell-icon {
+		font-size: 1.1rem;
+	}
+	.notification-badge {
+		position: absolute;
+		top: -4px;
+		right: -4px;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 6px;
+		border-radius: 999px;
+		background: #ef4444;
+		color: #fff;
+		font-size: 0.7rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid rgba(0, 0, 0, 0.3);
+	}
+	.notification-viewport {
+		position: fixed;
+		right: 1.5rem;
+		bottom: 4.75rem;
+		width: min(380px, 92vw);
+		max-height: 70vh;
+		overflow: auto;
+		padding: 0.9rem;
+		border-radius: 14px;
+		background: #141a2e;
+		border: 1px solid #2a2f55;
+		box-shadow: 0 24px 44px rgba(0,0,0,0.4);
+		z-index: 29;
+	}
+	.notification-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
+		margin-top: 0.65rem;
+	}
+	.notification-item {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		padding: 0.55rem 0.65rem;
+		border-radius: 10px;
+		border: 1px solid #242a4d;
+		background: #101735;
+		cursor: pointer;
+		transition: border-color 0.2s ease, background 0.2s ease;
+	}
+	.notification-item.unread {
+		background: #172144;
+		border-color: rgba(59, 130, 246, 0.5);
+	}
+	.notification-item.read {
+		opacity: 0.6;
+	}
+	.notification-icon {
+		width: 28px;
+		height: 28px;
+		border-radius: 8px;
+		background: #1f2544;
+		display: grid;
+		place-items: center;
+		font-size: 0.9rem;
+		color: #cbd5f5;
+		flex-shrink: 0;
+	}
+	.notification-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		flex: 1;
+		min-width: 0;
+	}
+	.notification-message {
+		font-size: 0.85rem;
+		line-height: 1.2;
+		color: #e2e8f0;
+	}
+	.notification-time {
+		font-size: 0.7rem;
+		color: #9aa3c4;
+	}
+	.notification-trash {
+		margin-left: auto;
+		background: transparent;
+		border: none;
+		color: #94a3b8;
+		opacity: 0;
+		cursor: pointer;
+		font-size: 0.9rem;
+		padding: 0.2rem;
+	}
+	.notification-item:hover .notification-trash {
+		opacity: 1;
+	}
+	.notification-empty {
+		color: #9aa3c4;
+		font-size: 0.8rem;
+		padding: 0.4rem;
+	}
+	.notification-settings {
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid #232a4e;
+	}
+	.notification-settings-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
+		margin-top: 0.5rem;
+	}
+	.notification-setting-row {
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		gap: 0.5rem;
+		align-items: center;
+		padding: 0.4rem 0.5rem;
+		border-radius: 8px;
+		background: #101735;
+		border: 1px solid #262c54;
+	}
+	.notification-setting-row label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: 0.75rem;
+		color: #cbd5f5;
+	}
 	.notification-controls {
 		margin-top: 0.75rem;
 		padding: 0.75rem;
@@ -426,10 +571,10 @@
 		.stack button {
 			width: 100%;
 		}
-		.notification-panel {
+		.notification-viewport {
 			right: 0.75rem;
-			bottom: 0.75rem;
-			width: min(420px, 94vw);
+			bottom: 4.25rem;
+			width: min(380px, 94vw);
 			max-height: 75vh;
 		}
 		.notice {
@@ -468,33 +613,17 @@
 		</div>
 	</header>
 
-	<div id="notification-panel" class="notification-panel" style="display:none;">
+	<button id="notification-bell" class="notification-bell" type="button" aria-label="Notifications">
+		<span class="notification-bell-icon">🔔</span>
+		<span id="notification-badge" class="notification-badge" style="display:none;"></span>
+	</button>
+	<div id="notification-viewport" class="notification-viewport" aria-hidden="true" style="display:none;">
 		<div class="row" style="justify-content:space-between; align-items:center;">
-			<div>
-				<strong>Notifications</strong>
-				<span id="notification-count" class="badge accent" style="display:none; margin-left:0.5rem;"></span>
-			</div>
-			<button id="notification-hide">Hide</button>
+			<strong>Notifications</strong>
+			<span id="notification-unread-label" class="label muted"></span>
 		</div>
-		<div class="notification-controls">
-			<div class="label">Filters</div>
-			<div class="row" style="flex-wrap:wrap;">
-				<label class="label" for="notification-category-filter">Category</label>
-				<select id="notification-category-filter"></select>
-				<label class="label" for="notification-priority-filter">Priority</label>
-				<select id="notification-priority-filter"></select>
-			</div>
-			<div class="label" style="margin-top:0.5rem;">Category toggles</div>
-			<div id="notification-category-toggles" class="stack"></div>
-		</div>
-		<div class="notification-section">
-			<div class="label">Unread</div>
-			<div id="notification-unread" class="stack"></div>
-		</div>
-		<div class="notification-section">
-			<div class="label">Read</div>
-			<div id="notification-read" class="stack"></div>
-		</div>
+		<div id="notification-list" class="notification-list"></div>
+		<div id="notification-empty" class="notification-empty" style="display:none;">No notifications yet.</div>
 	</div>
 
 	<main id="app">
@@ -618,6 +747,11 @@
 								<textarea id="profile-bio" rows="3" placeholder="Bio"></textarea>
 								<input id="profile-email" placeholder="Email (for password reset)" />
 								<button id="profile-save">Save</button>
+								<div class="notification-settings">
+									<div class="label">Notification settings</div>
+									<div class="muted">Choose what appears in-app and what can send push alerts.</div>
+									<div id="notification-settings-list" class="notification-settings-list"></div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -906,14 +1040,13 @@ const actionsCard = document.getElementById("actions-card");
 const actionsStatus = document.getElementById("actions-status");
 const toast = document.getElementById("toast");
 const statPill = document.getElementById("stat-pill");
-const notificationPanel = document.getElementById("notification-panel");
-const notificationCount = document.getElementById("notification-count");
-const notificationUnreadList = document.getElementById("notification-unread");
-const notificationReadList = document.getElementById("notification-read");
-const notificationHideBtn = document.getElementById("notification-hide");
-const notificationCategoryFilter = document.getElementById("notification-category-filter");
-const notificationPriorityFilter = document.getElementById("notification-priority-filter");
-const notificationCategoryToggles = document.getElementById("notification-category-toggles");
+const notificationBell = document.getElementById("notification-bell");
+const notificationBadge = document.getElementById("notification-badge");
+const notificationViewport = document.getElementById("notification-viewport");
+const notificationList = document.getElementById("notification-list");
+const notificationEmpty = document.getElementById("notification-empty");
+const notificationUnreadLabel = document.getElementById("notification-unread-label");
+const notificationSettingsList = document.getElementById("notification-settings-list");
 const signupLink = document.getElementById("signup-link");
 const moderatorLink = document.getElementById("moderator-link");
 const liveStatus = document.getElementById("live-status");
@@ -955,7 +1088,6 @@ let resetInitialized = false;
 let leaderboardInitialized = false;
 let playerRefreshInterval = null;
 let seasonRefreshInterval = null;
-let notificationRefreshInterval = null;
 let activityPingInterval = null;
 let liveEventSource = null;
 let notificationEventSource = null;
@@ -973,8 +1105,8 @@ const notificationCategories = [
 ];
 let notificationSettings = {};
 let notificationSettingsSaveTimer = null;
-let notificationCategoryFilterValue = "all";
-let notificationPriorityFilterValue = "all";
+let notificationPanelOpen = false;
+let notificationsCache = [];
 
 function apiFetch(url, options = {}) {
 	return fetch(url, {
@@ -1130,10 +1262,9 @@ async function loadAuth() {
 		statPill.style.display = "none";
 		signupLink.style.display = "inline";
 		moderatorLink.style.display = "none";
-		notificationPanel.style.display = "none";
-		notificationUnreadList.innerHTML = "";
-		notificationReadList.innerHTML = "";
-		notificationCount.style.display = "none";
+		notificationsCache = [];
+		updateNotificationBadge(0);
+		setNotificationViewport(false);
 		document.getElementById("seasons").style.display = "none";
 		document.getElementById("locked-message").innerText = "Log in to access seasons.";
 		connectLiveStream();
@@ -1158,8 +1289,36 @@ async function loadAuth() {
 	document.getElementById("locked-message").innerText = "";
 }
 
-notificationHideBtn.addEventListener("click", () => {
-	notificationPanel.style.display = "none";
+function setNotificationViewport(open) {
+	notificationPanelOpen = open;
+	if (!notificationViewport) return;
+	if (open) {
+		notificationViewport.style.display = "block";
+		notificationViewport.setAttribute("aria-hidden", "false");
+		if (!currentUser && notificationEmpty) {
+			notificationEmpty.innerText = "Log in to view notifications.";
+			notificationEmpty.style.display = "block";
+		}
+		renderNotificationList();
+	} else {
+		notificationViewport.style.display = "none";
+		notificationViewport.setAttribute("aria-hidden", "true");
+	}
+}
+
+if (notificationBell) {
+	notificationBell.addEventListener("click", (event) => {
+		event.stopPropagation();
+		setNotificationViewport(!notificationPanelOpen);
+	});
+}
+
+document.addEventListener("click", (event) => {
+	if (!notificationPanelOpen) return;
+	const target = event.target;
+	if (notificationViewport && notificationViewport.contains(target)) return;
+	if (notificationBell && notificationBell.contains(target)) return;
+	setNotificationViewport(false);
 });
 
 async function pingActivity() {
@@ -1170,13 +1329,12 @@ async function pingActivity() {
 }
 
 function startActiveLoops() {
-	if (playerRefreshInterval || seasonRefreshInterval || notificationRefreshInterval || activityPingInterval) {
+	if (playerRefreshInterval || seasonRefreshInterval || activityPingInterval) {
 		return;
 	}
 	refreshPlayer();
 	loadSeasons();
 	refreshNotifications();
-	initNotificationControls();
 	loadNotificationSettings();
 	pingActivity();
 	connectLiveStream();
@@ -1187,30 +1345,27 @@ function startActiveLoops() {
 	seasonRefreshInterval = setInterval(() => {
 		if (currentUser) loadSeasons();
 	}, 15000);
-	notificationRefreshInterval = setInterval(() => {
-		if (currentUser) refreshNotifications();
-	}, 15000);
 	activityPingInterval = setInterval(() => {
 		if (currentUser) pingActivity();
 	}, 20000);
 }
 
-function stopActiveLoops() {
+function stopActiveLoops(options = {}) {
 	if (playerRefreshInterval) clearInterval(playerRefreshInterval);
 	if (seasonRefreshInterval) clearInterval(seasonRefreshInterval);
-	if (notificationRefreshInterval) clearInterval(notificationRefreshInterval);
 	if (activityPingInterval) clearInterval(activityPingInterval);
 	playerRefreshInterval = null;
 	seasonRefreshInterval = null;
-	notificationRefreshInterval = null;
 	activityPingInterval = null;
 	disconnectLiveStream();
-	disconnectNotificationStream();
+	if (!options.keepNotifications) {
+		disconnectNotificationStream();
+	}
 }
 
 function handleVisibility() {
 	if (document.hidden) {
-		stopActiveLoops();
+		stopActiveLoops({ keepNotifications: true });
 		return;
 	}
 	if (currentUser) {
@@ -1488,48 +1643,44 @@ function humanizeCategory(category) {
 		.replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function initNotificationControls() {
-	if (initNotificationControls.initialized) return;
-	initNotificationControls.initialized = true;
-	if (!notificationCategoryFilter || !notificationPriorityFilter) return;
-
-	notificationCategoryFilter.innerHTML = [
-		"<option value=\"all\">All categories</option>",
-		...notificationCategories.map(category => `<option value=\"${category}\">${humanizeCategory(category)}</option>`)
-	].join("");
-	notificationPriorityFilter.innerHTML = [
-		"<option value=\"all\">All priorities</option>",
-		"<option value=\"normal\">Normal</option>",
-		"<option value=\"high\">High</option>",
-		"<option value=\"critical\">Critical</option>"
-	].join("");
-
-	notificationCategoryFilter.addEventListener("change", () => {
-		notificationCategoryFilterValue = notificationCategoryFilter.value;
-		refreshNotifications();
-	});
-	notificationPriorityFilter.addEventListener("change", () => {
-		notificationPriorityFilterValue = notificationPriorityFilter.value;
-		refreshNotifications();
-	});
-}
-
 function renderNotificationSettings() {
-	if (!notificationCategoryToggles) return;
-	notificationCategoryToggles.innerHTML = notificationCategories.map(category => {
-		const enabled = notificationSettings[category] !== false;
+	if (!notificationSettingsList) return;
+	notificationSettingsList.innerHTML = notificationCategories.map(category => {
+		const setting = notificationSettings[category] || { enabled: true, pushEnabled: false };
 		return `
-			<label class="notification-toggle">
-				<span>${humanizeCategory(category)}</span>
-				<input type="checkbox" data-category="${category}" ${enabled ? "checked" : ""} />
-			</label>
+			<div class="notification-setting-row">
+				<div>${humanizeCategory(category)}</div>
+				<label>
+					<input type="checkbox" data-category="${category}" data-channel="inapp" ${setting.enabled ? "checked" : ""} />
+					<span>In-app</span>
+				</label>
+				<label>
+					<input type="checkbox" data-category="${category}" data-channel="push" ${setting.pushEnabled ? "checked" : ""} />
+					<span>Push</span>
+				</label>
+			</div>
 		`;
 	}).join("");
 
-	[...notificationCategoryToggles.querySelectorAll("input[type='checkbox']")].forEach(input => {
-		input.addEventListener("change", () => {
+	[...notificationSettingsList.querySelectorAll("input[type='checkbox']")].forEach(input => {
+		input.addEventListener("change", async () => {
 			const category = input.getAttribute("data-category");
-			notificationSettings[category] = input.checked;
+			const channel = input.getAttribute("data-channel");
+			const current = notificationSettings[category] || { enabled: true, pushEnabled: false };
+			if (channel === "push") {
+				if (input.checked) {
+					const allowed = await ensurePushPermission();
+					if (!allowed) {
+						input.checked = false;
+						setToast("Push notifications are blocked in your browser.", "error");
+						return;
+					}
+				}
+				current.pushEnabled = input.checked;
+			} else {
+				current.enabled = input.checked;
+			}
+			notificationSettings[category] = current;
 			scheduleNotificationSettingsSave();
 		});
 	});
@@ -1546,14 +1697,16 @@ function scheduleNotificationSettingsSave() {
 
 async function loadNotificationSettings() {
 	if (!currentUser) return;
-	initNotificationControls();
 	try {
 		const res = await apiFetch("/notifications/settings");
 		const data = await res.json();
 		if (!data.ok) return;
 		notificationSettings = {};
 		(data.settings || []).forEach(item => {
-			notificationSettings[item.category] = item.enabled;
+			notificationSettings[item.category] = {
+				enabled: item.enabled !== false,
+				pushEnabled: item.pushEnabled === true
+			};
 		});
 		renderNotificationSettings();
 	} catch (e) {}
@@ -1564,7 +1717,8 @@ async function saveNotificationSettings() {
 	const payload = {
 		categories: notificationCategories.map(category => ({
 			category,
-			enabled: notificationSettings[category] !== false
+			enabled: notificationSettings[category]?.enabled !== false,
+			pushEnabled: notificationSettings[category]?.pushEnabled === true
 		}))
 	};
 	try {
@@ -1576,148 +1730,126 @@ async function saveNotificationSettings() {
 	} catch (e) {}
 }
 
-function shouldDisplayNotification(item) {
-	const priority = (item.priority || "normal").toLowerCase();
-	if (priority !== "normal") return true;
-	if (notificationPriorityFilterValue !== "all" && priority !== notificationPriorityFilterValue) {
-		return false;
-	}
-	const category = (item.category || "system").toLowerCase();
-	if (notificationCategoryFilterValue !== "all" && category !== notificationCategoryFilterValue) {
-		return false;
-	}
-	return true;
+async function ensurePushPermission() {
+	if (!("Notification" in window)) return false;
+	if (Notification.permission === "granted") return true;
+	if (Notification.permission === "denied") return false;
+	const result = await Notification.requestPermission();
+	return result === "granted";
 }
 
-function connectNotificationStream() {
-	if (!currentUser || notificationEventSource) return;
-	const afterParam = lastNotificationId > 0 ? `?after=${lastNotificationId}` : "";
-	notificationEventSource = new EventSource(`/notifications/stream${afterParam}`);
-	notificationEventSource.addEventListener("notification", () => {
-		refreshNotifications();
-	});
-	notificationEventSource.onerror = () => {};
+function escapeHtml(text) {
+	return String(text || "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/\"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
-function disconnectNotificationStream() {
-	if (!notificationEventSource) return;
-	notificationEventSource.close();
-	notificationEventSource = null;
+function formatRelativeTime(value) {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return "";
+	const diffSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+	if (diffSeconds < 60) return "Just now";
+	const minutes = Math.floor(diffSeconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	if (days === 1) return "Yesterday";
+	return `${days}d ago`;
 }
 
-async function refreshNotifications() {
-	if (!currentUser) {
-		notificationPanel.style.display = "none";
-		notificationUnreadList.innerHTML = "";
-		notificationReadList.innerHTML = "";
-		notificationCount.style.display = "none";
-		return;
+function iconForCategory(category) {
+	switch ((category || "system").toLowerCase()) {
+	case "economy":
+		return "🪙";
+	case "player_action":
+		return "✨";
+	case "market":
+		return "📈";
+	case "abuse":
+		return "🛡️";
+	case "admin":
+		return "🧭";
+	default:
+		return "🔔";
 	}
-	const res = await apiFetch("/notifications");
-	const data = await res.json();
-	if (!data.ok) {
-		notificationPanel.style.display = "none";
-		return;
-	}
-	const items = data.notifications || [];
-	if (items.length === 0) {
-		notificationPanel.style.display = "none";
-		notificationUnreadList.innerHTML = "";
-		notificationReadList.innerHTML = "";
-		notificationCount.style.display = "none";
-		return;
-	}
-	const filtered = items.filter(shouldDisplayNotification);
-	const unread = filtered.filter(item => !item.isRead);
-	const read = filtered.filter(item => item.isRead);
-	notificationPanel.style.display = "block";
-	if (unread.length > 0) {
-		notificationCount.style.display = "inline-flex";
-		notificationCount.innerText = `${unread.length} unread`;
+}
+
+function updateNotificationBadge(count) {
+	if (!notificationBadge) return;
+	if (count > 0) {
+		notificationBadge.style.display = "inline-flex";
+		notificationBadge.innerText = `${count}`;
 	} else {
-		notificationCount.style.display = "none";
+		notificationBadge.style.display = "none";
 	}
-	lastNotificationId = items.reduce((maxId, item) => Math.max(maxId, item.id || 0), lastNotificationId);
+	if (notificationUnreadLabel) {
+		notificationUnreadLabel.innerText = count > 0 ? `${count} unread` : "";
+	}
+}
 
-	const renderItem = (item) => {
-		const priority = (item.priority || "normal").toLowerCase();
-		const priorityClass = priority === "high" ? "priority-high" : (priority === "critical" ? "priority-critical" : "");
-		const level = item.level || (priority === "critical" ? "urgent" : (priority === "high" ? "warn" : "info"));
+function renderNotificationList() {
+	if (!notificationList) return;
+	const unreadCount = notificationsCache.filter(item => !item.isRead).length;
+	updateNotificationBadge(unreadCount);
+	if (notificationsCache.length === 0) {
+		notificationList.innerHTML = "";
+		if (notificationEmpty) {
+			notificationEmpty.innerText = "No notifications yet.";
+			notificationEmpty.style.display = "block";
+		}
+		return;
+	}
+	if (notificationEmpty) notificationEmpty.style.display = "none";
+	notificationList.innerHTML = notificationsCache.map(item => {
 		const stateClass = item.isRead ? "read" : "unread";
-		const safeLink = item.link || "#/home";
-		const category = item.category || "system";
-		const ackRequired = Boolean(item.ackRequired);
-		const isAcknowledged = Boolean(item.isAcknowledged);
-		const ackButton = ackRequired && !isAcknowledged
-			? `<button class=\"notice-ack\" data-id=\"${item.id}\">Acknowledge</button>`
-			: "";
-		const deleteDisabled = priority !== "normal" && !isAcknowledged ? "disabled" : "";
+		const link = item.link || "";
 		return `
-			<div class="notice clickable ${level} ${priorityClass} ${stateClass}" data-id="${item.id}" data-link="${safeLink}" data-read="${item.isRead}">
-				<div class="notice-content">
-					<div>${item.message}</div>
-					<div class="label">${new Date(item.createdAt).toLocaleString()}</div>
-					<div class="notice-meta">
-						<span class="badge subtle">${humanizeCategory(category)}</span>
-						<span class="badge">${priority.toUpperCase()}</span>
-						${ackRequired ? `<span class=\"badge warn\">ACK REQUIRED</span>` : ""}
-					</div>
+			<div class="notification-item ${stateClass}" data-id="${item.id}" data-link="${link}">
+				<div class="notification-icon">${iconForCategory(item.category)}</div>
+				<div class="notification-body">
+					<div class="notification-message">${escapeHtml(item.message)}</div>
+					<div class="notification-time">${formatRelativeTime(item.createdAt)}</div>
 				</div>
-				<div class="notice-actions">
-					${ackButton}
-					<button class="notice-delete" data-id="${item.id}" ${deleteDisabled}>Delete</button>
-				</div>
+				<button class="notification-trash" type="button" aria-label="Delete notification" data-id="${item.id}">🗑</button>
 			</div>
 		`;
-	};
+	}).join("");
 
-	notificationUnreadList.innerHTML = unread.length > 0
-		? unread.map(renderItem).join("")
-		: "<div class='label'>No unread notifications.</div>";
-	notificationReadList.innerHTML = read.length > 0
-		? read.map(renderItem).join("")
-		: "<div class='label'>No read notifications.</div>";
-	if (filtered.length === 0) {
-		notificationUnreadList.innerHTML = "<div class='label'>No notifications match the current filters.</div>";
-		notificationReadList.innerHTML = "";
-	}
+	if (!renderNotificationList.initialized) {
+		renderNotificationList.initialized = true;
+		notificationList.addEventListener("click", async (event) => {
+			const deleteBtn = event.target.closest(".notification-trash");
+			if (deleteBtn) {
+				event.stopPropagation();
+				const id = parseInt(deleteBtn.getAttribute("data-id"), 10);
+				if (!id) return;
+				await apiFetch("/notifications/delete", {
+					method: "POST",
+					body: JSON.stringify({ ids: [id] })
+				});
+				notificationsCache = notificationsCache.filter(item => item.id !== id);
+				renderNotificationList();
+				return;
+			}
 
-	[...notificationPanel.querySelectorAll(".notice-ack")].forEach(button => {
-		button.addEventListener("click", async (event) => {
-			event.stopPropagation();
-			const id = parseInt(button.getAttribute("data-id"), 10);
-			await apiFetch("/notifications/ack", {
-				method: "POST",
-				body: JSON.stringify({ ids: [id] })
-			});
-			await refreshNotifications();
-		});
-	});
-	[...notificationPanel.querySelectorAll(".notice-delete")].forEach(button => {
-		button.addEventListener("click", async (event) => {
-			event.stopPropagation();
-			if (button.hasAttribute("disabled")) return;
-			const id = parseInt(button.getAttribute("data-id"), 10);
-			await apiFetch("/notifications/delete", {
-				method: "POST",
-				body: JSON.stringify({ ids: [id] })
-			});
-			await refreshNotifications();
-		});
-	});
-	[...notificationPanel.querySelectorAll(".notice[data-id]")].forEach(item => {
-		item.addEventListener("click", async (event) => {
-			if (event.target.closest("button")) return;
-			const id = parseInt(item.getAttribute("data-id"), 10);
-			const link = item.getAttribute("data-link") || "#/home";
-			const isRead = item.getAttribute("data-read") === "true";
-			if (!isRead) {
+			const itemEl = event.target.closest(".notification-item");
+			if (!itemEl) return;
+			const id = parseInt(itemEl.getAttribute("data-id"), 10);
+			const link = itemEl.getAttribute("data-link") || "";
+			const item = notificationsCache.find(entry => entry.id === id);
+			if (item && !item.isRead) {
+				item.isRead = true;
+				renderNotificationList();
 				await apiFetch("/notifications/ack", {
 					method: "POST",
 					body: JSON.stringify({ ids: [id] })
 				});
-				await refreshNotifications();
 			}
+			if (!link) return;
 			if (link.startsWith("http")) {
 				window.location.href = link;
 				return;
@@ -1732,7 +1864,78 @@ async function refreshNotifications() {
 			}
 			location.hash = `#/${link}`;
 		});
+	}
+}
+
+function maybeSendPush(item) {
+	if (!item || item.isRead) return;
+	const category = (item.category || "system").toLowerCase();
+	const setting = notificationSettings[category];
+	if (!setting || !setting.pushEnabled) return;
+	if (!("Notification" in window)) return;
+	if (Notification.permission !== "granted") return;
+	if (!document.hidden && notificationPanelOpen) return;
+	try {
+		new Notification("Too Many Coins", { body: item.message || "New notification" });
+	} catch (e) {}
+}
+
+function upsertNotification(item, fromStream) {
+	if (!item || !item.id) return;
+	const index = notificationsCache.findIndex(entry => entry.id === item.id);
+	if (index >= 0) {
+		notificationsCache[index] = item;
+	} else {
+		notificationsCache.unshift(item);
+	}
+	notificationsCache.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+	lastNotificationId = Math.max(lastNotificationId, item.id || 0);
+	renderNotificationList();
+	if (fromStream) {
+		maybeSendPush(item);
+	}
+}
+
+function connectNotificationStream() {
+	if (!currentUser || notificationEventSource) return;
+	const afterParam = lastNotificationId > 0 ? `?after=${lastNotificationId}` : "";
+	notificationEventSource = new EventSource(`/notifications/stream${afterParam}`);
+	notificationEventSource.addEventListener("notification", (event) => {
+		try {
+			const item = JSON.parse(event.data);
+			upsertNotification(item, true);
+		} catch (e) {
+			refreshNotifications();
+		}
 	});
+	notificationEventSource.onerror = () => {};
+}
+
+function disconnectNotificationStream() {
+	if (!notificationEventSource) return;
+	notificationEventSource.close();
+	notificationEventSource = null;
+}
+
+async function refreshNotifications() {
+	if (!currentUser) {
+		notificationsCache = [];
+		updateNotificationBadge(0);
+		if (notificationEmpty) {
+			notificationEmpty.innerText = "Log in to view notifications.";
+			notificationEmpty.style.display = "block";
+		}
+		return;
+	}
+	const res = await apiFetch("/notifications");
+	const data = await res.json();
+	if (!data.ok) {
+		return;
+	}
+	const items = data.notifications || [];
+	notificationsCache = items.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+	lastNotificationId = items.reduce((maxId, item) => Math.max(maxId, item.id || 0), lastNotificationId);
+	renderNotificationList();
 }
 
 function setView(viewId) {
@@ -1779,12 +1982,14 @@ async function route() {
 		return;
 	}
 	setView(viewMap[routeKey]);
+	if (currentUser && !document.hidden) {
+		startActiveLoops();
+	} else {
+		stopActiveLoops();
+	}
 	if (routeKey === "home") {
 		if (!homeInitialized) initHome();
 		await refreshPlayer();
-		if (currentUser && !document.hidden) {
-			startActiveLoops();
-		}
 		return;
 	}
 	if (routeKey === "signup") {

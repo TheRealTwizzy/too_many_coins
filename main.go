@@ -231,8 +231,9 @@ type NotificationDeleteRequest struct {
 }
 
 type NotificationSettingItem struct {
-	Category string `json:"category"`
-	Enabled  bool   `json:"enabled"`
+	Category    string `json:"category"`
+	Enabled     bool   `json:"enabled"`
+	PushEnabled bool   `json:"pushEnabled"`
 }
 
 type NotificationSettingsResponse struct {
@@ -467,7 +468,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/auth/refresh", refreshTokenHandler(db))
 	mux.HandleFunc("/auth/request-reset", requestPasswordResetHandler(db))
 	mux.HandleFunc("/auth/reset-password", resetPasswordHandler(db))
-	
+
 	mux.HandleFunc("/notifications", notificationsHandler(db))
 	mux.HandleFunc("/notifications/ack", notificationsAckHandler(db))
 	mux.HandleFunc("/notifications/delete", notificationsDeleteHandler(db))

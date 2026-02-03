@@ -177,9 +177,13 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     account_id TEXT NOT NULL,
     category TEXT NOT NULL,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    push_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (account_id, category)
 );
+
+ALTER TABLE notification_settings
+    ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at
     ON notifications (created_at);
