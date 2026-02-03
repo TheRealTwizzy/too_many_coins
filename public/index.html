@@ -1422,6 +1422,10 @@ const adminOverviewStars = document.getElementById("admin-overview-stars");
 const adminOverviewPressure = document.getElementById("admin-overview-pressure");
 const adminOverviewThrottles = document.getElementById("admin-overview-throttles");
 const adminOverviewFlags = document.getElementById("admin-overview-flags");
+const adminSeasonList = document.getElementById("admin-season-list");
+const adminSeasonEmpty = document.getElementById("admin-season-empty");
+const adminSeasonDetail = document.getElementById("admin-season-detail");
+const adminSeasonMetrics = document.getElementById("admin-season-metrics");
 
 const views = Array.from(document.querySelectorAll(".view"));
 const viewMap = {
@@ -2378,6 +2382,79 @@ function economyState(pressure) {
 	return { label: "Stable", level: "ok" };
 }
 
+function formatSeasonDay(secondsRemaining) {
+	const totalSeconds = 28 * 86400;
+	const remaining = Math.max(0, Math.min(totalSeconds, secondsRemaining || 0));
+	const elapsed = totalSeconds - remaining;
+	const day = Math.min(28, Math.max(1, Math.floor(elapsed / 86400) + 1));
+	return `${day} / 28`;
+}
+
+function seasonStatus(secondsRemaining) {
+	if (secondsRemaining <= 0) return "Ending";
+	if (secondsRemaining <= 86400) return "Ending";
+	return "Active";
+}
+
+async function loadAdminSeasons() {
+	if (!currentUser || !currentUser.isAdmin) return;
+	if (!adminSeasonList) return;
+	try {
+		const [seasonRes, economyRes] = await Promise.all([
+			apiFetch("/seasons"),
+			apiFetch("/admin/economy")
+		]);
+		const seasonData = await seasonRes.json();
+		const economyData = await economyRes.json();
+		const seasons = seasonData.seasons || [];
+		if (!seasons.length) {
+			adminSeasonList.innerHTML = "";
+			if (adminSeasonEmpty) adminSeasonEmpty.style.display = "block";
+			if (adminSeasonDetail) adminSeasonDetail.style.display = "none";
+			return;
+		}
+		if (adminSeasonEmpty) adminSeasonEmpty.style.display = "none";
+		adminSeasonList.innerHTML = seasons.map((season) => {
+			const status = seasonStatus(season.secondsRemaining || 0);
+			const badgeClass = status === "Ending" ? "badge warn" : "badge accent";
+			return `
+				<div class="card notice clickable" data-season-id="${season.seasonId}">
+					<div class="row" style="justify-content:space-between; align-items:center;">
+						<div>
+							<div class="label">Season ID</div>
+							<div class="stat-value">${season.seasonId}</div>
+						</div>
+						<span class="${badgeClass}">${status}</span>
+					</div>
+					<div class="label" style="margin-top:0.5rem;">Day ${formatSeasonDay(season.secondsRemaining || 0)}</div>
+					<div class="label">Base price ${economyData.baseStarPrice || "--"} · Effective ${season.currentStarPrice || "--"}</div>
+					<div class="label">Market pressure ${typeof economyData.marketPressure === "number" ? economyData.marketPressure.toFixed(2) + "x" : "--"}</div>
+					<div class="label">Emission target ${economyData.dailyEmissionTarget || "--"}</div>
+				</div>
+			`;
+		}).join("");
+
+		const first = seasons[0];
+		if (adminSeasonDetail && adminSeasonMetrics && first) {
+			adminSeasonDetail.style.display = "block";
+			adminSeasonMetrics.innerHTML = `
+				<div class="admin-metric"><div class="label">Season ID</div><div class="stat-value">${first.seasonId}</div></div>
+				<div class="admin-metric"><div class="label">Day</div><div class="stat-value">${formatSeasonDay(first.secondsRemaining || 0)}</div></div>
+				<div class="admin-metric"><div class="label">Status</div><div class="stat-value">${seasonStatus(first.secondsRemaining || 0)}</div></div>
+				<div class="admin-metric"><div class="label">Base price</div><div class="stat-value">${economyData.baseStarPrice || "--"}</div></div>
+				<div class="admin-metric"><div class="label">Effective price</div><div class="stat-value">${first.currentStarPrice || "--"}</div></div>
+				<div class="admin-metric"><div class="label">Market pressure</div><div class="stat-value">${typeof economyData.marketPressure === "number" ? economyData.marketPressure.toFixed(2) + "x" : "--"}</div></div>
+				<div class="admin-metric"><div class="label">Emission state</div><div class="stat-value">${economyData.dailyEmissionTarget || "--"}</div></div>
+				<div class="admin-metric"><div class="label">Coins in circulation</div><div class="stat-value">${first.coinsInCirculation || "--"}</div></div>
+			`;
+		}
+	} catch (e) {
+		if (adminSeasonList) adminSeasonList.innerHTML = "";
+		if (adminSeasonEmpty) adminSeasonEmpty.style.display = "block";
+		if (adminSeasonDetail) adminSeasonDetail.style.display = "none";
+	}
+}
+
 async function loadAdminOverview() {
 	if (!currentUser || !currentUser.isAdmin) return;
 	try {
@@ -2414,6 +2491,7 @@ async function loadAdminOverview() {
 function startAdminLoops() {
 	if (adminOverviewTimer) return;
 	loadAdminOverview();
+	loadAdminSeasons();
 	adminOverviewTimer = setInterval(loadAdminOverview, 10000);
 }
 
