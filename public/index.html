@@ -903,72 +903,6 @@
 				</div>
 			</div>
 
-			<div class="card" id="admin-player-controls" data-collapsible="true" style="display:none;">
-				<div class="card-toggle">
-					<div class="label">Player controls</div>
-					<button class="toggle-btn" type="button">Hide</button>
-				</div>
-				<div class="card-body">
-					<div class="row" style="margin-top:0.5rem;">
-						<input id="pc-username" placeholder="Username" />
-						<input id="pc-player-id" placeholder="Player ID" />
-						<button id="pc-load" class="primary">Load</button>
-					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<div class="stack" style="min-width:160px;">
-							<label class="label"><input type="checkbox" id="pc-set-coins-enabled" /> Set coins</label>
-							<input id="pc-set-coins" type="range" min="0" max="10000" step="50" value="0" disabled />
-							<span id="pc-set-coins-value" class="label"></span>
-						</div>
-						<div class="stack" style="min-width:160px;">
-							<label class="label"><input type="checkbox" id="pc-add-coins-enabled" /> Add coins</label>
-							<input id="pc-add-coins" type="range" min="0" max="2000" step="25" value="0" disabled />
-							<span id="pc-add-coins-value" class="label"></span>
-						</div>
-						<div class="stack" style="min-width:160px;">
-							<label class="label"><input type="checkbox" id="pc-set-stars-enabled" /> Set stars</label>
-							<input id="pc-set-stars" type="range" min="0" max="500" step="1" value="0" disabled />
-							<span id="pc-set-stars-value" class="label"></span>
-						</div>
-						<div class="stack" style="min-width:160px;">
-							<label class="label"><input type="checkbox" id="pc-add-stars-enabled" /> Add stars</label>
-							<input id="pc-add-stars" type="range" min="0" max="100" step="1" value="0" disabled />
-							<span id="pc-add-stars-value" class="label"></span>
-						</div>
-					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<div class="stack" style="min-width:200px;">
-							<label class="label"><input type="checkbox" id="pc-drip-mult-enabled" /> Drip multiplier</label>
-							<input id="pc-drip-mult" type="range" min="0.1" max="3" step="0.1" value="1" disabled />
-							<span id="pc-drip-mult-value" class="label"></span>
-						</div>
-						<select id="pc-drip-paused">
-							<option value="">Pause?</option>
-							<option value="true">Pause drip</option>
-							<option value="false">Resume drip</option>
-						</select>
-						<button id="pc-touch" class="primary">Touch active</button>
-						<button id="pc-save" class="primary">Apply</button>
-					</div>
-					<div class="row" style="margin-top:0.5rem;">
-						<label class="label"><input type="checkbox" id="pc-is-bot-enabled" /> Set bot status</label>
-						<select id="pc-is-bot" disabled>
-							<option value="">Bot status</option>
-							<option value="true">Bot</option>
-							<option value="false">Human</option>
-						</select>
-						<label class="label"><input type="checkbox" id="pc-bot-profile-enabled" /> Set bot profile</label>
-						<select id="pc-bot-profile" disabled>
-							<option value="">None</option>
-							<option value="threshold_buyer">Threshold buyer</option>
-							<option value="cautious_buyer">Cautious buyer</option>
-							<option value="late_fomo">Late FOMO</option>
-						</select>
-					</div>
-					<div id="pc-status" class="label"></div>
-				</div>
-			</div>
-
 				<div class="card" id="no-access" style="display:none;">
 					<div class="label">Not authorized</div>
 					<div class="label">You need an admin account to view this page.</div>
@@ -1315,6 +1249,70 @@
 				<div class="card" id="mod-no-access" style="display:none;">
 					<div class="label">Not authorized</div>
 					<div class="label">You need a moderator or admin account to view this page.</div>
+				</div>
+			</div>
+
+			<div class="card" id="mod-admin-controls" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Admin player controls</div>
+					<button class="toggle-btn" type="button">Hide</button>
+				</div>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="mod-player-id" placeholder="Player ID" readonly />
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<div class="stack" style="min-width:160px;">
+							<label class="label"><input type="checkbox" id="mod-set-coins-enabled" /> Set coins</label>
+							<input id="mod-set-coins" type="range" min="0" max="10000" step="50" value="0" disabled />
+							<span id="mod-set-coins-value" class="label"></span>
+						</div>
+						<div class="stack" style="min-width:160px;">
+							<label class="label"><input type="checkbox" id="mod-add-coins-enabled" /> Add coins</label>
+							<input id="mod-add-coins" type="range" min="0" max="2000" step="25" value="0" disabled />
+							<span id="mod-add-coins-value" class="label"></span>
+						</div>
+						<div class="stack" style="min-width:160px;">
+							<label class="label"><input type="checkbox" id="mod-set-stars-enabled" /> Set stars</label>
+							<input id="mod-set-stars" type="range" min="0" max="500" step="1" value="0" disabled />
+							<span id="mod-set-stars-value" class="label"></span>
+						</div>
+						<div class="stack" style="min-width:160px;">
+							<label class="label"><input type="checkbox" id="mod-add-stars-enabled" /> Add stars</label>
+							<input id="mod-add-stars" type="range" min="0" max="100" step="1" value="0" disabled />
+							<span id="mod-add-stars-value" class="label"></span>
+						</div>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<div class="stack" style="min-width:200px;">
+							<label class="label"><input type="checkbox" id="mod-drip-mult-enabled" /> Drip multiplier</label>
+							<input id="mod-drip-mult" type="range" min="0.1" max="3" step="0.1" value="1" disabled />
+							<span id="mod-drip-mult-value" class="label"></span>
+						</div>
+						<select id="mod-drip-paused">
+							<option value="">Pause?</option>
+							<option value="true">Pause drip</option>
+							<option value="false">Resume drip</option>
+						</select>
+						<button id="mod-touch" class="primary">Touch active</button>
+						<button id="mod-admin-save" class="primary">Apply</button>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<label class="label"><input type="checkbox" id="mod-is-bot-enabled" /> Set bot status</label>
+						<select id="mod-is-bot" disabled>
+							<option value="">Bot status</option>
+							<option value="true">Bot</option>
+							<option value="false">Human</option>
+						</select>
+						<label class="label"><input type="checkbox" id="mod-bot-profile-enabled" /> Set bot profile</label>
+						<select id="mod-bot-profile" disabled>
+							<option value="">None</option>
+							<option value="threshold_buyer">Threshold buyer</option>
+							<option value="cautious_buyer">Cautious buyer</option>
+							<option value="late_fomo">Late FOMO</option>
+						</select>
+					</div>
+					<div id="mod-admin-status" class="label"></div>
 				</div>
 			</div>
 		</section>
@@ -2256,13 +2254,6 @@ function initAdmin() {
 	bindRangeValue("gs-active-amount", "gs-active-amount-value", value => `${value} coins`);
 	bindRangeValue("gs-idle-amount", "gs-idle-amount-value", value => `${value} coins`);
 	bindRangeValue("gs-activity-window", "gs-activity-window-value", value => `${value}s`);
-	bindRangeToggle("pc-set-coins", "pc-set-coins-value", "pc-set-coins-enabled", value => `${value} coins`);
-	bindRangeToggle("pc-add-coins", "pc-add-coins-value", "pc-add-coins-enabled", value => `+${value} coins`);
-	bindRangeToggle("pc-set-stars", "pc-set-stars-value", "pc-set-stars-enabled", value => `${value} stars`);
-	bindRangeToggle("pc-add-stars", "pc-add-stars-value", "pc-add-stars-enabled", value => `+${value} stars`);
-	bindRangeToggle("pc-drip-mult", "pc-drip-mult-value", "pc-drip-mult-enabled", value => `${value.toFixed(1)}x`);
-	bindToggleSelect("pc-is-bot-enabled", "pc-is-bot");
-	bindToggleSelect("pc-bot-profile-enabled", "pc-bot-profile");
 	document.getElementById("refresh").addEventListener("click", () => {
 		loadSummary();
 	});
@@ -2376,78 +2367,6 @@ function initAdmin() {
 		});
 		const data = await res.json();
 		document.getElementById("gs-status").innerText = data.ok ? "Settings saved." : (data.error || "Save failed.");
-	});
-
-	document.getElementById("pc-load").addEventListener("click", async () => {
-		const username = document.getElementById("pc-username").value.trim();
-		const playerId = document.getElementById("pc-player-id").value.trim();
-		const res = await apiFetch("/admin/player-controls", {
-			method: "POST",
-			body: JSON.stringify({ username, playerId })
-		});
-		const data = await res.json();
-		const status = document.getElementById("pc-status");
-		if (!data.ok) {
-			status.innerText = data.error || "Load failed.";
-			return;
-		}
-		status.innerText = `Loaded ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}`;
-		document.getElementById("pc-player-id").value = data.playerId || playerId;
-		setRangeValue("pc-set-coins", data.coins);
-		setRangeValue("pc-set-stars", data.stars);
-		setRangeValue("pc-drip-mult", data.dripMultiplier);
-		document.getElementById("pc-is-bot").value = data.isBot ? "true" : "false";
-		document.getElementById("pc-bot-profile").value = data.botProfile || "";
-	});
-
-	document.getElementById("pc-save").addEventListener("click", async () => {
-		const username = document.getElementById("pc-username").value.trim();
-		const playerId = document.getElementById("pc-player-id").value.trim();
-		const setCoinsEnabled = document.getElementById("pc-set-coins-enabled").checked;
-		const addCoinsEnabled = document.getElementById("pc-add-coins-enabled").checked;
-		const setStarsEnabled = document.getElementById("pc-set-stars-enabled").checked;
-		const addStarsEnabled = document.getElementById("pc-add-stars-enabled").checked;
-		const dripMultEnabled = document.getElementById("pc-drip-mult-enabled").checked;
-		const isBotEnabled = document.getElementById("pc-is-bot-enabled").checked;
-		const botProfileEnabled = document.getElementById("pc-bot-profile-enabled").checked;
-		const setCoins = parseInt(document.getElementById("pc-set-coins").value, 10);
-		const addCoins = parseInt(document.getElementById("pc-add-coins").value, 10);
-		const setStars = parseInt(document.getElementById("pc-set-stars").value, 10);
-		const addStars = parseInt(document.getElementById("pc-add-stars").value, 10);
-		const dripMultiplier = parseFloat(document.getElementById("pc-drip-mult").value);
-		const isBotValue = document.getElementById("pc-is-bot").value;
-		const botProfileValue = document.getElementById("pc-bot-profile").value;
-		const dripPausedValue = document.getElementById("pc-drip-paused").value;
-		const payload = { username, playerId };
-		if (setCoinsEnabled && !Number.isNaN(setCoins)) payload.setCoins = setCoins;
-		if (addCoinsEnabled && !Number.isNaN(addCoins)) payload.addCoins = addCoins;
-		if (setStarsEnabled && !Number.isNaN(setStars)) payload.setStars = setStars;
-		if (addStarsEnabled && !Number.isNaN(addStars)) payload.addStars = addStars;
-		if (dripMultEnabled && !Number.isNaN(dripMultiplier)) payload.dripMultiplier = dripMultiplier;
-		if (isBotEnabled && (isBotValue === "true" || isBotValue === "false")) payload.isBot = isBotValue === "true";
-		if (botProfileEnabled) payload.botProfile = botProfileValue;
-		if (dripPausedValue === "true") payload.dripPaused = true;
-		if (dripPausedValue === "false") payload.dripPaused = false;
-
-		const res = await apiFetch("/admin/player-controls", {
-			method: "POST",
-			body: JSON.stringify(payload)
-		});
-		const data = await res.json();
-		const status = document.getElementById("pc-status");
-		status.innerText = data.ok ? `Updated ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}` : (data.error || "Update failed.");
-	});
-
-	document.getElementById("pc-touch").addEventListener("click", async () => {
-		const username = document.getElementById("pc-username").value.trim();
-		const playerId = document.getElementById("pc-player-id").value.trim();
-		const res = await apiFetch("/admin/player-controls", {
-			method: "POST",
-			body: JSON.stringify({ username, playerId, touchActive: true })
-		});
-		const data = await res.json();
-		const status = document.getElementById("pc-status");
-		status.innerText = data.ok ? `Touched active for ${data.playerId}` : (data.error || "Touch failed.");
 	});
 
 	loadWhitelistRequests();
@@ -2704,7 +2623,6 @@ async function refreshAdminView() {
 		document.getElementById("ip-whitelist").style.display = "none";
 		document.getElementById("whitelist-requests").style.display = "none";
 		document.getElementById("admin-notify").style.display = "none";
-		document.getElementById("admin-player-controls").style.display = "none";
 		document.getElementById("admin-settings").style.display = "none";
 		document.getElementById("admin-setup").style.display = "block";
 		return false;
@@ -2716,7 +2634,6 @@ async function refreshAdminView() {
 	document.getElementById("ip-whitelist").style.display = "block";
 	document.getElementById("whitelist-requests").style.display = "block";
 	document.getElementById("admin-notify").style.display = "block";
-	document.getElementById("admin-player-controls").style.display = "block";
 	document.getElementById("admin-settings").style.display = "block";
 	loadWhitelistRequests();
 	return true;
@@ -3049,6 +2966,14 @@ async function loadTelemetry() {
 
 function initModerator() {
 	moderatorInitialized = true;
+	bindRangeToggle("mod-set-coins", "mod-set-coins-value", "mod-set-coins-enabled", value => `${value} coins`);
+	bindRangeToggle("mod-add-coins", "mod-add-coins-value", "mod-add-coins-enabled", value => `+${value} coins`);
+	bindRangeToggle("mod-set-stars", "mod-set-stars-value", "mod-set-stars-enabled", value => `${value} stars`);
+	bindRangeToggle("mod-add-stars", "mod-add-stars-value", "mod-add-stars-enabled", value => `+${value} stars`);
+	bindRangeToggle("mod-drip-mult", "mod-drip-mult-value", "mod-drip-mult-enabled", value => `${value.toFixed(1)}x`);
+	bindToggleSelect("mod-is-bot-enabled", "mod-is-bot");
+	bindToggleSelect("mod-bot-profile-enabled", "mod-bot-profile");
+
 	document.getElementById("mod-load-view").addEventListener("click", async () => {
 		const username = document.getElementById("mod-username-view").value.trim();
 		const res = await apiFetch(`/moderator/profile?username=${encodeURIComponent(username)}`);
@@ -3065,6 +2990,9 @@ function initModerator() {
 		document.getElementById("mod-avatar-view").value = data.avatarUrl || "";
 		document.getElementById("mod-bio-view").value = data.bio || "";
 		document.getElementById("mod-status-view").innerText = "Profile loaded.";
+		if (currentUser && currentUser.isAdmin) {
+			await loadAdminProfileControls(username);
+		}
 	});
 
 	document.getElementById("mod-save-view").addEventListener("click", async () => {
@@ -3084,6 +3012,82 @@ function initModerator() {
 		document.getElementById("mod-status-view").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");
 	});
 
+	document.getElementById("mod-admin-save").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const playerId = document.getElementById("mod-player-id").value.trim();
+		const setCoinsEnabled = document.getElementById("mod-set-coins-enabled").checked;
+		const addCoinsEnabled = document.getElementById("mod-add-coins-enabled").checked;
+		const setStarsEnabled = document.getElementById("mod-set-stars-enabled").checked;
+		const addStarsEnabled = document.getElementById("mod-add-stars-enabled").checked;
+		const dripMultEnabled = document.getElementById("mod-drip-mult-enabled").checked;
+		const isBotEnabled = document.getElementById("mod-is-bot-enabled").checked;
+		const botProfileEnabled = document.getElementById("mod-bot-profile-enabled").checked;
+		const setCoins = parseInt(document.getElementById("mod-set-coins").value, 10);
+		const addCoins = parseInt(document.getElementById("mod-add-coins").value, 10);
+		const setStars = parseInt(document.getElementById("mod-set-stars").value, 10);
+		const addStars = parseInt(document.getElementById("mod-add-stars").value, 10);
+		const dripMultiplier = parseFloat(document.getElementById("mod-drip-mult").value);
+		const isBotValue = document.getElementById("mod-is-bot").value;
+		const botProfileValue = document.getElementById("mod-bot-profile").value;
+		const dripPausedValue = document.getElementById("mod-drip-paused").value;
+		const payload = { username, playerId };
+		if (setCoinsEnabled && !Number.isNaN(setCoins)) payload.setCoins = setCoins;
+		if (addCoinsEnabled && !Number.isNaN(addCoins)) payload.addCoins = addCoins;
+		if (setStarsEnabled && !Number.isNaN(setStars)) payload.setStars = setStars;
+		if (addStarsEnabled && !Number.isNaN(addStars)) payload.addStars = addStars;
+		if (dripMultEnabled && !Number.isNaN(dripMultiplier)) payload.dripMultiplier = dripMultiplier;
+		if (isBotEnabled && (isBotValue === "true" || isBotValue === "false")) payload.isBot = isBotValue === "true";
+		if (botProfileEnabled) payload.botProfile = botProfileValue;
+		if (dripPausedValue === "true") payload.dripPaused = true;
+		if (dripPausedValue === "false") payload.dripPaused = false;
+
+		const res = await apiFetch("/admin/player-controls", {
+			method: "POST",
+			body: JSON.stringify(payload)
+		});
+		const data = await res.json();
+		const status = document.getElementById("mod-admin-status");
+		status.innerText = data.ok ? `Updated ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}` : (data.error || "Update failed.");
+		if (data.ok) {
+			document.getElementById("mod-player-id").value = data.playerId || playerId;
+		}
+	});
+
+	document.getElementById("mod-touch").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const playerId = document.getElementById("mod-player-id").value.trim();
+		const res = await apiFetch("/admin/player-controls", {
+			method: "POST",
+			body: JSON.stringify({ username, playerId, touchActive: true })
+		});
+		const data = await res.json();
+		const status = document.getElementById("mod-admin-status");
+		status.innerText = data.ok ? `Touched active for ${data.playerId}` : (data.error || "Touch failed.");
+	});
+
+}
+
+async function loadAdminProfileControls(username) {
+	const res = await apiFetch("/admin/player-controls", {
+		method: "POST",
+		body: JSON.stringify({ username })
+	});
+	const data = await res.json();
+	const status = document.getElementById("mod-admin-status");
+	if (!data.ok) {
+		status.innerText = data.error || "Load failed.";
+		return;
+	}
+	document.getElementById("mod-player-id").value = data.playerId || "";
+	setRangeValue("mod-set-coins", data.coins);
+	setRangeValue("mod-set-stars", data.stars);
+	setRangeValue("mod-add-coins", 0);
+	setRangeValue("mod-add-stars", 0);
+	setRangeValue("mod-drip-mult", data.dripMultiplier);
+	document.getElementById("mod-is-bot").value = data.isBot ? "true" : "false";
+	document.getElementById("mod-bot-profile").value = data.botProfile || "";
+	document.getElementById("mod-drip-paused").value = "";
+	status.innerText = `Loaded ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}`;
 }
 
 async function refreshModeratorView() {
@@ -3092,10 +3096,12 @@ async function refreshModeratorView() {
 	if (!data.ok || (!data.isModerator && !data.isAdmin)) {
 		document.getElementById("mod-no-access").style.display = "block";
 		document.getElementById("moderator-content").style.display = "none";
+		document.getElementById("mod-admin-controls").style.display = "none";
 		return false;
 	}
 	document.getElementById("mod-no-access").style.display = "none";
 	document.getElementById("moderator-content").style.display = "block";
+	document.getElementById("mod-admin-controls").style.display = data.isAdmin ? "block" : "none";
 	return true;
 }
 
