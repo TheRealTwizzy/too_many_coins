@@ -68,6 +68,12 @@ ALTER TABLE players
     ADD COLUMN IF NOT EXISTS last_coin_grant_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS daily_earn_total BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS last_earn_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE players
     ADD COLUMN IF NOT EXISTS drip_multiplier DOUBLE PRECISION NOT NULL DEFAULT 1.0;
 
 ALTER TABLE players
@@ -75,6 +81,15 @@ ALTER TABLE players
 
 ALTER TABLE players
     ADD COLUMN IF NOT EXISTS burned_coins BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS bot_profile TEXT;
+
+ALTER TABLE players
+    ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'human';
 
 CREATE TABLE IF NOT EXISTS player_ip_associations (
     player_id TEXT NOT NULL,
@@ -255,6 +270,30 @@ CREATE TABLE IF NOT EXISTS star_purchase_log (
     coins_after BIGINT NOT NULL,
     stars_before BIGINT NOT NULL,
     stars_after BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS season_calibration (
+    season_id TEXT PRIMARY KEY,
+    seed BIGINT NOT NULL,
+    p0 INT NOT NULL,
+    c_base INT NOT NULL,
+    alpha DOUBLE PRECISION NOT NULL,
+    s_scale DOUBLE PRECISION NOT NULL,
+    g_scale DOUBLE PRECISION NOT NULL,
+    beta DOUBLE PRECISION NOT NULL,
+    gamma DOUBLE PRECISION NOT NULL,
+    daily_login_reward INT NOT NULL,
+    daily_login_cooldown_hours INT NOT NULL,
+    activity_reward INT NOT NULL,
+    activity_cooldown_seconds INT NOT NULL,
+    daily_cap_early INT NOT NULL,
+    daily_cap_late INT NOT NULL,
+    passive_active_interval_seconds INT NOT NULL,
+    passive_idle_interval_seconds INT NOT NULL,
+    passive_active_amount INT NOT NULL,
+    passive_idle_amount INT NOT NULL,
+    hope_threshold DOUBLE PRECISION NOT NULL DEFAULT 0.22,
     created_at TIMESTAMPTZ NOT NULL
 );
 
