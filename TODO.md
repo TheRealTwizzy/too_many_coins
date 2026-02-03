@@ -185,7 +185,7 @@ Allowed to be rough or missing in Alpha:
 ---
 
 ## Phase 14 — Deployment & Live Ops
-- [x] [DONE] 14.1 Railway deployment config + migrations
+- [x] [DONE] 14.1 Fly.io deployment config + migrations
 - [x] [DONE] 14.2 Basic monitoring + alerting
 - [ ] [POST-ALPHA] 14.3 Backup + restore procedures
 

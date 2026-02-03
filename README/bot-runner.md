@@ -5,7 +5,7 @@ The bot runner is a separate process that uses the same HTTP APIs as real player
 ## Environment Variables
 
 Required:
-- `API_BASE_URL` — Public backend URL (e.g., https://your-app.up.railway.app)
+- `API_BASE_URL` — Public backend URL (e.g., https://your-app.fly.dev)
 - `BOTS_ENABLED` — `true`/`false`
 - `BOT_LIST` — JSON string of bot credentials and strategies **or** `BOT_LIST_PATH`
 

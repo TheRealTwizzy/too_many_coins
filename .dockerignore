@@ -1,0 +1,12 @@
+.git
+.gitignore
+.github
+Docker
+
+# build output
+app
+
+# local/dev
+.env
+.vscode
+*.exe

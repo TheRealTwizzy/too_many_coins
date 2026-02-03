@@ -436,7 +436,7 @@ func main() {
 		port = "8080"
 	}
 
-	addr := ":" + port
+	addr := "0.0.0.0:" + port
 	log.Println("Listening on", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal("server failed:", err)

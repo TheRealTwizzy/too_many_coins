@@ -315,11 +315,11 @@ ORDER BY username;
 
 ---
 
-## Deployment (Railway)
+## Deployment (Fly.io)
 
-The server auto-creates schema on startup. For Railway:
+The server auto-creates schema on startup. For Fly.io:
 
-- Build: go build -o app .
+- Build: Dockerfile (multi-stage)
 - Start: ./app
 - Health check: /health
 
