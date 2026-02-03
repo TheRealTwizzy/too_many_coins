@@ -1312,6 +1312,11 @@
 							<option value="late_fomo">Late FOMO</option>
 						</select>
 					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<button id="mod-freeze" class="danger">Freeze account</button>
+						<button id="mod-unfreeze">Unfreeze account</button>
+						<button id="mod-delete" class="danger">Delete account</button>
+					</div>
 					<div id="mod-admin-status" class="label"></div>
 				</div>
 			</div>
@@ -1403,6 +1408,7 @@ let activityPingInterval = null;
 let starLogRefreshInterval = null;
 let liveEventSource = null;
 const ALPHA_SEASON_ID = "season-1";
+const bulkStarMax = 5;
 let lastStarLogRows = [];
 let leaderboardPage = 1;
 
@@ -1755,7 +1761,16 @@ async function loadSeasons() {
 			</div>
 			<div class="season-actions">
 				${isThisSeasonJoined
-					? `<button class="buy-star-btn primary">Buy Star</button>`
+					? `
+						<div class="row" style="margin-top:0.35rem;">
+							<label class="label">Qty</label>
+							<input class="bulk-qty" type="number" min="1" max="${bulkStarMax}" value="1" />
+							<button class="buy-star-btn primary">Buy Stars</button>
+						</div>
+						<div class="label bulk-quote"></div>
+						<div class="label bulk-warning"></div>
+						<div class="label bulk-breakdown"></div>
+					`
 					: isJoined
 						? "<div class='label'>Locked to another season</div>"
 						: "<button class='join-btn primary'>Join this season</button>"
@@ -1765,10 +1780,51 @@ async function loadSeasons() {
 
 		const buyButton = div.querySelector(".buy-star-btn");
 		if (buyButton) {
+			const qtyInput = div.querySelector(".bulk-qty");
+			const quoteEl = div.querySelector(".bulk-quote");
+			const warningEl = div.querySelector(".bulk-warning");
+			const breakdownEl = div.querySelector(".bulk-breakdown");
+			let lastQuote = null;
+			const refreshQuote = async () => {
+				if (!qtyInput) return;
+				const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+				const res = await apiFetch("/buy-star/quote", {
+					method: "POST",
+					body: JSON.stringify({ seasonId: season.seasonId, quantity: qty })
+				});
+				const data = await res.json();
+				if (!data.ok) {
+					lastQuote = null;
+					if (quoteEl) quoteEl.innerText = data.error || "Quote failed";
+					if (warningEl) warningEl.innerText = "";
+					if (breakdownEl) breakdownEl.innerText = "";
+					return;
+				}
+				lastQuote = data;
+				if (quoteEl) quoteEl.innerText = `Total cost: ${data.totalCoinsSpent} coins`;
+				if (warningEl) warningEl.innerText = data.warning || "";
+				if (breakdownEl) {
+					breakdownEl.innerText = data.breakdown && data.breakdown.length > 1
+						? `Per-star: ${data.breakdown.map(item => item.finalPrice).join(", ")}`
+						: "";
+				}
+			};
+			if (qtyInput) {
+				qtyInput.addEventListener("input", refreshQuote);
+				refreshQuote();
+			}
+
 			buyButton.addEventListener("click", async () => {
+				const qty = Math.max(1, parseInt(qtyInput?.value, 10) || 1);
+				if (qty > 1) {
+					const total = lastQuote && lastQuote.totalCoinsSpent ? lastQuote.totalCoinsSpent : "unknown";
+					if (!confirm(`Confirm bulk purchase of ${qty} stars for ${total} coins?`)) {
+						return;
+					}
+				}
 				const res = await apiFetch("/buy-star", {
 					method: "POST",
-					body: JSON.stringify({ seasonId: season.seasonId })
+					body: JSON.stringify({ seasonId: season.seasonId, quantity: qty })
 				});
 				const data = await res.json();
 				if (!data.ok) {
@@ -1780,8 +1836,13 @@ async function loadSeasons() {
 				coinsDiv.innerText = `Coins: ${playerCoins}`;
 				starsDiv.innerText = `Stars: ${playerStars}`;
 				statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
-				setToast("Star purchased.", "success");
-				track("buy_star", { seasonId: season.seasonId, price: data.starPricePaid });
+				const total = data.totalCoinsSpent || data.starPricePaid;
+				const label = data.starsPurchased && data.starsPurchased > 1
+					? `Bought ${data.starsPurchased} stars for ${total} coins.`
+					: `Star purchased for ${total} coins.`;
+				setToast(label, "success");
+				track("buy_star", { seasonId: season.seasonId, quantity: data.starsPurchased || 1, total });
+				refreshQuote();
 			});
 		}
 
@@ -2989,7 +3050,9 @@ function initModerator() {
 		document.getElementById("mod-website-view").value = data.website || "";
 		document.getElementById("mod-avatar-view").value = data.avatarUrl || "";
 		document.getElementById("mod-bio-view").value = data.bio || "";
-		document.getElementById("mod-status-view").innerText = "Profile loaded.";
+		const roleLabel = data.role ? `Role: ${data.role}` : "";
+		const frozenLabel = data.frozen ? " · Frozen" : "";
+		document.getElementById("mod-status-view").innerText = roleLabel ? `Profile loaded. ${roleLabel}${frozenLabel}` : "Profile loaded.";
 		if (currentUser && currentUser.isAdmin) {
 			await loadAdminProfileControls(username);
 		}
@@ -3065,6 +3128,71 @@ function initModerator() {
 		status.innerText = data.ok ? `Touched active for ${data.playerId}` : (data.error || "Touch failed.");
 	});
 
+	document.getElementById("mod-freeze").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const status = document.getElementById("mod-admin-status");
+		if (!username) {
+			status.innerText = "Load a profile first.";
+			return;
+		}
+		if (!confirm(`Freeze account ${username}?`)) {
+			return;
+		}
+		const res = await apiFetch("/admin/profile-actions", {
+			method: "POST",
+			body: JSON.stringify({ username, action: "freeze" })
+		});
+		const data = await res.json();
+		status.innerText = data.ok ? "Account frozen." : (data.error || "Freeze failed.");
+		if (data.ok) {
+			await loadAdminProfileControls(username);
+		}
+	});
+
+	document.getElementById("mod-unfreeze").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const status = document.getElementById("mod-admin-status");
+		if (!username) {
+			status.innerText = "Load a profile first.";
+			return;
+		}
+		if (!confirm(`Unfreeze account ${username}?`)) {
+			return;
+		}
+		const res = await apiFetch("/admin/profile-actions", {
+			method: "POST",
+			body: JSON.stringify({ username, action: "unfreeze" })
+		});
+		const data = await res.json();
+		status.innerText = data.ok ? "Account unfrozen." : (data.error || "Unfreeze failed.");
+		if (data.ok) {
+			await loadAdminProfileControls(username);
+		}
+	});
+
+	document.getElementById("mod-delete").addEventListener("click", async () => {
+		const username = document.getElementById("mod-username-view").value.trim();
+		const status = document.getElementById("mod-admin-status");
+		if (!username) {
+			status.innerText = "Load a profile first.";
+			return;
+		}
+		if (!confirm(`Delete account ${username}? This cannot be undone.`)) {
+			return;
+		}
+		const confirmText = prompt("Type DELETE to confirm account deletion:");
+		if (confirmText !== "DELETE") {
+			status.innerText = "Deletion canceled.";
+			return;
+		}
+		const res = await apiFetch("/admin/profile-actions", {
+			method: "POST",
+			body: JSON.stringify({ username, action: "delete" })
+		});
+		const data = await res.json();
+		status.innerText = data.ok ? "Account deleted." : (data.error || "Delete failed.");
+	});
+
 }
 
 async function loadAdminProfileControls(username) {
@@ -3088,6 +3216,13 @@ async function loadAdminProfileControls(username) {
 	document.getElementById("mod-bot-profile").value = data.botProfile || "";
 	document.getElementById("mod-drip-paused").value = "";
 	status.innerText = `Loaded ${data.playerId} · coins ${data.coins} · stars ${data.stars} · drip ${data.dripMultiplier} · paused ${data.dripPaused}`;
+	const isSelf = currentUser && currentUser.username && username.toLowerCase() === currentUser.username.toLowerCase();
+	const freezeBtn = document.getElementById("mod-freeze");
+	const unfreezeBtn = document.getElementById("mod-unfreeze");
+	const deleteBtn = document.getElementById("mod-delete");
+	if (freezeBtn) freezeBtn.disabled = isSelf;
+	if (unfreezeBtn) unfreezeBtn.disabled = isSelf;
+	if (deleteBtn) deleteBtn.disabled = isSelf;
 }
 
 async function refreshModeratorView() {

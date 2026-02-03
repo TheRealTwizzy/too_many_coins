@@ -179,6 +179,16 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		quantity := req.Quantity
+		if quantity <= 0 {
+			quantity = 1
+		}
+		maxQty := bulkStarMaxQty()
+		if quantity < 1 || quantity > maxQty {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INVALID_QUANTITY"})
+			return
+		}
+
 		playerID := account.PlayerID
 		if !isValidPlayerID(playerID) {
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INVALID_PLAYER_ID"})
@@ -216,56 +226,276 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		coinsBefore := player.Coins
-		starsBefore := player.Stars
-
-		price := ComputeStarPrice(
-			economy.CoinsInCirculation(),
-			28*24*3600,
-		)
-
-		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, price)
+		quote, err := buildBulkStarQuote(db, playerID, quantity)
 		if err != nil {
-			json.NewEncoder(w).Encode(BuyStarResponse{
-				OK: false, Error: "INTERNAL_ERROR",
-			})
-			return
-		}
-		price = dampenedPrice
-
-		if player.Coins < int64(price) {
-			json.NewEncoder(w).Encode(BuyStarResponse{
-				OK: false, Error: "NOT_ENOUGH_COINS",
-			})
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
 
-		player.Coins -= int64(price)
-		player.Stars++
+		tx, err := db.Begin()
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer tx.Rollback()
 
-		UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars)
-		economy.IncrementStars()
-		logStarPurchase(
-			db,
-			account.AccountID,
-			player.PlayerID,
-			currentSeasonID(),
-			"base",
-			"",
-			price,
-			coinsBefore,
-			player.Coins,
-			starsBefore,
-			player.Stars,
-		)
+		var coinsBefore int64
+		var coinsBefore int64
+		var starsBefore int64
+			SELECT coins, stars, burned_coins
+			FROM players
+			WHERE player_id = $1
+			FOR UPDATE
+		`, playerID).Scan(&coinsBefore, &starsBefore, &burnedBefore); err != nil {
+		`).Scan(&coinsBefore, &starsBefore, new(int64)); err != nil {
+			return
+		}
 
+		if coinsBefore < quote.TotalCoinsSpent {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
+			return
+		}
+
+		coinsAfter := coinsBefore - quote.TotalCoinsSpent
+		starsAfter := starsBefore + int64(quantity)
+		_, err = tx.Exec(`
+			UPDATE players
+			SET coins = $2,
+				stars = $3,
+				burned_coins = burned_coins + $4,
+				last_active_at = NOW()
+			WHERE player_id = $1
+		`, playerID, coinsAfter, starsAfter, quote.TotalCoinsSpent)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		purchaseType := "base"
+		if quantity > 1 {
+			purchaseType = "bulk"
+		}
+		runningCoins := coinsBefore
+		runningStars := starsBefore
+		for _, item := range quote.Breakdown {
+			price := item.FinalPrice
+			coinsAfterStep := runningCoins - int64(price)
+			starsAfterStep := runningStars + 1
+			if err := logStarPurchaseTx(
+				tx,
+				account.AccountID,
+				playerID,
+				currentSeasonID(),
+				purchaseType,
+				"",
+				price,
+				runningCoins,
+				coinsAfterStep,
+				runningStars,
+				starsAfterStep,
+			); err != nil {
+				json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			runningCoins = coinsAfterStep
+			runningStars = starsAfterStep
+		}
+
+		if err := tx.Commit(); err != nil {
+			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		for i := 0; i < quantity; i++ {
+			economy.IncrementStars()
+		}
+
+		lastPrice := 0
+		if len(quote.Breakdown) > 0 {
+			lastPrice = quote.Breakdown[len(quote.Breakdown)-1].FinalPrice
+		}
 		json.NewEncoder(w).Encode(BuyStarResponse{
-			OK:            true,
-			StarPricePaid: price,
-			PlayerCoins:   int(player.Coins),
-			PlayerStars:   int(player.Stars),
+			OK:              true,
+			StarPricePaid:   lastPrice,
+			PlayerCoins:     int(coinsAfter),
+			PlayerStars:     int(starsAfter),
+			StarsPurchased:  quantity,
+			TotalCoinsSpent: int(quote.TotalCoinsSpent),
+			FinalStarPrice:  quote.FinalStarPrice,
+			Breakdown:       quote.Breakdown,
+			Warning:         quote.Warning,
+			WarningLevel:    quote.WarningLevel,
 		})
 	}
+}
+
+func buyStarQuoteHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if isSeasonEnded(time.Now().UTC()) {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "SEASON_ENDED"})
+			return
+		}
+		if !featureFlags.SinksEnabled {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "FEATURE_DISABLED"})
+			return
+		}
+		account, ok := requireSession(db, w, r)
+		if !ok {
+			return
+		}
+
+		var req BuyStarRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		quantity := req.Quantity
+		if quantity <= 0 {
+			quantity = 1
+		}
+		maxQty := bulkStarMaxQty()
+		if quantity < 1 || quantity > maxQty {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "INVALID_QUANTITY"})
+			return
+		}
+
+		playerID := account.PlayerID
+		if !isValidPlayerID(playerID) {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "INVALID_PLAYER_ID"})
+			return
+		}
+
+		player, err := LoadPlayer(db, playerID)
+		if err != nil || player == nil {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
+			return
+		}
+
+		isBot, _, err := getPlayerBotInfo(db, playerID)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if isBot && !botsEnabled() {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "BOTS_DISABLED"})
+			return
+		}
+
+		quote, err := buildBulkStarQuote(db, playerID, quantity)
+		if err != nil {
+			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		shortfall := int(quote.TotalCoinsSpent - player.Coins)
+		if shortfall < 0 {
+			shortfall = 0
+		}
+
+		json.NewEncoder(w).Encode(BuyStarQuoteResponse{
+			OK:              true,
+			StarsRequested:  quantity,
+			TotalCoinsSpent: int(quote.TotalCoinsSpent),
+			FinalStarPrice:  quote.FinalStarPrice,
+			Breakdown:       quote.Breakdown,
+			Warning:         quote.Warning,
+			WarningLevel:    quote.WarningLevel,
+			CanAfford:       player.Coins >= quote.TotalCoinsSpent,
+			Shortfall:       shortfall,
+		})
+	}
+}
+
+type bulkStarQuote struct {
+	TotalCoinsSpent int64
+	FinalStarPrice  int
+	Breakdown       []BulkStarBreakdown
+	Warning         string
+	WarningLevel    string
+}
+
+func buildBulkStarQuote(db *sql.DB, playerID string, quantity int) (bulkStarQuote, error) {
+	if quantity < 1 {
+		return bulkStarQuote{}, nil
+	}
+	coinsInCirculation := economy.CoinsInCirculation()
+	secondsRemaining := int64(28 * 24 * 3600)
+	baseStars := economy.StarsPurchased()
+	gamma := bulkStarGamma()
+
+	breakdown := make([]BulkStarBreakdown, 0, quantity)
+	var total int64
+	maxMultiplier := 1.0
+	for i := 0; i < quantity; i++ {
+		basePrice := ComputeStarPriceWithStars(baseStars+i, coinsInCirculation, secondsRemaining)
+		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePrice)
+		if err != nil {
+			return bulkStarQuote{}, err
+		}
+		multiplier := 1 + gamma*float64(i*i)
+		if multiplier > maxMultiplier {
+			maxMultiplier = multiplier
+		}
+		finalPrice := int(float64(dampenedPrice)*multiplier + 0.9999)
+		breakdown = append(breakdown, BulkStarBreakdown{
+			Index:          i + 1,
+			BasePrice:      dampenedPrice,
+			BulkMultiplier: multiplier,
+			FinalPrice:     finalPrice,
+		})
+		total += int64(finalPrice)
+	}
+	finalStarPrice := ComputeStarPriceWithStars(baseStars+quantity, coinsInCirculation, secondsRemaining)
+	warning, warningLevel := bulkWarning(maxMultiplier)
+	return bulkStarQuote{
+		TotalCoinsSpent: total,
+		FinalStarPrice:  finalStarPrice,
+		Breakdown:       breakdown,
+		Warning:         warning,
+		WarningLevel:    warningLevel,
+	}, nil
+}
+
+func bulkStarMaxQty() int {
+	const fallback = 5
+	value := strings.TrimSpace(os.Getenv("BULK_STAR_MAX_QTY"))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
+}
+
+func bulkStarGamma() float64 {
+	const fallback = 0.08
+	value := strings.TrimSpace(os.Getenv("BULK_STAR_GAMMA"))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || parsed < 0 {
+		return fallback
+	}
+	return parsed
+}
+
+func bulkWarning(maxMultiplier float64) (string, string) {
+	if maxMultiplier >= 5 {
+		return "Severe bulk penalty. Late-season bulk buys are catastrophic.", "severe"
+	}
+	if maxMultiplier >= 3 {
+		return "Heavy bulk penalty. Bulk purchases are highly inefficient.", "high"
+	}
+	if maxMultiplier >= 2 {
+		return "Bulk penalty rising. Consider smaller buys.", "medium"
+	}
+	return "", ""
 }
 
 func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
@@ -837,6 +1067,10 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 
 		account, err := authenticate(db, req.Username, req.Password)
 		if err != nil {
+			if err.Error() == "ACCOUNT_FROZEN" {
+				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "ACCOUNT_FROZEN"})
+				return
+			}
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INVALID_CREDENTIALS"})
 			return
 		}

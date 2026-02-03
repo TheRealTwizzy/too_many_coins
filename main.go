@@ -17,14 +17,41 @@ import (
 type BuyStarRequest struct {
 	SeasonID string `json:"seasonId"`
 	PlayerID string `json:"playerId"`
+	Quantity int    `json:"quantity,omitempty"`
+}
+
+type BulkStarBreakdown struct {
+	Index          int     `json:"index"`
+	BasePrice      int     `json:"basePrice"`
+	BulkMultiplier float64 `json:"bulkMultiplier"`
+	FinalPrice     int     `json:"finalPrice"`
 }
 
 type BuyStarResponse struct {
-	OK            bool   `json:"ok"`
-	Error         string `json:"error,omitempty"`
-	StarPricePaid int    `json:"starPricePaid,omitempty"`
-	PlayerCoins   int    `json:"playerCoins,omitempty"`
-	PlayerStars   int    `json:"playerStars,omitempty"`
+	OK              bool                `json:"ok"`
+	Error           string              `json:"error,omitempty"`
+	StarPricePaid   int                 `json:"starPricePaid,omitempty"`
+	PlayerCoins     int                 `json:"playerCoins,omitempty"`
+	PlayerStars     int                 `json:"playerStars,omitempty"`
+	StarsPurchased  int                 `json:"starsPurchased,omitempty"`
+	TotalCoinsSpent int                 `json:"totalCoinsSpent,omitempty"`
+	FinalStarPrice  int                 `json:"finalStarPrice,omitempty"`
+	Breakdown       []BulkStarBreakdown `json:"breakdown,omitempty"`
+	Warning         string              `json:"warning,omitempty"`
+	WarningLevel    string              `json:"warningLevel,omitempty"`
+}
+
+type BuyStarQuoteResponse struct {
+	OK              bool                `json:"ok"`
+	Error           string              `json:"error,omitempty"`
+	StarsRequested  int                 `json:"starsRequested,omitempty"`
+	TotalCoinsSpent int                 `json:"totalCoinsSpent,omitempty"`
+	FinalStarPrice  int                 `json:"finalStarPrice,omitempty"`
+	Breakdown       []BulkStarBreakdown `json:"breakdown,omitempty"`
+	Warning         string              `json:"warning,omitempty"`
+	WarningLevel    string              `json:"warningLevel,omitempty"`
+	CanAfford       bool                `json:"canAfford,omitempty"`
+	Shortfall       int                 `json:"shortfall,omitempty"`
 }
 
 type FaucetClaimRequest struct {
@@ -283,6 +310,19 @@ type AdminBotListResponse struct {
 	Bots  []AdminBotListItem `json:"bots,omitempty"`
 }
 
+type AdminProfileActionRequest struct {
+	Username string `json:"username"`
+	Action   string `json:"action"`
+}
+
+type AdminProfileActionResponse struct {
+	OK       bool   `json:"ok"`
+	Error    string `json:"error,omitempty"`
+	Username string `json:"username,omitempty"`
+	Role     string `json:"role,omitempty"`
+	Frozen   bool   `json:"frozen,omitempty"`
+}
+
 type AdminBotCreateRequest struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"displayName,omitempty"`
@@ -395,6 +435,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/seasons", seasonsHandler(db))
 	mux.HandleFunc("/events", eventsHandler(db))
 	mux.HandleFunc("/buy-star", buyStarHandler(db))
+	mux.HandleFunc("/buy-star/quote", buyStarQuoteHandler(db))
 	mux.HandleFunc("/buy-variant-star", buyVariantStarHandler(db))
 	mux.HandleFunc("/buy-boost", buyBoostHandler(db))
 	mux.HandleFunc("/burn-coins", burnCoinsHandler(db))
@@ -426,6 +467,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/admin/bots", adminBotListHandler(db))
 	mux.HandleFunc("/admin/bots/create", adminBotCreateHandler(db))
 	mux.HandleFunc("/admin/bots/delete", adminBotDeleteHandler(db))
+	mux.HandleFunc("/admin/profile-actions", adminProfileActionHandler(db))
 	mux.HandleFunc("/moderator/profile", moderatorProfileHandler(db))
 	mux.HandleFunc("/leaderboard", leaderboardHandler(db))
 }

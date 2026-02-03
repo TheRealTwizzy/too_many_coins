@@ -118,6 +118,9 @@ func authenticate(db *sql.DB, username string, password string) (*Account, error
 		}
 		return nil, err
 	}
+	if isFrozenRole(role) {
+		return nil, errors.New("ACCOUNT_FROZEN")
+	}
 	if email.Valid {
 		account.Email = email.String
 	}
@@ -216,6 +219,9 @@ func getSessionAccount(db *sql.DB, r *http.Request) (*Account, string, error) {
 	`, cookie.Value).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &adminKey, &role, &email, &bio, &pronouns, &location, &website, &avatarURL, &expiresAt); err != nil {
 		return nil, "", err
 	}
+	if isFrozenRole(role) {
+		return nil, "", errors.New("ACCOUNT_FROZEN")
+	}
 	if email.Valid {
 		account.Email = email.String
 	}
@@ -264,6 +270,9 @@ func loadAccountByID(db *sql.DB, accountID string) (*Account, error) {
 		WHERE account_id = $1
 	`, accountID).Scan(&account.AccountID, &account.Username, &account.DisplayName, &account.PlayerID, &adminKey, &role, &email, &bio, &pronouns, &location, &website, &avatarURL); err != nil {
 		return nil, err
+	}
+	if isFrozenRole(role) {
+		return nil, errors.New("ACCOUNT_FROZEN")
 	}
 	if email.Valid {
 		account.Email = email.String
@@ -641,12 +650,32 @@ func verifyAdminKey(stored string, provided string) bool {
 }
 
 func normalizeRole(role string) string {
-	switch strings.ToLower(role) {
+	role = strings.ToLower(strings.TrimSpace(role))
+	if strings.HasPrefix(role, "frozen:") {
+		role = strings.TrimPrefix(role, "frozen:")
+	}
+	switch role {
 	case "admin", "moderator":
-		return strings.ToLower(role)
+		return role
 	default:
 		return "user"
 	}
+}
+
+func isFrozenRole(role string) bool {
+	role = strings.ToLower(strings.TrimSpace(role))
+	return role == "frozen" || strings.HasPrefix(role, "frozen:")
+}
+
+func baseRoleFromRaw(role string) string {
+	role = strings.ToLower(strings.TrimSpace(role))
+	if strings.HasPrefix(role, "frozen:") {
+		role = strings.TrimPrefix(role, "frozen:")
+	}
+	if role == "frozen" {
+		return "user"
+	}
+	return normalizeRole(role)
 }
 
 func setAccountRole(db *sql.DB, accountID string, role string) error {

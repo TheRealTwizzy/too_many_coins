@@ -291,11 +291,15 @@ type ModeratorProfileResponse struct {
 	Location    string `json:"location,omitempty"`
 	Website     string `json:"website,omitempty"`
 	AvatarURL   string `json:"avatarUrl,omitempty"`
+	Role        string `json:"role,omitempty"`
+	Frozen      bool   `json:"frozen,omitempty"`
+	PlayerID    string `json:"playerId,omitempty"`
 }
 
 func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := requireModerator(db, w, r); !ok {
+		viewer, ok := requireModerator(db, w, r)
+		if !ok {
 			return
 		}
 		switch r.Method {
@@ -312,11 +316,13 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 			var location sql.NullString
 			var website sql.NullString
 			var avatarURL sql.NullString
+			var role string
+			var playerID string
 			err := db.QueryRow(`
-				SELECT display_name, email, bio, pronouns, location, website, avatar_url
+				SELECT display_name, email, bio, pronouns, location, website, avatar_url, role, player_id
 				FROM accounts
 				WHERE username = $1
-			`, strings.ToLower(username)).Scan(&displayName, &email, &bio, &pronouns, &location, &website, &avatarURL)
+			`, strings.ToLower(username)).Scan(&displayName, &email, &bio, &pronouns, &location, &website, &avatarURL, &role, &playerID)
 			if err == sql.ErrNoRows {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "NOT_FOUND"})
 				return
@@ -325,10 +331,18 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INTERNAL_ERROR"})
 				return
 			}
+			if viewer.Role == "moderator" && baseRoleFromRaw(role) == "admin" {
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "FORBIDDEN"})
+				return
+			}
 			resp := ModeratorProfileResponse{
 				OK:          true,
 				Username:    strings.ToLower(username),
 				DisplayName: displayName,
+				Role:        baseRoleFromRaw(role),
+				Frozen:      isFrozenRole(role),
+				PlayerID:    playerID,
 			}
 			if email.Valid {
 				resp.Email = email.String
@@ -354,6 +368,16 @@ func moderatorProfileHandler(db *sql.DB) http.HandlerFunc {
 			var req ModeratorProfileRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
 				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+			var role string
+			if err := db.QueryRow(`SELECT role FROM accounts WHERE username = $1`, strings.ToLower(req.Username)).Scan(&role); err != nil {
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "NOT_FOUND"})
+				return
+			}
+			if viewer.Role == "moderator" && baseRoleFromRaw(role) == "admin" {
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(ModeratorProfileResponse{OK: false, Error: "FORBIDDEN"})
 				return
 			}
 			updates := []string{}
@@ -598,7 +622,8 @@ func adminPlayerControlsHandler(db *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		if _, ok := requireAdmin(db, w, r); !ok {
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
 			return
 		}
 		var req AdminPlayerControlRequest
@@ -700,14 +725,40 @@ func adminPlayerControlsHandler(db *sql.DB) http.HandlerFunc {
 			}
 		}
 		if req.IsBot != nil {
-			_, err := db.Exec(`
-				UPDATE players
-				SET is_bot = $2
-				WHERE player_id = $1
-			`, playerID, *req.IsBot)
-			if err != nil {
+			var currentIsBot bool
+			var lastActive time.Time
+			var accountID sql.NullString
+			if err := db.QueryRow(`
+				SELECT p.is_bot, p.last_active_at, a.account_id
+				FROM players p
+				LEFT JOIN accounts a ON a.player_id = p.player_id
+				WHERE p.player_id = $1
+			`, playerID).Scan(&currentIsBot, &lastActive, &accountID); err != nil {
 				json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "INTERNAL_ERROR"})
 				return
+			}
+			if currentIsBot != *req.IsBot {
+				if accountID.Valid {
+					active, err := isHumanSessionActive(db, accountID.String, lastActive)
+					if err != nil {
+						json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "INTERNAL_ERROR"})
+						return
+					}
+					if active {
+						json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "HUMAN_ACTIVE"})
+						return
+					}
+				}
+				_, err := db.Exec(`
+					UPDATE players
+					SET is_bot = $2
+					WHERE player_id = $1
+				`, playerID, *req.IsBot)
+				if err != nil {
+					json.NewEncoder(w).Encode(AdminPlayerControlResponse{OK: false, Error: "INTERNAL_ERROR"})
+					return
+				}
+				_ = logAdminBotToggle(db, adminAccount.AccountID, playerID, currentIsBot, *req.IsBot, nil)
 			}
 		}
 		if req.BotProfile != nil {
@@ -1228,4 +1279,172 @@ func adminBotDeleteHandler(db *sql.DB) http.HandlerFunc {
 
 		json.NewEncoder(w).Encode(AdminBotDeleteResponse{OK: true, PlayerID: resolvedPlayerID})
 	}
+}
+
+func adminProfileActionHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
+			return
+		}
+		var req AdminProfileActionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Username) == "" {
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		username := strings.ToLower(strings.TrimSpace(req.Username))
+		if username == strings.ToLower(adminAccount.Username) {
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "CANNOT_TARGET_SELF"})
+			return
+		}
+		action := strings.ToLower(strings.TrimSpace(req.Action))
+		if action != "freeze" && action != "unfreeze" && action != "delete" {
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INVALID_ACTION"})
+			return
+		}
+
+		var accountID string
+		var playerID string
+		var role string
+		if err := db.QueryRow(`
+			SELECT account_id, player_id, role
+			FROM accounts
+			WHERE username = $1
+		`, username).Scan(&accountID, &playerID, &role); err != nil {
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "NOT_FOUND"})
+			return
+		}
+
+		switch action {
+		case "freeze":
+			if isFrozenRole(role) {
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "ALREADY_FROZEN"})
+				return
+			}
+			frozenRole := "frozen:" + baseRoleFromRaw(role)
+			if _, err := db.Exec(`UPDATE accounts SET role = $2 WHERE account_id = $1`, accountID, frozenRole); err != nil {
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			_, _ = db.Exec(`DELETE FROM sessions WHERE account_id = $1`, accountID)
+			_, _ = db.Exec(`DELETE FROM refresh_tokens WHERE account_id = $1`, accountID)
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: true, Username: username, Role: baseRoleFromRaw(frozenRole), Frozen: true})
+			return
+		case "unfreeze":
+			if !isFrozenRole(role) {
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "NOT_FROZEN"})
+				return
+			}
+			baseRole := baseRoleFromRaw(role)
+			if _, err := db.Exec(`UPDATE accounts SET role = $2 WHERE account_id = $1`, accountID, baseRole); err != nil {
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: true, Username: username, Role: baseRole, Frozen: false})
+			return
+		case "delete":
+			tx, err := db.Begin()
+			if err != nil {
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM refresh_tokens WHERE account_id = $1`, accountID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM sessions WHERE account_id = $1`, accountID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM notification_reads WHERE account_id = $1`, accountID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM accounts WHERE account_id = $1`, accountID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM player_boosts WHERE player_id = $1`, playerID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM player_star_variants WHERE player_id = $1`, playerID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM player_faucet_claims WHERE player_id = $1`, playerID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM player_ip_associations WHERE player_id = $1`, playerID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if _, err := tx.Exec(`DELETE FROM players WHERE player_id = $1`, playerID); err != nil {
+				tx.Rollback()
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			if err := tx.Commit(); err != nil {
+				json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: false, Error: "INTERNAL_ERROR"})
+				return
+			}
+			json.NewEncoder(w).Encode(AdminProfileActionResponse{OK: true, Username: username})
+			return
+		}
+	}
+}
+
+func isHumanSessionActive(db *sql.DB, accountID string, lastActive time.Time) (bool, error) {
+	windowSeconds := 600
+	if raw := strings.TrimSpace(os.Getenv("BOT_TOGGLE_ACTIVE_WINDOW_SECONDS")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			windowSeconds = parsed
+		}
+	}
+	if time.Since(lastActive) > time.Duration(windowSeconds)*time.Second {
+		return false, nil
+	}
+	var count int
+	if err := db.QueryRow(`
+		SELECT COUNT(*)
+		FROM sessions
+		WHERE account_id = $1 AND expires_at > NOW()
+	`, accountID).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func logAdminBotToggle(db *sql.DB, adminAccountID string, playerID string, wasBot bool, nowBot bool, botProfile *string) error {
+	payload := map[string]interface{}{
+		"adminAccountId": adminAccountID,
+		"playerId":       playerID,
+		"wasBot":         wasBot,
+		"nowBot":         nowBot,
+	}
+	if botProfile != nil {
+		payload["botProfile"] = *botProfile
+	}
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		INSERT INTO player_telemetry (account_id, player_id, event_type, payload, created_at)
+		VALUES ($1, $2, $3, $4, NOW())
+	`, adminAccountID, playerID, "admin_bot_toggle", bytes)
+	return err
 }

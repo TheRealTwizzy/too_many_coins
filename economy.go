@@ -615,7 +615,14 @@ func ComputeStarPrice(
 	coinsInCirculation int64,
 	secondsRemaining int64,
 ) int {
+	return ComputeStarPriceWithStars(economy.StarsPurchased(), coinsInCirculation, secondsRemaining)
+}
 
+func ComputeStarPriceWithStars(
+	starsPurchased int,
+	coinsInCirculation int64,
+	secondsRemaining int64,
+) int {
 	const (
 		BASE_STAR_PRICE      = 10
 		STAR_SCARCITY_SCALE  = 25.0
@@ -624,8 +631,7 @@ func ComputeStarPrice(
 	)
 
 	// 1. Star scarcity (PRIMARY driver)
-	starsPurchased := float64(economy.StarsPurchased())
-	scarcityMultiplier := 1 + (starsPurchased / STAR_SCARCITY_SCALE)
+	scarcityMultiplier := 1 + (float64(starsPurchased) / STAR_SCARCITY_SCALE)
 
 	// 2. Coin inflation (SECONDARY driver)
 	coinMultiplier := 1 + (float64(coinsInCirculation) / COIN_INFLATION_SCALE)
