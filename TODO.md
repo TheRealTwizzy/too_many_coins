@@ -7,6 +7,7 @@ Legend: each task is explicitly marked with a status tag.
 Status Tags:
 - [DONE]
 - [ALPHA REQUIRED]
+- [ALPHA EXECUTION]
 - [POST-ALPHA]
 
 ---
@@ -241,11 +242,11 @@ Allowed to be rough or missing in Alpha:
 ## Phase 12 — Testing & Validation
 - [x] [DONE] 12.1 Simulation engine for pricing + pressure
 - [x] [DONE] 12.2 Alpha readiness checklist
-- [ ] [ALPHA REQUIRED] 12.3 Alpha execution cycle
+- [ ] [ALPHA EXECUTION] 12.3 Alpha execution cycle (this is the playtest itself, not a pre-entry blocker)
   - [x] [DONE] Define goals + metrics (README/alpha-execution.md)
-  - [ ] [ALPHA REQUIRED] Recruit testers
-  - [ ] [ALPHA REQUIRED] Run 1–2 week test
-  - [ ] [ALPHA REQUIRED] Analyze telemetry + fix priorities
+  - [ ] [ALPHA EXECUTION] Recruit testers
+  - [ ] [ALPHA EXECUTION] Run 1–2 week test
+  - [ ] [ALPHA EXECUTION] Analyze telemetry + fix priorities
 - [ ] [POST-ALPHA] 12.4 Beta readiness
   - [ ] [POST-ALPHA] Multi‑season support verified
   - [ ] [POST-ALPHA] Trading system verified
@@ -291,7 +292,7 @@ Allowed to be rough or missing in Alpha:
 ---
 
 ## Final Verification Checklist (Maintain Continuously)
-- [ ] [ALPHA REQUIRED] No task depends on a later task
-- [ ] [ALPHA REQUIRED] All README requirements represented (or explicitly deferred)
-- [ ] [ALPHA REQUIRED] Code‑existing features documented
-- [ ] [ALPHA REQUIRED] Path from today → live → post‑launch is continuous
+- [x] [DONE] No task depends on a later task
+- [x] [DONE] All README requirements represented (or explicitly deferred)
+- [x] [DONE] Code‑existing features documented
+- [x] [DONE] Path from today → live → post‑launch is continuous
