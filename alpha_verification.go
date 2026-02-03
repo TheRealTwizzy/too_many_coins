@@ -20,10 +20,14 @@ func emitServerTelemetry(db *sql.DB, accountID *string, playerID string, eventTy
 		log.Println("telemetry marshal failed:", err)
 		return
 	}
+	accountValue := ""
+	if accountID != nil {
+		accountValue = *accountID
+	}
 	_, err = db.Exec(`
 		INSERT INTO player_telemetry (account_id, player_id, event_type, payload, created_at)
 		VALUES ($1, $2, $3, $4, NOW())
-	`, nullableString(accountID), playerID, eventType, encoded)
+	`, nullableString(accountValue), playerID, eventType, encoded)
 	if err != nil {
 		log.Println("telemetry insert failed:", err)
 	}
@@ -47,16 +51,6 @@ func emitServerTelemetryWithCooldown(db *sql.DB, accountID *string, playerID str
 		}
 	}
 	emitServerTelemetry(db, accountID, playerID, eventType, payload)
-}
-
-func nullableString(value *string) interface{} {
-	if value == nil {
-		return nil
-	}
-	if *value == "" {
-		return nil
-	}
-	return *value
 }
 
 func logFaucetDenied(db *sql.DB, accountID *string, playerID string, faucetType string, reason string, payload map[string]interface{}) {
