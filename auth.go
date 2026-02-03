@@ -92,6 +92,7 @@ func createAccount(db *sql.DB, username string, password string, displayName str
 		DisplayName: displayName,
 		PlayerID:    playerID,
 		Email:       normalizedEmail,
+		Role:        "user",
 	}, nil
 }
 
