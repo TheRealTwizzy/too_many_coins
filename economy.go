@@ -379,6 +379,38 @@ func ensureSchema(db *sql.DB) error {
 	}
 
 	_, err = db.Exec(`
+		ALTER TABLE refresh_tokens
+			ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE refresh_tokens
+			ADD COLUMN IF NOT EXISTS user_agent TEXT;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE refresh_tokens
+			ADD COLUMN IF NOT EXISTS ip TEXT;
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		ALTER TABLE refresh_tokens
+			ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'auth';
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
 		CREATE INDEX IF NOT EXISTS idx_refresh_tokens_account_id
 		ON refresh_tokens (account_id, revoked_at);
 	`)
