@@ -50,6 +50,22 @@
 		border-radius: 10px;
 		background: #141a2e;
 	}
+	.card-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+	.card-toggle .label {
+		font-size: 0.9rem;
+		color: #c5cae9;
+	}
+	.card-body {
+		margin-top: 0.75rem;
+	}
+	.card.collapsed .card-body {
+		display: none;
+	}
 	.recommended {
 		border-color: #ffd166;
 		background: rgba(255, 209, 102, 0.08);
@@ -369,177 +385,171 @@
 		</section>
 
 		<section id="view-admin" class="view">
-			<p class="label"><a href="#/home">Back to game</a> · <a href="#/admin-telemetry">Telemetry</a> · <a href="#/admin-economy">Economy</a></p>
+			<p class="label"><a href="#/home">Back to game</a> · <a href="#/admin-telemetry">Telemetry</a> · <a href="#/admin-economy">Economy</a> · <a href="#/admin-star-log">Star log</a></p>
 
 			<div class="card" id="admin-setup" style="display:none;">
-				<div class="label">Admin setup</div>
-				<input id="admin-setup-key" placeholder="Setup key" />
-				<button id="save-key" class="primary">Save</button>
-				<div id="key-status" class="label"></div>
-			</div>
-
-			<div class="card" id="admin-content" style="display:none;">
-				<div class="label">Season summary</div>
-				<div id="season-summary">Loading…</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<button id="refresh" class="primary">Refresh</button>
+				<div class="card-toggle">
+					<div class="label">Admin setup</div>
+				</div>
+				<div class="card-body">
+					<input id="admin-setup-key" placeholder="Setup key" />
+					<button id="save-key" class="primary">Save</button>
+					<div id="key-status" class="label"></div>
 				</div>
 			</div>
 
-			<div class="card" id="role-management" style="display:none;">
-				<div class="label">Role management</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="role-username" placeholder="Username" />
-					<select id="role-value">
-						<option value="moderator">Moderator</option>
-						<option value="admin">Admin</option>
-					</select>
-					<button id="role-save" class="primary">Set role</button>
+			<div class="card" id="admin-content" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Season summary</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div id="role-status" class="label"></div>
+				<div class="card-body">
+					<div id="season-summary">Loading…</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<button id="refresh" class="primary">Refresh</button>
+					</div>
+				</div>
 			</div>
 
-			<div class="card" id="ip-whitelist" style="display:none;">
-				<div class="label">IP whitelist (max accounts)</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="ip-whitelist-value" placeholder="IP address" />
-					<input id="ip-whitelist-max" placeholder="Max accounts" />
-					<button id="ip-whitelist-save" class="primary">Allow</button>
-					<button id="ip-whitelist-remove">Remove</button>
+			<div class="card" id="role-management" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Role management</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div id="ip-whitelist-status" class="label"></div>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="role-username" placeholder="Username" />
+						<select id="role-value">
+							<option value="moderator">Moderator</option>
+							<option value="admin">Admin</option>
+						</select>
+						<button id="role-save" class="primary">Set role</button>
+					</div>
+					<div id="role-status" class="label"></div>
+				</div>
 			</div>
 
-			<div class="card" id="whitelist-requests" style="display:none;">
-				<div class="label">Pending whitelist requests</div>
-				<div id="whitelist-requests-list" class="label">Loading…</div>
+			<div class="card" id="ip-whitelist" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">IP whitelist (max accounts)</div>
+					<button class="toggle-btn" type="button">Hide</button>
+				</div>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="ip-whitelist-value" placeholder="IP address" />
+						<input id="ip-whitelist-max" placeholder="Max accounts" />
+						<button id="ip-whitelist-save" class="primary">Allow</button>
+						<button id="ip-whitelist-remove">Remove</button>
+					</div>
+					<div id="ip-whitelist-status" class="label"></div>
+				</div>
 			</div>
 
-			<div class="card" id="moderator-profile" style="display:none;">
-				<div class="label">Moderator: edit profile</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="mod-username" placeholder="Username" />
-					<button id="mod-load" class="primary">Load</button>
+			<div class="card" id="whitelist-requests" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Pending whitelist requests</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="mod-display-name" placeholder="Display name" />
-					<button id="mod-save" class="primary">Update</button>
+				<div class="card-body">
+					<div id="whitelist-requests-list" class="label">Loading…</div>
 				</div>
-				<div id="mod-status" class="label"></div>
 			</div>
 
-			<div class="card" id="admin-notify" style="display:none;">
-				<div class="label">Send notification</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<select id="notify-target">
-						<option value="all">All</option>
-						<option value="user">Players</option>
-						<option value="moderator">Moderators</option>
-						<option value="admin">Admins</option>
-					</select>
-					<input id="notify-account" placeholder="Account ID (optional)" />
-					<select id="notify-level">
-						<option value="info">Info</option>
-						<option value="warn">Warn</option>
-						<option value="urgent">Urgent</option>
-					</select>
+			<div class="card" id="admin-notify" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Send notification</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="notify-expires" placeholder="Expires (RFC3339, optional)" />
-					<input id="notify-link" placeholder="Link (e.g. #/admin)" />
-					<input id="notify-message" placeholder="Message" style="flex:1;" />
-					<button id="notify-send" class="primary">Send</button>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<select id="notify-target">
+							<option value="all">All</option>
+							<option value="user">Players</option>
+							<option value="moderator">Moderators</option>
+							<option value="admin">Admins</option>
+						</select>
+						<input id="notify-account" placeholder="Account ID (optional)" />
+						<select id="notify-level">
+							<option value="info">Info</option>
+							<option value="warn">Warn</option>
+							<option value="urgent">Urgent</option>
+						</select>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="notify-expires" placeholder="Expires (RFC3339, optional)" />
+						<input id="notify-link" placeholder="Link (e.g. #/admin)" />
+						<input id="notify-message" placeholder="Message" style="flex:1;" />
+						<button id="notify-send" class="primary">Send</button>
+					</div>
+					<div id="notify-status" class="label"></div>
 				</div>
-				<div id="notify-status" class="label"></div>
 			</div>
 
-			<div class="card" id="admin-settings" style="display:none;">
-				<div class="label">Global settings</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="gs-active-interval" placeholder="Active drip interval (s)" />
-					<input id="gs-idle-interval" placeholder="Idle drip interval (s)" />
-					<input id="gs-active-amount" placeholder="Active drip amount" />
-					<input id="gs-idle-amount" placeholder="Idle drip amount" />
+			<div class="card" id="admin-settings" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Global settings</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="gs-activity-window" placeholder="Activity window (s)" />
-					<select id="gs-drip-enabled">
-						<option value="">Drip enabled?</option>
-						<option value="true">Enabled</option>
-						<option value="false">Disabled</option>
-					</select>
-					<button id="gs-load" class="primary">Load</button>
-					<button id="gs-save" class="primary">Save</button>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="gs-active-interval" placeholder="Active drip interval (s)" />
+						<input id="gs-idle-interval" placeholder="Idle drip interval (s)" />
+						<input id="gs-active-amount" placeholder="Active drip amount" />
+						<input id="gs-idle-amount" placeholder="Idle drip amount" />
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="gs-activity-window" placeholder="Activity window (s)" />
+						<select id="gs-drip-enabled">
+							<option value="">Drip enabled?</option>
+							<option value="true">Enabled</option>
+							<option value="false">Disabled</option>
+						</select>
+						<button id="gs-load" class="primary">Load</button>
+						<button id="gs-save" class="primary">Save</button>
+					</div>
+					<div id="gs-status" class="label"></div>
 				</div>
-				<div id="gs-status" class="label"></div>
 			</div>
 
-			<div class="card" id="admin-player-controls" style="display:none;">
-				<div class="label">Player controls</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="pc-username" placeholder="Username" />
-					<input id="pc-player-id" placeholder="Player ID" />
-					<button id="pc-load" class="primary">Load</button>
+			<div class="card" id="admin-player-controls" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Player controls</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="pc-set-coins" placeholder="Set coins" />
-					<input id="pc-add-coins" placeholder="Add coins" />
-					<input id="pc-set-stars" placeholder="Set stars" />
-					<input id="pc-add-stars" placeholder="Add stars" />
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="pc-username" placeholder="Username" />
+						<input id="pc-player-id" placeholder="Player ID" />
+						<button id="pc-load" class="primary">Load</button>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="pc-set-coins" placeholder="Set coins" />
+						<input id="pc-add-coins" placeholder="Add coins" />
+						<input id="pc-set-stars" placeholder="Set stars" />
+						<input id="pc-add-stars" placeholder="Add stars" />
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="pc-drip-mult" placeholder="Drip multiplier (0.1–10)" />
+						<select id="pc-drip-paused">
+							<option value="">Pause?</option>
+							<option value="true">Pause drip</option>
+							<option value="false">Resume drip</option>
+						</select>
+						<button id="pc-touch" class="primary">Touch active</button>
+						<button id="pc-save" class="primary">Apply</button>
+					</div>
+					<div id="pc-status" class="label"></div>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="pc-drip-mult" placeholder="Drip multiplier (0.1–10)" />
-					<select id="pc-drip-paused">
-						<option value="">Pause?</option>
-						<option value="true">Pause drip</option>
-						<option value="false">Resume drip</option>
-					</select>
-					<button id="pc-touch" class="primary">Touch active</button>
-					<button id="pc-save" class="primary">Apply</button>
-				</div>
-				<div id="pc-status" class="label"></div>
 			</div>
 
-			<div class="card" id="admin-star-log" style="display:none;">
-				<div class="label">Star purchase log</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="star-log-account" placeholder="Account ID" />
-					<input id="star-log-player" placeholder="Player ID" />
-					<input id="star-log-season" placeholder="Season ID" />
+			<div class="card" id="auction-card" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Auction</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="star-log-type" placeholder="Type (base/variant)" />
-					<input id="star-log-variant" placeholder="Variant" />
-					<input id="star-log-limit" placeholder="Limit (max 250)" />
-					<button id="star-log-load" class="primary">Load</button>
-					<button id="star-log-export-csv">Export CSV</button>
-					<button id="star-log-export-json">Export JSON</button>
+				<div class="card-body">
+					<div id="auction-status">Loading…</div>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="star-log-from" placeholder="From (RFC3339)" />
-					<input id="star-log-to" placeholder="To (RFC3339)" />
-					<input id="star-log-min-price" placeholder="Min price" />
-					<input id="star-log-max-price" placeholder="Max price" />
-				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="star-log-min-coins-before" placeholder="Min coins before" />
-					<input id="star-log-max-coins-before" placeholder="Max coins before" />
-					<input id="star-log-min-coins-after" placeholder="Min coins after" />
-					<input id="star-log-max-coins-after" placeholder="Max coins after" />
-				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="star-log-min-stars-before" placeholder="Min stars before" />
-					<input id="star-log-max-stars-before" placeholder="Max stars before" />
-					<input id="star-log-min-stars-after" placeholder="Min stars after" />
-					<input id="star-log-max-stars-after" placeholder="Max stars after" />
-				</div>
-				<div id="star-log-status" class="label"></div>
-				<div id="star-log-list" class="stack" style="margin-top:0.5rem;"></div>
-			</div>
-
-			<div class="card" id="auction-card" style="display:none;">
-				<div class="label">Auction</div>
-				<div id="auction-status">Loading…</div>
 			</div>
 
 			<div class="card" id="no-access" style="display:none;">
@@ -555,21 +565,26 @@
 				<div class="label">Not authorized</div>
 			</div>
 
-			<div class="card">
-				<div class="label">Daily emission target</div>
-				<div class="row">
-					<input id="emission" type="range" min="0" max="5000" step="50" />
-					<span id="emission-value"></span>
+			<div class="card" data-collapsible="true">
+				<div class="card-toggle">
+					<div class="label">Daily emission target</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<label><input type="checkbox" id="faucets" /> Faucets enabled</label>
-					<label><input type="checkbox" id="sinks" /> Sinks enabled</label>
-					<label><input type="checkbox" id="telemetry" /> Telemetry enabled</label>
+				<div class="card-body">
+					<div class="row">
+						<input id="emission" type="range" min="0" max="5000" step="50" />
+						<span id="emission-value"></span>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<label><input type="checkbox" id="faucets" /> Faucets enabled</label>
+						<label><input type="checkbox" id="sinks" /> Sinks enabled</label>
+						<label><input type="checkbox" id="telemetry" /> Telemetry enabled</label>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<button id="econ-save" class="primary">Save</button>
+					</div>
+					<div id="econ-status" class="label"></div>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<button id="econ-save" class="primary">Save</button>
-				</div>
-				<div id="econ-status" class="label"></div>
 			</div>
 		</section>
 
@@ -580,36 +595,110 @@
 				<div class="label">Not authorized</div>
 			</div>
 
-			<div class="card">
-				<div class="label">Events by hour (last 48h)</div>
-				<table>
-					<thead>
-						<tr><th>Hour</th><th>Event</th><th>Count</th></tr>
-					</thead>
-					<tbody id="telemetry-body"></tbody>
-				</table>
+			<div class="card" data-collapsible="true">
+				<div class="card-toggle">
+					<div class="label">Events by hour (last 48h)</div>
+					<button class="toggle-btn" type="button">Hide</button>
+				</div>
+				<div class="card-body">
+					<table>
+						<thead>
+							<tr><th>Hour</th><th>Event</th><th>Count</th></tr>
+						</thead>
+						<tbody id="telemetry-body"></tbody>
+					</table>
+				</div>
 			</div>
 
-			<div class="card">
-				<div class="label">Recent feedback</div>
-				<div id="feedback-list"></div>
+			<div class="card" data-collapsible="true">
+				<div class="card-toggle">
+					<div class="label">Recent feedback</div>
+					<button class="toggle-btn" type="button">Hide</button>
+				</div>
+				<div class="card-body">
+					<div id="feedback-list"></div>
+				</div>
+			</div>
+		</section>
+
+		<section id="view-admin-star-log" class="view">
+			<p class="label"><a href="#/admin">Admin home</a></p>
+
+			<div class="card" data-collapsible="true">
+				<div class="card-toggle">
+					<div class="label">Star purchase log</div>
+					<button class="toggle-btn" type="button">Hide</button>
+				</div>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<select id="star-log-filter-key">
+							<option value="">Filter by...</option>
+							<option value="accountId">Account ID</option>
+							<option value="playerId">Player ID</option>
+							<option value="seasonId">Season ID</option>
+							<option value="purchaseType">Purchase type</option>
+							<option value="variant">Variant</option>
+							<option value="from">From (RFC3339)</option>
+							<option value="to">To (RFC3339)</option>
+							<option value="minPrice">Min price</option>
+							<option value="maxPrice">Max price</option>
+							<option value="minCoinsBefore">Min coins before</option>
+							<option value="maxCoinsBefore">Max coins before</option>
+							<option value="minCoinsAfter">Min coins after</option>
+							<option value="maxCoinsAfter">Max coins after</option>
+							<option value="minStarsBefore">Min stars before</option>
+							<option value="maxStarsBefore">Max stars before</option>
+							<option value="minStarsAfter">Min stars after</option>
+							<option value="maxStarsAfter">Max stars after</option>
+							<option value="limit">Limit</option>
+						</select>
+						<input id="star-log-filter-value" placeholder="Value" />
+						<button id="star-log-load" class="primary">Apply</button>
+						<button id="star-log-clear">Clear</button>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<button id="star-log-export-csv">Export CSV</button>
+						<button id="star-log-export-json">Export JSON</button>
+					</div>
+					<div id="star-log-status" class="label"></div>
+				</div>
+			</div>
+
+			<div class="card" data-collapsible="true">
+				<div class="card-toggle">
+					<div class="label">Live purchase feed</div>
+					<button class="toggle-btn" type="button">Hide</button>
+				</div>
+				<div class="card-body">
+					<div id="star-log-list" class="stack"></div>
+				</div>
+			</div>
+
+			<div class="card" id="star-log-no-access" style="display:none;">
+				<div class="label">Not authorized</div>
+				<div class="label">You need an admin account to view this page.</div>
 			</div>
 		</section>
 
 		<section id="view-moderator" class="view">
 			<p class="label"><a href="#/home">Back to game</a></p>
 
-			<div class="card" id="moderator-content" style="display:none;">
-				<div class="label">Edit profile</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="mod-username-view" placeholder="Username" />
-					<button id="mod-load-view" class="primary">Load</button>
+			<div class="card" id="moderator-content" data-collapsible="true" style="display:none;">
+				<div class="card-toggle">
+					<div class="label">Edit profile</div>
+					<button class="toggle-btn" type="button">Hide</button>
 				</div>
-				<div class="row" style="margin-top:0.5rem;">
-					<input id="mod-display-name-view" placeholder="Display name" />
-					<button id="mod-save-view" class="primary">Update</button>
+				<div class="card-body">
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="mod-username-view" placeholder="Username" />
+						<button id="mod-load-view" class="primary">Load</button>
+					</div>
+					<div class="row" style="margin-top:0.5rem;">
+						<input id="mod-display-name-view" placeholder="Display name" />
+						<button id="mod-save-view" class="primary">Update</button>
+					</div>
+					<div id="mod-status-view" class="label"></div>
 				</div>
-				<div id="mod-status-view" class="label"></div>
 			</div>
 
 			<div class="card" id="mod-no-access" style="display:none;">
@@ -659,6 +748,7 @@ const viewMap = {
 	admin: "view-admin",
 	"admin-economy": "view-admin-economy",
 	"admin-telemetry": "view-admin-telemetry",
+	"admin-star-log": "view-admin-star-log",
 	moderator: "view-moderator"
 };
 
@@ -670,6 +760,7 @@ let homeInitialized = false;
 let adminInitialized = false;
 let adminEconomyInitialized = false;
 let adminTelemetryInitialized = false;
+let adminStarLogInitialized = false;
 let moderatorInitialized = false;
 let signupInitialized = false;
 let resetInitialized = false;
@@ -677,6 +768,7 @@ let playerRefreshInterval = null;
 let seasonRefreshInterval = null;
 let notificationRefreshInterval = null;
 let activityPingInterval = null;
+let starLogRefreshInterval = null;
 const ALPHA_SEASON_ID = "season-1";
 let lastStarLogRows = [];
 
@@ -997,6 +1089,21 @@ function setView(viewId) {
 	}
 }
 
+function initCollapsibleCards() {
+	if (initCollapsibleCards.initialized) return;
+	initCollapsibleCards.initialized = true;
+	const cards = Array.from(document.querySelectorAll(".card[data-collapsible='true']"));
+	cards.forEach(card => {
+		const toggleBtn = card.querySelector(".toggle-btn");
+		const body = card.querySelector(".card-body");
+		if (!toggleBtn || !body) return;
+		toggleBtn.addEventListener("click", () => {
+			const collapsed = card.classList.toggle("collapsed");
+			toggleBtn.innerText = collapsed ? "Show" : "Hide";
+		});
+	});
+}
+
 function getRouteInfo() {
 	const hash = location.hash.replace("#", "");
 	if (!hash || hash === "/") {
@@ -1011,7 +1118,11 @@ function getRouteInfo() {
 
 async function route() {
 	const { routeKey, query } = getRouteInfo();
+	if (routeKey !== "admin-star-log") {
+		stopStarLogRefresh();
+	}
 	await loadAuth();
+	initCollapsibleCards();
 	if (routeKey === "signup" && currentUser) {
 		location.hash = "#/home";
 		return;
@@ -1052,11 +1163,17 @@ async function route() {
 		await refreshAdminTelemetryView();
 		return;
 	}
+	if (routeKey === "admin-star-log") {
+		if (!adminStarLogInitialized) initAdminStarLog();
+		await refreshAdminStarLogView();
+		return;
+	}
 	if (routeKey === "moderator") {
 		if (!moderatorInitialized) initModerator();
 		await refreshModeratorView();
 		return;
 	}
+	stopStarLogRefresh();
 }
 
 function initHome() {
@@ -1298,28 +1415,6 @@ function initAdmin() {
 		document.getElementById("ip-whitelist-status").innerText = data.ok ? "IP removed." : (data.error || "Update failed.");
 	});
 
-	document.getElementById("mod-load").addEventListener("click", async () => {
-		const username = document.getElementById("mod-username").value.trim();
-		const res = await apiFetch(`/moderator/profile?username=${encodeURIComponent(username)}`);
-		const data = await res.json();
-		if (!data.ok) {
-			document.getElementById("mod-status").innerText = data.error || "Load failed.";
-			return;
-		}
-		document.getElementById("mod-display-name").value = data.displayName || "";
-		document.getElementById("mod-status").innerText = "Profile loaded.";
-	});
-
-	document.getElementById("mod-save").addEventListener("click", async () => {
-		const username = document.getElementById("mod-username").value.trim();
-		const displayName = document.getElementById("mod-display-name").value.trim();
-		const res = await apiFetch("/moderator/profile", {
-			method: "POST",
-			body: JSON.stringify({ username, displayName })
-		});
-		const data = await res.json();
-		document.getElementById("mod-status").innerText = data.ok ? "Profile updated." : (data.error || "Update failed.");
-	});
 
 	document.getElementById("notify-send").addEventListener("click", async () => {
 		const targetRole = document.getElementById("notify-target").value;
@@ -1437,18 +1532,6 @@ function initAdmin() {
 		status.innerText = data.ok ? `Touched active for ${data.playerId}` : (data.error || "Touch failed.");
 	});
 
-	document.getElementById("star-log-load").addEventListener("click", async () => {
-		await loadStarPurchaseLog();
-	});
-
-	document.getElementById("star-log-export-csv").addEventListener("click", async () => {
-		await exportStarPurchaseLog("csv");
-	});
-
-	document.getElementById("star-log-export-json").addEventListener("click", async () => {
-		await exportStarPurchaseLog("json");
-	});
-
 	loadWhitelistRequests();
 }
 
@@ -1462,11 +1545,9 @@ async function refreshAdminView() {
 		document.getElementById("role-management").style.display = "none";
 		document.getElementById("ip-whitelist").style.display = "none";
 		document.getElementById("whitelist-requests").style.display = "none";
-		document.getElementById("moderator-profile").style.display = "none";
 		document.getElementById("admin-notify").style.display = "none";
 		document.getElementById("admin-player-controls").style.display = "none";
 		document.getElementById("admin-settings").style.display = "none";
-		document.getElementById("admin-star-log").style.display = "none";
 		document.getElementById("admin-setup").style.display = "block";
 		return false;
 	}
@@ -1477,11 +1558,9 @@ async function refreshAdminView() {
 	document.getElementById("role-management").style.display = "block";
 	document.getElementById("ip-whitelist").style.display = "block";
 	document.getElementById("whitelist-requests").style.display = "block";
-	document.getElementById("moderator-profile").style.display = "block";
 	document.getElementById("admin-notify").style.display = "block";
 	document.getElementById("admin-player-controls").style.display = "block";
 	document.getElementById("admin-settings").style.display = "block";
-	document.getElementById("admin-star-log").style.display = "block";
 	loadWhitelistRequests();
 	return true;
 }
@@ -1489,44 +1568,20 @@ async function refreshAdminView() {
 async function loadStarPurchaseLog() {
 	const status = document.getElementById("star-log-status");
 	const container = document.getElementById("star-log-list");
-	const accountId = document.getElementById("star-log-account").value.trim();
-	const playerId = document.getElementById("star-log-player").value.trim();
-	const seasonId = document.getElementById("star-log-season").value.trim();
-	const purchaseType = document.getElementById("star-log-type").value.trim();
-	const variant = document.getElementById("star-log-variant").value.trim();
-	const limitValue = parseInt(document.getElementById("star-log-limit").value, 10);
-	const from = document.getElementById("star-log-from").value.trim();
-	const to = document.getElementById("star-log-to").value.trim();
-	const minPrice = document.getElementById("star-log-min-price").value.trim();
-	const maxPrice = document.getElementById("star-log-max-price").value.trim();
-	const minCoinsBefore = document.getElementById("star-log-min-coins-before").value.trim();
-	const maxCoinsBefore = document.getElementById("star-log-max-coins-before").value.trim();
-	const minCoinsAfter = document.getElementById("star-log-min-coins-after").value.trim();
-	const maxCoinsAfter = document.getElementById("star-log-max-coins-after").value.trim();
-	const minStarsBefore = document.getElementById("star-log-min-stars-before").value.trim();
-	const maxStarsBefore = document.getElementById("star-log-max-stars-before").value.trim();
-	const minStarsAfter = document.getElementById("star-log-min-stars-after").value.trim();
-	const maxStarsAfter = document.getElementById("star-log-max-stars-after").value.trim();
+	const filterKey = document.getElementById("star-log-filter-key").value;
+	const filterValue = document.getElementById("star-log-filter-value").value.trim();
 
 	const params = new URLSearchParams();
-	if (accountId) params.set("accountId", accountId);
-	if (playerId) params.set("playerId", playerId);
-	if (seasonId) params.set("seasonId", seasonId);
-	if (purchaseType) params.set("purchaseType", purchaseType);
-	if (variant) params.set("variant", variant);
-	if (!Number.isNaN(limitValue)) params.set("limit", limitValue);
-	if (from) params.set("from", from);
-	if (to) params.set("to", to);
-	if (minPrice) params.set("minPrice", minPrice);
-	if (maxPrice) params.set("maxPrice", maxPrice);
-	if (minCoinsBefore) params.set("minCoinsBefore", minCoinsBefore);
-	if (maxCoinsBefore) params.set("maxCoinsBefore", maxCoinsBefore);
-	if (minCoinsAfter) params.set("minCoinsAfter", minCoinsAfter);
-	if (maxCoinsAfter) params.set("maxCoinsAfter", maxCoinsAfter);
-	if (minStarsBefore) params.set("minStarsBefore", minStarsBefore);
-	if (maxStarsBefore) params.set("maxStarsBefore", maxStarsBefore);
-	if (minStarsAfter) params.set("minStarsAfter", minStarsAfter);
-	if (maxStarsAfter) params.set("maxStarsAfter", maxStarsAfter);
+	if (filterKey && filterValue) {
+		if (filterKey === "limit") {
+			const parsed = parseInt(filterValue, 10);
+			if (!Number.isNaN(parsed)) {
+				params.set("limit", parsed);
+			}
+		} else {
+			params.set(filterKey, filterValue);
+		}
+	}
 
 	const url = params.toString() ? `/admin/star-purchases?${params.toString()}` : "/admin/star-purchases";
 	const res = await apiFetch(url);
@@ -1768,6 +1823,27 @@ function initAdminTelemetry() {
 	adminTelemetryInitialized = true;
 }
 
+function initAdminStarLog() {
+	adminStarLogInitialized = true;
+	document.getElementById("star-log-load").addEventListener("click", async () => {
+		await loadStarPurchaseLog();
+	});
+
+	document.getElementById("star-log-clear").addEventListener("click", async () => {
+		document.getElementById("star-log-filter-key").value = "";
+		document.getElementById("star-log-filter-value").value = "";
+		await loadStarPurchaseLog();
+	});
+
+	document.getElementById("star-log-export-csv").addEventListener("click", async () => {
+		await exportStarPurchaseLog("csv");
+	});
+
+	document.getElementById("star-log-export-json").addEventListener("click", async () => {
+		await exportStarPurchaseLog("json");
+	});
+}
+
 async function refreshAdminTelemetryView() {
 	const res = await apiFetch("/auth/me");
 	const data = await res.json();
@@ -1778,6 +1854,35 @@ async function refreshAdminTelemetryView() {
 	document.getElementById("tele-no-access").style.display = "none";
 	await loadTelemetry();
 	return true;
+}
+
+async function refreshAdminStarLogView() {
+	const res = await apiFetch("/auth/me");
+	const data = await res.json();
+	if (!data.ok || !data.isAdmin) {
+		document.getElementById("star-log-no-access").style.display = "block";
+		document.getElementById("star-log-list").innerHTML = "";
+		stopStarLogRefresh();
+		return false;
+	}
+	document.getElementById("star-log-no-access").style.display = "none";
+	await loadStarPurchaseLog();
+	startStarLogRefresh();
+	return true;
+}
+
+function startStarLogRefresh() {
+	if (starLogRefreshInterval) return;
+	starLogRefreshInterval = setInterval(() => {
+		loadStarPurchaseLog();
+	}, 10000);
+}
+
+function stopStarLogRefresh() {
+	if (starLogRefreshInterval) {
+		clearInterval(starLogRefreshInterval);
+		starLogRefreshInterval = null;
+	}
 }
 
 async function loadTelemetry() {
