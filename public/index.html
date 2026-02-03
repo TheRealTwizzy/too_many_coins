@@ -2512,7 +2512,7 @@ function formatSeasonDay(secondsRemaining) {
 	return `${day} / 28`;
 }
 
-function seasonStatus(secondsRemaining) {
+function seasonStatusLabel(secondsRemaining) {
 	if (secondsRemaining <= 0) return "Ending";
 	if (secondsRemaining <= 86400) return "Ending";
 	return "Active";
@@ -2667,7 +2667,7 @@ async function loadAdminSeasons() {
 		}
 		if (adminSeasonEmpty) adminSeasonEmpty.style.display = "none";
 		adminSeasonList.innerHTML = seasons.map((season) => {
-			const status = seasonStatus(season.secondsRemaining || 0);
+			const status = seasonStatusLabel(season.secondsRemaining || 0);
 			const badgeClass = status === "Ending" ? "badge warn" : "badge accent";
 			return `
 				<div class="card notice clickable" data-season-id="${season.seasonId}">
@@ -2692,7 +2692,7 @@ async function loadAdminSeasons() {
 			adminSeasonMetrics.innerHTML = `
 				<div class="admin-metric"><div class="label">Season ID</div><div class="stat-value">${first.seasonId}</div></div>
 				<div class="admin-metric"><div class="label">Day</div><div class="stat-value">${formatSeasonDay(first.secondsRemaining || 0)}</div></div>
-				<div class="admin-metric"><div class="label">Status</div><div class="stat-value">${seasonStatus(first.secondsRemaining || 0)}</div></div>
+				<div class="admin-metric"><div class="label">Status</div><div class="stat-value">${seasonStatusLabel(first.secondsRemaining || 0)}</div></div>
 				<div class="admin-metric"><div class="label">Base price</div><div class="stat-value">${economyData.baseStarPrice || "--"}</div></div>
 				<div class="admin-metric"><div class="label">Effective price</div><div class="stat-value">${first.currentStarPrice || "--"}</div></div>
 				<div class="admin-metric"><div class="label">Market pressure</div><div class="stat-value">${typeof economyData.marketPressure === "number" ? economyData.marketPressure.toFixed(2) + "x" : "--"}</div></div>
