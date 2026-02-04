@@ -47,7 +47,7 @@ Abuse/Access:
 - buy_star
 - login
 
-Alpha note: additional faucet, emission, and pressure events are planned but not yet emitted.
+Alpha note: emission pool levels and per‑tick emissions are now emitted; faucet and pressure events are still planned but not yet emitted.
 
 ## Test Window
 

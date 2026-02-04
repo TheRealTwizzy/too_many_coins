@@ -125,7 +125,7 @@ Allowed to be rough or missing in Alpha:
 - [ ] [ALPHA REQUIRED] 7.4 Define and verify telemetry events:
   - [ ] [ALPHA REQUIRED] Faucet claims (daily, activity, passive if enabled, login safeguard)
   - [ ] [ALPHA REQUIRED] Star purchase attempts + successes
-  - [ ] [ALPHA REQUIRED] Emission pool levels and per‑tick emissions
+  - [x] [DONE] Emission pool levels and per‑tick emissions
   - [ ] [ALPHA REQUIRED] Market pressure value per tick
 - [ ] [ALPHA REQUIRED] 7.5 Validate append‑only economic logs are complete and queryable
 - [ ] [ALPHA REQUIRED] 7.6 Establish calibration workflow using telemetry history (no blind tuning)
