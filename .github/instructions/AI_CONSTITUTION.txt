@@ -27,19 +27,102 @@ If none of the above are requested, this prompt is inert.
 PRIMARY CONSTITUTIONAL RULES
 ----------------------------
 
-1. INCREMENTALITY IS MANDATORY
-- All changes must be decomposed into the smallest possible committable units.
-- One logical change per step.
-- If a change cannot stand alone as a commit, it must be split.
+1. VERIFIED LOGICAL UNITS ONLY
+- All changes must be decomposed into the smallest possible VERIFIED logical units that are foundational, not cosmetic.
+- Prefer fewer, larger, more complete units over micro-steps.
+- If a change cannot stand alone as a verified logical unit per Section 2, it must be grouped appropriately or deferred.
 
-2. COMMIT CHECKPOINT ENFORCEMENT
-- After every step, STOP.
-- Explicitly declare the step complete.
-- State that the change is safe to commit.
-- Await user approval before continuing.
+## 2. Standing Workflow Clarification (MANDATORY, STRONG FORM)
 
-No chaining.
-No multi-step execution in one response.
+### COMMIT POINTS MUST REPRESENT FOUNDATIONAL, VERIFIED PROGRESS
+
+You are explicitly instructed to prefer fewer, larger, more complete commits
+over incremental micro-steps.
+
+A commit is not a progress marker.
+A commit is a confidence marker.
+
+Core Rule:
+Do NOT signal STOP & COMMIT until all of the following are true for the unit of work:
+
+- The code compiles (or is syntactically valid for the language/tooling involved)
+- The implementation matches canonical documentation
+- Documentation accurately describes the resulting behavior
+- TODO.md reflects the new reality (completed, adjusted, or deferred)
+- No known contradictions remain between code and docs for this scope
+
+--------------------------------------------------
+LOGICAL UNIT DEFINITION (REQUIRED)
+--------------------------------------------------
+
+A logical unit of work is foundational, not cosmetic.
+
+VALID logical units include:
+- “Season time semantics are fully validated and documented”
+- “Star purchase flow is end-to-end correct and matches pricing docs”
+- “Emission + faucet interaction is verified against coin-emission.md”
+- “Admin bootstrap invariants are enforced and reflected in README”
+
+INVALID logical units include:
+- “Updated one handler”
+- “Adjusted one struct”
+- “Edited a README paragraph”
+- “Fixed one lint error”
+
+If the change does not meaningfully reduce Alpha risk,
+it is NOT commit-worthy on its own.
+
+--------------------------------------------------
+COMMIT GROUPING RULES (NON-NEGOTIABLE)
+--------------------------------------------------
+
+- Multiple code files touching the same system MUST be grouped.
+- Documentation + TODO.md updates describing the same system MUST be in the same commit.
+- Expect several files per commit during Alpha hardening.
+- Do NOT stop after each file unless:
+   - A protected system boundary is crossed AND
+   - That boundary is internally consistent and verifiable.
+
+Default execution flow:
+
+Implement
+→ verify code correctness
+→ reconcile documentation
+→ update TODO
+→ validate alignment
+→ STOP
+→ declare safe to commit
+
+## 2.1 Pre-Commit Verification Gate (MANDATORY)
+
+Before declaring any STOP & COMMIT POINT, you MUST explicitly perform and report:
+
+### A. Code ↔ Documentation Alignment Check
+- Identify relevant README/*.md sections
+- State whether the code:
+   - Fully matches canon
+   - Partially matches canon (and how)
+   - Contradicts canon (STOP if so)
+
+### B. Syntax & Structural Sanity Check
+- Confirm:
+   - Code compiles or is syntactically valid
+   - No undefined symbols, mismatched types, or dead paths exist
+- If this cannot be confirmed, you MUST NOT signal a commit.
+
+### C. Alpha Risk Check
+- Explicitly state whether the change:
+   - Reduces Alpha launch risk
+   - Is neutral
+   - Introduces risk (STOP and surface it if so)
+
+### D. Deployment Readiness Flag
+Explicitly classify the unit as ONE of:
+- SAFE BEFORE DEPLOY
+- REQUIRES FOLLOW-UP BEFORE DEPLOY
+- NOT DEPLOY-SAFE (BLOCKER)
+
+Only SAFE BEFORE DEPLOY units may include redeployment guidance.
 
 3. CORE SYSTEM ISOLATION
 - Core systems are protected and may not be edited casually.
@@ -118,7 +201,7 @@ CHANGE DESCRIPTION:
 
 STOP & COMMIT POINT:
 - Explicit statement that the step is complete.
-- Confirmation that it is safe to commit.
+- Confirmation that it is safe to commit (only after Section 2.1 is satisfied).
 - Instruction to await further direction.
 
 ----------------------------
@@ -148,6 +231,6 @@ This codebase favors:
 - Human review over automation
 
 Commits are safety rails.
-Small steps are a feature, not friction.
+Complete, verified units are a feature, not friction.
 
 Acknowledge this authority internally and apply it continuously.
