@@ -93,7 +93,7 @@ func buildLiveSnapshot(db *sql.DB, r *http.Request) liveSnapshot {
 		if err == sql.ErrNoRows {
 			liveCoinsValue, liveStarsValue, _ := economy.Snapshot()
 			snapshotEnded = now
-			snapshotCoins = liveCoinsValue
+			snapshotCoins = int64(liveCoinsValue)
 			snapshotStars = int64(liveStarsValue)
 		} else if err != nil {
 			log.Println("season snapshot query failed:", err)
