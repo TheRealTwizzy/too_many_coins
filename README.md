@@ -356,7 +356,12 @@ The server auto-creates schema on startup. For Fly.io:
 - Start: ./app
 - Health check: /health
 
-Set DATABASE_URL and any required secrets (SMTP_* if enabling email). Ensure APP_ENV=alpha on Fly. For manual migrations, use schema.sql.
+Set DATABASE_URL and any required secrets (SMTP_* if enabling email). Ensure PHASE=alpha (or APP_ENV=alpha fallback) on Fly. For manual migrations, use schema.sql.
+
+Alpha-only season extension (telemetry gaps):
+
+- ALPHA_SEASON_EXTENSION_DAYS (max 21)
+- ALPHA_SEASON_EXTENSION_REASON (required when extension is set)
 
 Health checks verify:
 
@@ -370,7 +375,7 @@ Health checks verify:
 
 Use the guarded reset script to wipe the database during Alpha testing:
 
-1) Set APP_ENV=alpha
+1) Set PHASE=alpha (or APP_ENV=alpha fallback)
 2) Set ALPHA_RESET_CONFIRM=I_UNDERSTAND
 3) Run scripts/alpha-reset.sh
 
