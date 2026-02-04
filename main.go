@@ -397,6 +397,15 @@ func main() {
 	}
 	log.Println("App environment:", env)
 
+	phase := CurrentPhase()
+	log.Println("Phase:", phase)
+	seasonDays := int(seasonLength().Hours() / 24)
+	log.Println("Season length (days):", seasonDays)
+	if phase == PhaseAlpha {
+		log.Println("Alpha season extension days:", os.Getenv("ALPHA_SEASON_EXTENSION_DAYS"))
+		log.Println("Alpha season extension reason:", os.Getenv("ALPHA_SEASON_EXTENSION_REASON"))
+	}
+
 	devMode := os.Getenv("DEV_MODE") == "true"
 	if devMode {
 		log.Println("⚠️  DEV MODE ENABLED")
