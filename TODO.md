@@ -34,14 +34,18 @@ Allowed to be rough or missing in Alpha:
 ## Phase 0 — Canon & Reality Reconciliation (Must Stay Honest)
 - [x] [DONE] 0.1 Audit repository vs canon sources (README set + SPEC + alpha‑execution + first‑playable)
 - [ ] [ALPHA REQUIRED] 0.2 Resolve passive drip contradiction (code runs drip; canon says post‑alpha)
-  - [ ] [ALPHA REQUIRED] Decide: disable drip for Alpha or update canon to allow it
-- [ ] [ALPHA REQUIRED] 0.3 Resolve admin‑tools overreach (docs list economy knobs not present)
-  - [ ] [ALPHA REQUIRED] Mark these tools as post‑alpha or remove from Alpha docs
-- [ ] [ALPHA REQUIRED] 0.4 Resolve anti‑abuse doc vs code (CAPTCHA/verification claimed but not implemented)
-  - [ ] [ALPHA REQUIRED] Update docs to post‑alpha or implement later
-- [ ] [ALPHA REQUIRED] 0.5 Resolve persistent‑state doc vs schema (seasons/player‑season tables not present)
-  - [ ] [ALPHA REQUIRED] Mark as post‑alpha in docs and TODO
+  - [ ] [ALPHA REQUIRED] Decide Alpha stance: disable drip via global_settings.drip_enabled default false OR update canon to allow drip
+  - [ ] [ALPHA REQUIRED] Document operational default for alpha (global_settings + runtime log confirms drip disabled/enabled)
+- [ ] [ALPHA REQUIRED] 0.3 Resolve admin‑tools overreach (docs list views not present in admin endpoints/UI)
+  - [ ] [ALPHA REQUIRED] Audit Alpha admin UI/endpoints vs docs (coin budget remaining, coin earning history, trust/throttle status, IP clustering detail)
+  - [ ] [ALPHA REQUIRED] Mark missing views as post‑alpha or add explicit implementation tasks
+- [x] [DONE] 0.4 Resolve anti‑abuse doc vs code (CAPTCHA/verification claimed but not implemented)
+  - [x] [DONE] Docs already label CAPTCHA/verification as post‑alpha
+- [x] [DONE] 0.5 Resolve persistent‑state doc vs schema (seasons/player‑season tables not present)
+  - [x] [DONE] persistent‑state.md already marks schema expansion as post‑alpha unless implemented
 - [x] [DONE] 0.6 Document login playability safeguard in canon docs
+- [ ] [ALPHA REQUIRED] 0.7 Resolve telemetry event naming mismatch (alpha‑execution says join_season; client emits login)
+  - [ ] [ALPHA REQUIRED] Decide canonical event names for Alpha and update telemetry contract + TODO list
 
 ---
 
@@ -119,6 +123,7 @@ Allowed to be rough or missing in Alpha:
   - [ ] [ALPHA REQUIRED] Market pressure value per tick
 - [ ] [ALPHA REQUIRED] 7.5 Validate append‑only economic logs are complete and queryable
 - [ ] [ALPHA REQUIRED] 7.6 Establish calibration workflow using telemetry history (no blind tuning)
+- [ ] [ALPHA REQUIRED] 7.7 Reconcile telemetry taxonomy with alpha‑execution.md (current client emits login + buy_star; join_season is not emitted)
 
 ---
 
@@ -129,7 +134,7 @@ Allowed to be rough or missing in Alpha:
 - [x] [DONE] 8.4 Rate limiting for signup/login
 - [x] [DONE] 8.5 AbuseEvents table + signal aggregation
 - [ ] [ALPHA REQUIRED] 8.6 Audit anti‑abuse coverage post‑whitelist removal
-- [ ] [ALPHA REQUIRED] 8.7 Update anti‑abuse docs to match Alpha (CAPTCHA/verification is post‑alpha)
+- [x] [DONE] 8.7 Update anti‑abuse docs to match Alpha (CAPTCHA/verification is post‑alpha)
 - [ ] [POST-ALPHA] 8.8 CAPTCHA + verification
 - [ ] [POST-ALPHA] 8.9 Additional abuse signals + admin visualization improvements
 
