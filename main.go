@@ -120,17 +120,18 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	OK           bool   `json:"ok"`
-	Error        string `json:"error,omitempty"`
-	Username     string `json:"username,omitempty"`
-	DisplayName  string `json:"displayName,omitempty"`
-	PlayerID     string `json:"playerId,omitempty"`
-	IsAdmin      bool   `json:"isAdmin,omitempty"`
-	IsModerator  bool   `json:"isModerator,omitempty"`
-	Role         string `json:"role,omitempty"`
-	AccessToken  string `json:"accessToken,omitempty"`
-	RefreshToken string `json:"refreshToken,omitempty"`
-	ExpiresIn    int64  `json:"expiresIn,omitempty"`
+	OK                 bool   `json:"ok"`
+	Error              string `json:"error,omitempty"`
+	Username           string `json:"username,omitempty"`
+	DisplayName        string `json:"displayName,omitempty"`
+	PlayerID           string `json:"playerId,omitempty"`
+	IsAdmin            bool   `json:"isAdmin,omitempty"`
+	IsModerator        bool   `json:"isModerator,omitempty"`
+	Role               string `json:"role,omitempty"`
+	MustChangePassword bool   `json:"mustChangePassword,omitempty"`
+	AccessToken        string `json:"accessToken,omitempty"`
+	RefreshToken       string `json:"refreshToken,omitempty"`
+	ExpiresIn          int64  `json:"expiresIn,omitempty"`
 }
 
 type RefreshTokenRequest struct {
@@ -193,6 +194,12 @@ type PasswordResetRequest struct {
 type PasswordResetConfirmRequest struct {
 	Token       string `json:"token"`
 	NewPassword string `json:"newPassword"`
+}
+
+type BootstrapPasswordRequest struct {
+	Username    string `json:"username"`
+	NewPassword string `json:"newPassword"`
+	GateKey     string `json:"gateKey"`
 }
 
 type SimpleResponse struct {
@@ -492,6 +499,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB, devMode bool) {
 	mux.HandleFunc("/auth/refresh", refreshTokenHandler(db))
 	mux.HandleFunc("/auth/request-reset", requestPasswordResetHandler(db))
 	mux.HandleFunc("/auth/reset-password", resetPasswordHandler(db))
+	mux.HandleFunc("/auth/bootstrap-password", bootstrapPasswordHandler(db))
 
 	mux.HandleFunc("/notifications", notificationsHandler(db))
 	mux.HandleFunc("/notifications/ack", notificationsAckHandler(db))

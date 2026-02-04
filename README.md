@@ -276,33 +276,42 @@ Email delivery requires SMTP configuration via environment variables (SMTP_HOST,
 
 ## Roles and Admin Workflow
 
-See the admin governance sections below. Admin creation is not a runtime feature during Alpha.
+See the admin governance sections below. Admin creation is not a gameplay feature during Alpha (bootstrap is server-only).
 
 ## Admin Bootstrap (Alpha)
 
-- /admin/set-key is a one-time bootstrap endpoint.
-- It is permanently disabled once any admin exists.
-- Bootstrap cannot be repeated without a database reset.
-- This is intentional and a security invariant.
+- On first startup after a fresh DB reset, the server auto‑creates exactly one admin account (username `alpha-admin`).
+- Bootstrap is sealed in the database and cannot repeat unless the DB is wiped.
+- If bootstrap was sealed but no admin exists, the server refuses to start (safety invariant).
 
-### Alpha Auto-Admin (Optional, server-only)
+### Bootstrap Password Gate (DB‑only, Alpha)
 
-For Alpha deployments that must bootstrap without manual ops steps, the server can create the first admin on startup.
+- The bootstrap admin is created with a random password and `must_change_password = true`.
+- All admin endpoints are blocked until this password is changed.
+- The initial password change is gated by a DB‑only key stored in `admin_password_gates`.
+- The gate key is single‑use and invalidated after success.
 
-Set the following environment variables:
+**Ops workflow (psql / Fly console):**
 
-- ALPHA_AUTO_ADMIN=true
-- ALPHA_ADMIN_USERNAME
-- ALPHA_ADMIN_PASSWORD
-- ALPHA_ADMIN_DISPLAY_NAME (optional)
-- ALPHA_ADMIN_EMAIL (optional)
-- ALPHA_ADMIN_KEY (optional; if omitted, a key is generated but not printed)
+1) Read the gate key from the database:
 
-Notes:
+SELECT gate_key
+FROM admin_password_gates
+WHERE used_at IS NULL
+LIMIT 1;
 
-- This runs only if no admin exists.
-- This is server-side only and never exposed to clients.
-- Once an admin exists, auto-bootstrap is skipped.
+2) Set the initial admin password via API (no login required):
+
+POST /auth/bootstrap-password
+{
+	"username": "alpha-admin",
+	"newPassword": "NEW_STRONG_PASSWORD",
+	"gateKey": "GATE_KEY_FROM_DB"
+}
+
+### Legacy Manual Bootstrap (Alpha‑only fallback)
+
+`/admin/set-key` is a one‑time bootstrap endpoint intended for manual ops. It is permanently disabled once any admin exists and cannot repeat without a DB reset. This path is not used when auto‑bootstrap succeeds.
 
 ## Admin Management During Alpha
 
@@ -310,6 +319,8 @@ Notes:
 - This is an operational (ops) action, not a gameplay feature.
 - Changes should be deliberate and auditable.
 - No client or API-based admin escalation exists during Alpha.
+
+Note: `/admin/role` is disabled in Alpha; role changes are DB‑only.
 
 ### Standardized DB Procedures (psql-safe)
 
@@ -342,7 +353,7 @@ The server auto-creates schema on startup. For Fly.io:
 - Start: ./app
 - Health check: /health
 
-Set DATABASE_URL and any required secrets (SMTP_* if enabling email). For manual migrations, use schema.sql.
+Set DATABASE_URL and any required secrets (SMTP_* if enabling email). Ensure APP_ENV=alpha on Fly. For manual migrations, use schema.sql.
 
 Health checks verify:
 

@@ -312,6 +312,14 @@ func ensureSchema(db *sql.DB) error {
 		return err
 	}
 
+	_, err = db.Exec(`
+		ALTER TABLE accounts
+		ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+	`)
+	if err != nil {
+		return err
+	}
+
 	// 2️⃣c sessions table
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (
@@ -1003,6 +1011,29 @@ func ensureSchema(db *sql.DB) error {
 			used_by_account_id TEXT,
 			used_by_ip TEXT
 		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	// 1️⃣2️⃣c admin password gates (DB-only bootstrap key)
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS admin_password_gates (
+			gate_id BIGSERIAL PRIMARY KEY,
+			account_id TEXT NOT NULL,
+			gate_key TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			used_at TIMESTAMPTZ,
+			used_by_ip TEXT
+		);
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_password_gates_active
+			ON admin_password_gates (account_id)
+			WHERE used_at IS NULL;
 	`)
 	if err != nil {
 		return err

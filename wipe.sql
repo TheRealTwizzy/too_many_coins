@@ -22,6 +22,7 @@ TRUNCATE notifications RESTART IDENTITY;
 TRUNCATE password_resets;
 TRUNCATE auth_rate_limits;
 TRUNCATE admin_bootstrap_tokens;
+TRUNCATE admin_password_gates RESTART IDENTITY;
 TRUNCATE refresh_tokens RESTART IDENTITY;
 TRUNCATE sessions;
 

@@ -162,6 +162,10 @@ func requireAdmin(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Account,
 		w.WriteHeader(http.StatusForbidden)
 		return nil, false
 	}
+	if account.MustChangePassword {
+		w.WriteHeader(http.StatusForbidden)
+		return nil, false
+	}
 	return account, true
 }
 
@@ -172,6 +176,10 @@ func requireModerator(db *sql.DB, w http.ResponseWriter, r *http.Request) (*Acco
 		return nil, false
 	}
 	if account.Role != "admin" && account.Role != "moderator" {
+		w.WriteHeader(http.StatusForbidden)
+		return nil, false
+	}
+	if account.Role == "admin" && account.MustChangePassword {
 		w.WriteHeader(http.StatusForbidden)
 		return nil, false
 	}
@@ -807,6 +815,10 @@ func adminRoleHandler(db *sql.DB) http.HandlerFunc {
 		}
 		adminAccount, ok := requireAdmin(db, w, r)
 		if !ok {
+			return
+		}
+		if strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV"))) == "alpha" {
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 		var req AdminRoleRequest

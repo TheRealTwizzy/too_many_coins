@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -32,67 +33,158 @@ func acquireStartupLock(ctx context.Context, db *sql.DB) (*sql.Conn, bool, error
 }
 
 func ensureAlphaAdmin(ctx context.Context, db *sql.DB) error {
-	if strings.ToLower(strings.TrimSpace(os.Getenv("ALPHA_AUTO_ADMIN"))) != "true" {
+	if strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV"))) != "alpha" {
 		return nil
 	}
 
-	username := strings.ToLower(strings.TrimSpace(os.Getenv("ALPHA_ADMIN_USERNAME")))
-	password := strings.TrimSpace(os.Getenv("ALPHA_ADMIN_PASSWORD"))
-	if username == "" || password == "" {
-		return errors.New("ALPHA_AUTO_ADMIN requires ALPHA_ADMIN_USERNAME and ALPHA_ADMIN_PASSWORD")
-	}
-	displayName := strings.TrimSpace(os.Getenv("ALPHA_ADMIN_DISPLAY_NAME"))
-	if displayName == "" {
-		displayName = username
-	}
-	email := strings.TrimSpace(os.Getenv("ALPHA_ADMIN_EMAIL"))
-	adminKeyEnv := strings.TrimSpace(os.Getenv("ALPHA_ADMIN_KEY"))
+	const username = "alpha-admin"
+	const displayName = "Alpha Admin"
+	const email = ""
 
-	if AdminExists(ctx, db) {
-		log.Println("ALPHA-ONLY AUTO ADMIN: skipped (admin already exists)")
-		return nil
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
 	}
+	defer tx.Rollback()
 
-	var accountID string
-	var role string
-	var adminKey sql.NullString
-	rowErr := db.QueryRowContext(ctx, `
-		SELECT account_id, role, admin_key_hash
-		FROM accounts
-		WHERE username = $1
-	`, username).Scan(&accountID, &role, &adminKey)
-	if rowErr != nil && rowErr != sql.ErrNoRows {
-		return rowErr
-	}
-
-	if rowErr == sql.ErrNoRows {
-		account, err := createAccount(db, username, password, displayName, email)
-		if err != nil {
-			return err
-		}
-		accountID = account.AccountID
-		adminKey = sql.NullString{}
-	}
-
-	if err := setAccountRole(db, accountID, "admin"); err != nil {
+	bootstrapComplete := false
+	var bootstrapValue string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT value
+		FROM global_settings
+		WHERE key = 'admin_bootstrap_complete'
+		FOR UPDATE
+	`).Scan(&bootstrapValue); err == nil {
+		bootstrapComplete = strings.ToLower(strings.TrimSpace(bootstrapValue)) == "true"
+	} else if err != sql.ErrNoRows {
 		return err
 	}
 
-	if adminKeyEnv == "" && (!adminKey.Valid || adminKey.String == "") {
-		generated, err := generateAdminKey()
-		if err != nil {
+	var adminAccountID string
+	adminErr := tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM accounts
+		WHERE role IN ('admin', 'frozen:admin')
+		LIMIT 1
+		FOR UPDATE
+	`).Scan(&adminAccountID)
+	if adminErr == nil {
+		if !bootstrapComplete {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO global_settings (key, value, updated_at)
+				VALUES ('admin_bootstrap_complete', 'true', NOW())
+				ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+			`); err != nil {
+				return err
+			}
+		}
+		if err := tx.Commit(); err != nil {
 			return err
 		}
-		adminKeyEnv = generated
-		log.Println("ALPHA-ONLY AUTO ADMIN: generated admin key (not printed)")
+		log.Println("ALPHA AUTO ADMIN: existing admin detected; bootstrap sealed")
+		return nil
 	}
-	if adminKeyEnv != "" {
-		if err := setAdminKey(db, accountID, adminKeyEnv); err != nil {
-			return err
-		}
+	if adminErr != sql.ErrNoRows {
+		return adminErr
+	}
+	if bootstrapComplete {
+		return errors.New("bootstrap sealed but no admin exists; refuse to start")
 	}
 
-	log.Println("ALPHA-ONLY AUTO ADMIN: ensured admin account for @" + username)
+	var existingAccountID string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM accounts
+		WHERE username = $1
+		LIMIT 1
+		FOR UPDATE
+	`, username).Scan(&existingAccountID); err == nil {
+		return errors.New("bootstrap admin username already exists without admin role")
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+
+	accountID, err := randomToken(16)
+	if err != nil {
+		return err
+	}
+	playerID, err := randomToken(16)
+	if err != nil {
+		return err
+	}
+	bootstrapPassword, err := randomToken(24)
+	if err != nil {
+		return err
+	}
+	passwordHash, err := hashPassword(bootstrapPassword)
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO players (player_id, coins, stars, created_at, last_active_at)
+		VALUES ($1, 0, 0, NOW(), NOW())
+	`, playerID); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO accounts (
+			account_id,
+			username,
+			password_hash,
+			display_name,
+			player_id,
+			email,
+			role,
+			must_change_password,
+			created_at,
+			last_login_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, 'admin', TRUE, NOW(), NOW())
+	`, accountID, username, passwordHash, displayName, playerID, email); err != nil {
+		return err
+	}
+
+	gateKey, err := randomToken(32)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO admin_password_gates (account_id, gate_key, created_at)
+		VALUES ($1, $2, NOW())
+	`, accountID, gateKey); err != nil {
+		return err
+	}
+
+	bootstrapDetails := map[string]interface{}{
+		"username":    username,
+		"displayName": displayName,
+	}
+	payload, err := json.Marshal(bootstrapDetails)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO admin_audit_log (admin_account_id, action_type, scope_type, scope_id, reason, details, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+	`, accountID, "auto_admin_bootstrap", "account", accountID, "bootstrap", string(payload)); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO global_settings (key, value, updated_at)
+		VALUES ('admin_bootstrap_complete', 'true', NOW())
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+	`); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	log.Println("ALPHA AUTO ADMIN: created bootstrap admin for @" + username)
 	return nil
 }
 

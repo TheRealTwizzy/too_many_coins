@@ -1011,6 +1011,131 @@ func resetPasswordHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func bootstrapPasswordHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var req BootstrapPasswordRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		username := strings.ToLower(strings.TrimSpace(req.Username))
+		newPassword := strings.TrimSpace(req.NewPassword)
+		gateKey := strings.TrimSpace(req.GateKey)
+		if username == "" || newPassword == "" || gateKey == "" {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+		if len(newPassword) < 8 || len(newPassword) > 128 {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INVALID_PASSWORD"})
+			return
+		}
+
+		ctx := r.Context()
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		defer tx.Rollback()
+
+		var accountID string
+		var role string
+		var mustChange bool
+		var passwordHash string
+		if err := tx.QueryRowContext(ctx, `
+			SELECT account_id, role, must_change_password, password_hash
+			FROM accounts
+			WHERE username = $1
+			FOR UPDATE
+		`, username).Scan(&accountID, &role, &mustChange, &passwordHash); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if normalizeRole(role) != "admin" || !mustChange {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		if verifyPassword(passwordHash, newPassword) {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "PASSWORD_REUSE"})
+			return
+		}
+
+		var gateID int64
+		if err := tx.QueryRowContext(ctx, `
+			SELECT gate_id
+			FROM admin_password_gates
+			WHERE account_id = $1
+				AND gate_key = $2
+				AND used_at IS NULL
+			FOR UPDATE
+		`, accountID, gateKey).Scan(&gateID); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		newHash, err := hashPassword(newPassword)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE accounts
+			SET password_hash = $2,
+				must_change_password = FALSE
+			WHERE account_id = $1
+		`, accountID, newHash); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		ip := getClientIP(r)
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE admin_password_gates
+			SET used_at = NOW(),
+				used_by_ip = $2
+			WHERE gate_id = $1
+		`, gateID, ip); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		details := map[string]interface{}{
+			"accountId": accountID,
+			"ip":        ip,
+		}
+		payload, err := json.Marshal(details)
+		if err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO admin_audit_log (admin_account_id, action_type, scope_type, scope_id, reason, details, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		`, accountID, "bootstrap_password_change", "account", accountID, "bootstrap", string(payload)); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		json.NewEncoder(w).Encode(SimpleResponse{OK: true})
+	}
+}
+
 func notificationsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -1325,12 +1450,6 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 			json.NewEncoder(w).Encode(SimpleResponse{OK: false, Error: err.Error()})
 			return
 		}
-		promoted, err := promoteFirstAccountToAdmin(db, account.AccountID)
-		if err != nil {
-			log.Println("signup: promoteFirstAccountToAdmin error:", err)
-		} else if promoted {
-			account.Role = "admin"
-		}
 		if ip != "" {
 			isNew, err := RecordPlayerIP(db, account.PlayerID, ip)
 			if err == nil && isNew {
@@ -1375,14 +1494,15 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(AuthResponse{
-			OK:           true,
-			Username:     account.Username,
-			DisplayName:  account.DisplayName,
-			PlayerID:     account.PlayerID,
-			Role:         account.Role,
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-			ExpiresIn:    int64(time.Until(accessExpires).Seconds()),
+			OK:                 true,
+			Username:           account.Username,
+			DisplayName:        account.DisplayName,
+			PlayerID:           account.PlayerID,
+			Role:               account.Role,
+			MustChangePassword: account.MustChangePassword,
+			AccessToken:        accessToken,
+			RefreshToken:       refreshToken,
+			ExpiresIn:          int64(time.Until(accessExpires).Seconds()),
 		})
 	}
 }
@@ -1481,16 +1601,17 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		json.NewEncoder(w).Encode(AuthResponse{
-			OK:           true,
-			Username:     account.Username,
-			DisplayName:  account.DisplayName,
-			PlayerID:     account.PlayerID,
-			IsAdmin:      account.Role == "admin",
-			IsModerator:  account.Role == "moderator",
-			Role:         account.Role,
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-			ExpiresIn:    int64(time.Until(accessExpires).Seconds()),
+			OK:                 true,
+			Username:           account.Username,
+			DisplayName:        account.DisplayName,
+			PlayerID:           account.PlayerID,
+			IsAdmin:            account.Role == "admin",
+			IsModerator:        account.Role == "moderator",
+			Role:               account.Role,
+			MustChangePassword: account.MustChangePassword,
+			AccessToken:        accessToken,
+			RefreshToken:       refreshToken,
+			ExpiresIn:          int64(time.Until(accessExpires).Seconds()),
 		})
 	}
 }
@@ -1521,13 +1642,14 @@ func meHandler(db *sql.DB) http.HandlerFunc {
 		EnsurePlayableBalanceOnLogin(db, account.PlayerID, &account.AccountID)
 		verifyDailyPlayability(db, account.PlayerID, &account.AccountID)
 		json.NewEncoder(w).Encode(AuthResponse{
-			OK:          true,
-			Username:    account.Username,
-			DisplayName: account.DisplayName,
-			PlayerID:    account.PlayerID,
-			IsAdmin:     account.Role == "admin",
-			IsModerator: account.Role == "moderator",
-			Role:        account.Role,
+			OK:                 true,
+			Username:           account.Username,
+			DisplayName:        account.DisplayName,
+			PlayerID:           account.PlayerID,
+			IsAdmin:            account.Role == "admin",
+			IsModerator:        account.Role == "moderator",
+			Role:               account.Role,
+			MustChangePassword: account.MustChangePassword,
 		})
 	}
 }

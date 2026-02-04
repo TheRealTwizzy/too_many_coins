@@ -55,6 +55,9 @@ ALTER TABLE accounts
 ALTER TABLE accounts
     ADD COLUMN IF NOT EXISTS trust_status TEXT NOT NULL DEFAULT 'normal';
 
+ALTER TABLE accounts
+    ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,
@@ -128,6 +131,19 @@ CREATE TABLE IF NOT EXISTS admin_bootstrap_tokens (
     used_by_account_id TEXT,
     used_by_ip TEXT
 );
+
+CREATE TABLE IF NOT EXISTS admin_password_gates (
+    gate_id BIGSERIAL PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    gate_key TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    used_by_ip TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_password_gates_active
+    ON admin_password_gates (account_id)
+    WHERE used_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS auth_rate_limits (
     ip TEXT NOT NULL,
