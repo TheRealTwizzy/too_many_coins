@@ -1224,8 +1224,11 @@ func ComputeStarPriceRawWithActive(
 	secondsRemaining int64,
 	marketPressure float64,
 ) int {
-	const seasonSeconds = 28 * 24 * 3600
-	progress := 1 - (float64(secondsRemaining) / float64(seasonSeconds))
+	seasonSeconds := seasonLength().Seconds()
+	if seasonSeconds <= 0 {
+		seasonSeconds = 1
+	}
+	progress := 1 - (float64(secondsRemaining) / seasonSeconds)
 	if progress < 0 {
 		progress = 0
 	}
@@ -1299,11 +1302,11 @@ func ComputeStarPriceRawWithActive(
 }
 
 func EffectiveDailyEmissionTargetForParams(params CalibrationParams, secondsRemaining int64, coinsInCirculation int64) int {
-	const seasonSeconds = 28 * 24 * 3600
+	seasonSeconds := seasonLength().Seconds()
 	if seasonSeconds <= 0 {
 		return params.CBase
 	}
-	progress := 1 - (float64(secondsRemaining) / float64(seasonSeconds))
+	progress := 1 - (float64(secondsRemaining) / seasonSeconds)
 	if progress < 0 {
 		progress = 0
 	}
