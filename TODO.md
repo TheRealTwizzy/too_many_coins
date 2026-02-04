@@ -33,9 +33,9 @@ Allowed to be rough or missing in Alpha:
 
 ## Phase 0 — Canon & Reality Reconciliation (Must Stay Honest)
 - [x] [DONE] 0.1 Audit repository vs canon sources (README set + SPEC + alpha‑execution + first‑playable)
-- [ ] [ALPHA REQUIRED] 0.2 Resolve passive drip contradiction (code runs drip; canon says post‑alpha)
-  - [ ] [ALPHA REQUIRED] Decide Alpha stance: disable drip via global_settings.drip_enabled default false OR update canon to allow drip
-  - [ ] [ALPHA REQUIRED] Document operational default for alpha (global_settings + runtime log confirms drip disabled/enabled)
+- [x] [DONE] 0.2 Resolve passive drip contradiction (code runs drip; canon says post‑alpha)
+  - [x] [DONE] Decide Alpha stance: disable drip via global_settings.drip_enabled default false OR update canon to allow drip
+  - [x] [DONE] Document operational default for alpha (global_settings + runtime log confirms drip disabled/enabled)
 - [ ] [ALPHA REQUIRED] 0.3 Resolve admin‑tools overreach (docs list views not present in admin endpoints/UI)
   - [ ] [ALPHA REQUIRED] Audit Alpha admin UI/endpoints vs docs (coin budget remaining, coin earning history, trust/throttle status, IP clustering detail)
   - [ ] [ALPHA REQUIRED] Mark missing views as post‑alpha or add explicit implementation tasks
@@ -90,7 +90,7 @@ Allowed to be rough or missing in Alpha:
 - [x] [DONE] 4.5 Login playability safeguard (alpha‑only, emission‑pool backed, short cooldown)
 - [ ] [ALPHA REQUIRED] 4.6 Verify login safeguard behavior (min balance target, cooldown, no daily‑cap dead‑locks)
 - [ ] [ALPHA REQUIRED] 4.7 Confirm faucet priorities and pool gating match canon (no player‑created coins)
-- [ ] [ALPHA REQUIRED] 4.8 Resolve passive drip status (enabled vs disabled for Alpha)
+- [x] [DONE] 4.8 Resolve passive drip status (enabled vs disabled for Alpha)
 - [ ] [POST-ALPHA] 4.9 Daily tasks faucet
 - [ ] [POST-ALPHA] 4.10 Comeback reward faucet
 

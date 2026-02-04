@@ -27,7 +27,7 @@ var (
 		ActiveDripAmount:          2,
 		IdleDripAmount:            1,
 		ActivityWindowSeconds:     120,
-		DripEnabled:               true,
+		DripEnabled:               false,
 		BotsEnabled:               true,
 		BotMinStarIntervalSeconds: 90,
 	}

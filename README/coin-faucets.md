@@ -26,6 +26,8 @@ Active play rewards are capped per hour and per day.
 
 AFK or idle behavior does not generate coins.
 
+Alpha runtime default: passive drip is disabled (`drip_enabled=false`).
+
 Comeback Reward:
 
 Post‑alpha only.

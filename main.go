@@ -466,6 +466,19 @@ func main() {
 	if err := LoadGlobalSettings(db); err != nil {
 		log.Println("Failed to load global settings:", err)
 	}
+	if CurrentPhase() == PhaseAlpha {
+		settings := GetGlobalSettings()
+		if settings.DripEnabled {
+			log.Println("WARN: passive drip enabled in settings; overriding to disabled for alpha")
+			if _, err := UpdateGlobalSettings(db, map[string]string{"drip_enabled": "false"}); err != nil {
+				log.Println("Failed to persist alpha drip override:", err)
+				settingsMu.Lock()
+				cachedSettings.DripEnabled = false
+				settingsMu.Unlock()
+			}
+		}
+		log.Println("ECONOMY_CONFIG: passive_drip=DISABLED (alpha default)")
+	}
 
 	if acquired {
 		startTickLoop(db)
