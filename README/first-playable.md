@@ -6,7 +6,7 @@ Included:
 
 One active season only
 
-Real season timer (28 days, but may be accelerated for testing)
+Real season timer (Alpha: 14 days by default; extension up to 21 days only with explicit telemetry‑gap configuration; may be accelerated for testing)
 
 Account creation and login
 

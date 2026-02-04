@@ -61,7 +61,7 @@ Allowed to be rough or missing in Alpha:
 ---
 
 ## Phase 2 — Time System & Season Core
-- [x] [DONE] 2.1 Fixed 28‑day season clock
+- [x] [DONE] 2.1 Fixed phase‑bound season clock
 - [x] [DONE] 2.2 60s tick loop for emission + pressure
 - [x] [DONE] 2.3 Season end snapshot on tick
 - [ ] [ALPHA REQUIRED] 2.4 Validate time semantics (season day index, reset boundaries, end‑state gating)

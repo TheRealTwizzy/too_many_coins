@@ -135,7 +135,7 @@ Trading is a costly tool for repositioning risk, not a catch-up system.
 
 Star prices must be dynamic and depend on multiple factors:
 
-Time progression across the 28-day season  
+Time progression across the phase‑bound season length (14 days in Alpha; 28 days in Beta/Release)  
 Purchase quantity, with non-linear scaling for bulk purchases  
 Market pressure based on recent star-buying activity  
 A late-season spike that sharply increases prices in the final week  

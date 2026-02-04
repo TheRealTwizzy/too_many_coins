@@ -4,7 +4,7 @@ This plan defines the minimum goals and metrics for the first alpha test. It ali
 
 ## Goals
 
-- Verify inflation pacing across the 28‑day season curve (or accelerated test window).
+- Verify inflation pacing across the Alpha season curve (14 days by default, or accelerated test window).
 - Verify bulk‑buy deterrence is strong enough late‑season.
 - Observe early vs late‑joiner behavior and perceived fairness.
 - Identify abuse vectors around faucets, IP limits, and cooldowns.
