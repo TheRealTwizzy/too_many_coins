@@ -2,6 +2,13 @@ The database stores only authoritative facts required to reconstruct the game st
 
 Alpha note: the current schema is minimal and does not yet include all entities below. The list is the target canonical model and is post‑alpha unless explicitly implemented.
 
+Currency model (post‑alpha canon, not implemented in Alpha):
+
+Coins and Stars remain seasonal and reset each season.
+Post‑alpha introduces a persistent meta currency for cosmetic / identity use only; it cannot be traded, cannot convert into Coins or Stars, and cannot affect competitive power.
+An optional influence / reputation metric may exist post‑release; it is non‑spendable, eligibility/visibility‑only, and never convertible.
+No currency may ever convert into Coins or Stars, directly or indirectly.
+
 Persistent entities include:
 
 Players:

@@ -181,6 +181,15 @@ Allowed to be rough or missing in Alpha:
 
 ---
 
+## Post‑Alpha / Beta — Currency Expansion (Canon Only)
+- [ ] [POST-ALPHA] Introduce persistent meta currency (Beta) for cosmetics/identity only; non‑tradable, non‑competitive, season‑persistent.
+- [ ] [POST-ALPHA] Implement reward grant logic for persistent meta currency (non‑economic, cosmetic only).
+- [ ] [POST-ALPHA] Expose persistent meta currency in UI (cosmetics, titles, badges, collections).
+- [ ] [POST-ALPHA] Enforce and document: no conversion paths into Coins or Stars, direct or indirect.
+- [ ] [POST-ALPHA] (Post‑Release optional) Influence/reputation metric: non‑spendable, eligibility/visibility‑only, never convertible.
+
+---
+
 ## Phase 13 — Testing & Validation
 - [x] [DONE] 13.1 Simulation engine for pricing + pressure
 - [ ] [ALPHA REQUIRED] 13.2 Validate simulation outputs vs live calibration parameters

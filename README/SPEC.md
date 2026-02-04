@@ -26,6 +26,10 @@ Anti-abuse: 1 active account per IP per season by default; no whitelist, throttl
 
 Rewards: cosmetics/titles/badges persist between seasons; coins/stars reset per season
 
+Post‑alpha currency model: introduce a persistent meta currency (Beta) for cosmetic/identity use only; it cannot be traded, cannot convert into Coins or Stars, and cannot affect competitive power. An optional influence/reputation metric may exist post‑release; it is non‑spendable, eligibility/visibility‑only, and never convertible.
+
+Hard prohibition: no currency may ever convert into Coins or Stars, directly or indirectly.
+
 Real-time: prices and season stats update via SSE or WebSockets
 
 Server-authoritative economy: all pricing, caps, purchases enforced server-side

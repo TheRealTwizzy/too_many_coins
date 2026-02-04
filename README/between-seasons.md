@@ -14,6 +14,21 @@ Badge collections
 
 Season history records
 
+Post‑alpha persistent meta currency (Beta):
+
+Persists across seasons
+Cosmetic / identity use only
+Cannot be traded
+Cannot convert into Coins or Stars
+Cannot affect competitive power
+
+Optional influence / reputation metric (Post‑Release):
+
+Non‑spendable
+Eligibility / visibility modifier only
+Never convertible
+Not required for Beta
+
 Account level:
 
 Increases based on participation, not leaderboard rank.
@@ -37,6 +52,8 @@ Return incentives:
 Players returning after missing a season may earn a small cosmetic bonus.
 
 Return incentives never grant coins or stars.
+
+No currency may ever convert into Coins or Stars, directly or indirectly.
 
 Season variety:
 

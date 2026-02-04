@@ -15,6 +15,12 @@ Players earn persistent rewards based on season participation and performance.
 
 Rewards are cosmetic or status-based only and do not grant economic advantage.
 
+Rewards may include a persistent meta currency (post‑alpha) for cosmetic / identity use only; it cannot be traded, cannot convert into Coins or Stars, and cannot affect competitive power.
+
+Optional influence / reputation (post‑release) is non‑spendable, eligibility/visibility‑only, and never convertible.
+
+No currency may ever convert into Coins or Stars, directly or indirectly.
+
 Reward types include:
 
 Season badges for participation

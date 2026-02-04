@@ -55,12 +55,46 @@ Persistent rewards carry over between seasons (post‑alpha).
 
 ---
 
-## Resources
+## Currencies
 
-Coins are the currency earned and spent by players.  
-Stars are points that determine leaderboard position.  
-Stars are minted only by the system; trading only transfers existing Stars.  
-Players may trade with one another only through a brokered, system-controlled process under strict eligibility rules.
+Alpha (no change): Coins and Stars are the only currencies. No other currencies exist in Alpha.
+
+Seasonal currencies (Alpha/Beta/Release):
+
+Coins:
+
+Seasonal  
+Inflation‑controlled  
+Faucet‑based  
+Reset every season
+
+Stars:
+
+Seasonal  
+Competitive  
+Leaderboard‑defining  
+Reset every season  
+Not used for cosmetics or meta progression
+
+Post‑Alpha persistent meta currency (Beta):
+
+Introduced in Beta  
+Persists across seasons  
+Cosmetic / identity use only  
+Cannot be traded  
+Cannot convert into Coins or Stars  
+Cannot affect competitive power
+
+Optional influence / reputation metric (Post‑Release):
+
+Non‑spendable  
+Eligibility / visibility modifier only  
+Never convertible  
+Not required for Beta
+
+Hard prohibition:
+
+> No currency may ever convert into Coins or Stars, directly or indirectly.
 
 ---
 
