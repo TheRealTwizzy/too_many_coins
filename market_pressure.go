@@ -45,6 +45,19 @@ func updateMarketPressure(db *sql.DB, now time.Time) {
 	maxDelta := maxDeltaPerHour / 60
 	current := economy.MarketPressure()
 	updated := economy.UpdateMarketPressure(desired, maxDelta)
+	if featureFlags.Telemetry {
+		emitServerTelemetry(db, nil, "", "market_pressure_tick", map[string]interface{}{
+			"seasonId":        seasonID,
+			"last24h":         last24h,
+			"last7d":          last7d,
+			"ratio":           ratio,
+			"desired":         desired,
+			"currentPressure": current,
+			"updatedPressure": updated,
+			"maxDeltaPerHour": maxDeltaPerHour,
+			"maxDeltaPerTick": maxDelta,
+		})
+	}
 	if current < 1.5 && updated >= 1.5 {
 		priority := NotificationPriorityHigh
 		if updated >= 1.7 {

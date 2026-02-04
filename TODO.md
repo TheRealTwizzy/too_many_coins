@@ -126,7 +126,7 @@ Allowed to be rough or missing in Alpha:
   - [ ] [ALPHA REQUIRED] Faucet claims (daily, activity, passive if enabled, login safeguard)
   - [ ] [ALPHA REQUIRED] Star purchase attempts + successes
   - [x] [DONE] Emission pool levels and per‑tick emissions
-  - [ ] [ALPHA REQUIRED] Market pressure value per tick
+  - [x] [DONE] Market pressure value per tick
 - [ ] [ALPHA REQUIRED] 7.5 Validate append‑only economic logs are complete and queryable
 - [ ] [ALPHA REQUIRED] 7.6 Establish calibration workflow using telemetry history (no blind tuning)
 - [x] [DONE] 7.7 Reconcile telemetry taxonomy with alpha‑execution.md (current client emits login + buy_star; join_season is not emitted)
