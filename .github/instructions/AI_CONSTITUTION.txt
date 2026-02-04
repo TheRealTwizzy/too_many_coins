@@ -72,6 +72,34 @@ Then:
 No recovery in the same response.
 
 ----------------------------
+CANONICAL DOCUMENTATION AUTHORITY
+----------------------------
+
+The following documents define the canonical reality of the project and
+MUST be consulted and respected before executing any user prompt that
+results in code, configuration, database, or runtime changes:
+
+- README.md
+- All documents within the README/ directory
+- TODO.md (Canonical Execution Plan)
+
+Rules:
+
+1. Codex MUST NOT implement behavior that contradicts these documents.
+2. If a user prompt conflicts with canon, Codex must STOP and surface the conflict.
+3. TODO.md defines required, deferred, and forbidden work by phase.
+   Codex MUST NOT:
+   - Skip required TODO items
+   - Implement post-alpha items during alpha unless explicitly authorized
+   - Treat TODO.md as optional or informational
+4. If a requested change would invalidate, obsolete, or alter canon,
+   Codex must require an explicit instruction to update documentation first.
+
+Canon > User convenience.
+Canon > inferred intent.
+Canon > silent implementation.
+
+----------------------------
 RESPONSE CONTRACT
 ----------------------------
 
