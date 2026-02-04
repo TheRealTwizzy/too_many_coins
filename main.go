@@ -480,7 +480,7 @@ func main() {
    ====================== */
 
 func registerRoutes(mux *http.ServeMux, db *sql.DB) {
-	mux.HandleFunc("/", serveIndex)
+	mux.Handle("/", http.FileServer(http.Dir("public")))
 	mux.HandleFunc("/health", healthHandler(db))
 	mux.HandleFunc("/player", playerHandler(db))
 	mux.HandleFunc("/seasons", seasonsHandler(db))
