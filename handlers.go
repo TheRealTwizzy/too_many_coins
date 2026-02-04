@@ -20,6 +20,20 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 
 	data, err := fs.ReadFile(publicFS, "index.html")
 	if err != nil {
+		cwd, cwdErr := os.Getwd()
+		if cwdErr != nil {
+			cwd = "unknown"
+		}
+		entries, dirErr := fs.ReadDir(publicFS, ".")
+		if dirErr != nil {
+			log.Printf("serveIndex: failed to read index.html (cwd=%s): %v; readdir error: %v", cwd, err, dirErr)
+		} else {
+			names := make([]string, 0, len(entries))
+			for _, entry := range entries {
+				names = append(names, entry.Name())
+			}
+			log.Printf("serveIndex: failed to read index.html (cwd=%s): %v; public entries: %s", cwd, err, strings.Join(names, ","))
+		}
 		http.Error(w, "index.html not found", http.StatusInternalServerError)
 		return
 	}
