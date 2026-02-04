@@ -696,5 +696,12 @@ func runPassiveDrip(db *sql.DB) {
 			log.Println("drip update failed:", err)
 			continue
 		}
+		emitServerTelemetry(db, nil, playerID, "faucet_claim", map[string]interface{}{
+			"faucet":        FaucetPassive,
+			"granted":       adjusted,
+			"attempted":     adjusted,
+			"remainingCap":  remainingCap,
+			"availableCoins": economy.AvailableCoins(),
+		})
 	}
 }

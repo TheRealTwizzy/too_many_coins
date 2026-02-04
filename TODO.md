@@ -123,7 +123,7 @@ Allowed to be rough or missing in Alpha:
 - [x] [DONE] 7.2 Season calibration persistence (season_calibration)
 - [ ] [ALPHA REQUIRED] 7.3 Ensure telemetry is sufficient to calibrate live values (emission, caps, price curves, pressure)
 - [ ] [ALPHA REQUIRED] 7.4 Define and verify telemetry events:
-  - [ ] [ALPHA REQUIRED] Faucet claims (daily, activity, passive if enabled, login safeguard)
+  - [x] [DONE] Faucet claims (daily, activity, passive if enabled, login safeguard)
   - [ ] [ALPHA REQUIRED] Star purchase attempts + successes
   - [x] [DONE] Emission pool levels and per‑tick emissions
   - [x] [DONE] Market pressure value per tick

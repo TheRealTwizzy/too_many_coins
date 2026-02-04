@@ -47,7 +47,7 @@ Abuse/Access:
 - buy_star
 - login
 
-Alpha note: emission pool levels/per‑tick emissions and market pressure per‑tick events are now emitted; faucet events are still planned but not yet emitted.
+Alpha note: emission pool levels/per‑tick emissions, market pressure per‑tick events, and faucet claim events are now emitted.
 
 ## Test Window
 
