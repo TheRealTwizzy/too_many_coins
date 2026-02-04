@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'too-many-coins-2e--pw'
+app = 'too-many-coins-app'
 primary_region = 'iad'
 
 [build]
@@ -23,6 +23,10 @@ primary_region = 'iad'
     type = "connections"
     soft_limit = 20
     hard_limit = 25
+
+[[mounts]]
+  source = "data"
+  destination = "/data"
 
 [[vm]]
   memory = '1gb'
