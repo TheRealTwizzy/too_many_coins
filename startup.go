@@ -33,7 +33,7 @@ func acquireStartupLock(ctx context.Context, db *sql.DB) (*sql.Conn, bool, error
 }
 
 func ensureAlphaAdmin(ctx context.Context, db *sql.DB) error {
-	if strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV"))) != "alpha" {
+	if CurrentPhase() != PhaseAlpha {
 		return nil
 	}
 
@@ -81,7 +81,7 @@ func ensureAlphaAdmin(ctx context.Context, db *sql.DB) error {
 		if err := tx.Commit(); err != nil {
 			return err
 		}
-		log.Println("ALPHA AUTO ADMIN: existing admin detected; bootstrap sealed")
+		log.Println("Alpha admin bootstrap: admin already exists, skipping")
 		return nil
 	}
 	if adminErr != sql.ErrNoRows {
@@ -177,7 +177,7 @@ func ensureAlphaAdmin(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	log.Println("ALPHA AUTO ADMIN: created bootstrap admin for @" + username)
+	log.Println("Alpha admin bootstrap: created alpha-admin")
 	return nil
 }
 
