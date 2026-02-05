@@ -491,6 +491,7 @@ func main() {
 
 	// HTTP server
 	mux := http.NewServeMux()
+	mux.Handle("/health", healthHandler(db))
 	registerRoutes(mux, db)
 
 	port := os.Getenv("PORT")
