@@ -646,6 +646,7 @@ func adminAuditLogHandler(db *sql.DB) http.HandlerFunc {
 		})
 	}
 }
+
 type AdminRoleRequest struct {
 	Username string `json:"username"`
 	Role     string `json:"role"`
