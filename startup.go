@@ -33,7 +33,6 @@ func acquireStartupLock(ctx context.Context, db *sql.DB) (*sql.Conn, bool, error
 }
 
 func ensureAlphaAdmin(ctx context.Context, db *sql.DB) error {
-	log.Printf("ensureAlphaAdmin entered (phase=%s)", CurrentPhase())
 	if CurrentPhase() != PhaseAlpha {
 		return nil
 	}
