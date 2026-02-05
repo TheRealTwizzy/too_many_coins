@@ -1,3 +1,17 @@
+-- ============================================================
+-- Too Many Coins — Canonical Schema
+-- Phase 0: Infrastructure Alignment
+--
+-- IMPORTANT:
+-- Tables marked PHASE 0 REQUIRED are authoritative now.
+-- Tables marked POST-ALPHA exist but MUST NOT be assumed active.
+-- No Alpha code paths should rely on POST-ALPHA tables.
+-- ============================================================
+
+-- =========================
+-- PHASE 0 REQUIRED
+-- Core season-wide economy state (single season in Alpha)
+-- =========================
 CREATE TABLE IF NOT EXISTS season_economy (
     season_id TEXT PRIMARY KEY,
     global_coin_pool BIGINT NOT NULL,
@@ -9,6 +23,10 @@ CREATE TABLE IF NOT EXISTS season_economy (
     last_updated TIMESTAMPTZ NOT NULL
 );
 
+-- =========================
+-- PHASE 0 REQUIRED
+-- Player core state (authoritative balances + activity)
+-- =========================
 CREATE TABLE IF NOT EXISTS players (
     player_id TEXT PRIMARY KEY,
     coins BIGINT NOT NULL,
@@ -17,6 +35,10 @@ CREATE TABLE IF NOT EXISTS players (
     last_active_at TIMESTAMPTZ NOT NULL
 );
 
+-- =========================
+-- PHASE 0 REQUIRED
+-- Account identity and authentication
+-- =========================
 CREATE TABLE IF NOT EXISTS accounts (
     account_id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
@@ -28,36 +50,21 @@ CREATE TABLE IF NOT EXISTS accounts (
     last_login_at TIMESTAMPTZ NOT NULL
 );
 
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS admin_key_hash TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS pronouns TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS trust_status TEXT NOT NULL DEFAULT 'normal';
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
 
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS email TEXT;
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS bio TEXT;
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS pronouns TEXT;
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS location TEXT;
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS website TEXT;
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS trust_status TEXT NOT NULL DEFAULT 'normal';
-
-ALTER TABLE accounts
-    ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
-
+-- =========================
+-- PHASE 0 REQUIRED
+-- Session persistence (HTTP-only cookies)
+-- =========================
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,
@@ -67,33 +74,34 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_account_id
     ON sessions (account_id);
 
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS last_coin_grant_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+-- =========================
+-- PHASE 0 REQUIRED
+-- Player earning & activity tracking (even if faucets disabled)
+-- =========================
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_coin_grant_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE players ADD COLUMN IF NOT EXISTS daily_earn_total BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_earn_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS daily_earn_total BIGINT NOT NULL DEFAULT 0;
+-- =========================
+-- POST-ALPHA / DISABLED IN PHASE 0
+-- Passive drip & advanced modifiers
+-- =========================
+ALTER TABLE players ADD COLUMN IF NOT EXISTS drip_multiplier DOUBLE PRECISION NOT NULL DEFAULT 1.0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS drip_paused BOOLEAN NOT NULL DEFAULT FALSE;
 
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS last_earn_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+-- =========================
+-- PHASE 0 REQUIRED
+-- Burn tracking, bots, provenance
+-- =========================
+ALTER TABLE players ADD COLUMN IF NOT EXISTS burned_coins BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS bot_profile TEXT;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'human';
 
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS drip_multiplier DOUBLE PRECISION NOT NULL DEFAULT 1.0;
-
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS drip_paused BOOLEAN NOT NULL DEFAULT FALSE;
-
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS burned_coins BIGINT NOT NULL DEFAULT 0;
-
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS is_bot BOOLEAN NOT NULL DEFAULT FALSE;
-
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS bot_profile TEXT;
-
-ALTER TABLE players
-    ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'human';
-
+-- =========================
+-- PHASE 0 REQUIRED
+-- IP association & abuse groundwork
+-- =========================
 CREATE TABLE IF NOT EXISTS player_ip_associations (
     player_id TEXT NOT NULL,
     ip TEXT NOT NULL,
@@ -102,6 +110,13 @@ CREATE TABLE IF NOT EXISTS player_ip_associations (
     PRIMARY KEY (player_id, ip)
 );
 
+CREATE INDEX IF NOT EXISTS idx_player_ip_associations_ip
+    ON player_ip_associations (ip);
+
+-- =========================
+-- PHASE 0 REQUIRED
+-- Notifications (delivery + audit only)
+-- =========================
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGSERIAL PRIMARY KEY,
     target_role TEXT NOT NULL,
@@ -113,83 +128,27 @@ CREATE TABLE IF NOT EXISTS notifications (
     expires_at TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id BIGSERIAL PRIMARY KEY,
-    account_id TEXT NOT NULL,
-    token_hash TEXT NOT NULL UNIQUE,
-    issued_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    revoked_at TIMESTAMPTZ,
-    user_agent TEXT,
-    ip TEXT,
-    purpose TEXT NOT NULL DEFAULT 'auth'
-);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS recipient_role TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS recipient_account_id TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS season_id TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'normal';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS payload JSONB;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS ack_required BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS dedupe_key TEXT;
 
-CREATE TABLE IF NOT EXISTS admin_bootstrap_tokens (
-    token_hash TEXT PRIMARY KEY,
-    used_at TIMESTAMPTZ,
-    used_by_account_id TEXT,
-    used_by_ip TEXT
-);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at
+    ON notifications (created_at);
 
-CREATE TABLE IF NOT EXISTS admin_password_gates (
-    gate_id BIGSERIAL PRIMARY KEY,
-    account_id TEXT NOT NULL,
-    gate_key TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    used_at TIMESTAMPTZ,
-    used_by_ip TEXT
-);
+CREATE INDEX IF NOT EXISTS idx_notifications_dedupe
+    ON notifications (dedupe_key, created_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_password_gates_active
-    ON admin_password_gates (account_id)
-    WHERE used_at IS NULL;
-
-CREATE TABLE IF NOT EXISTS auth_rate_limits (
-    ip TEXT NOT NULL,
-    action TEXT NOT NULL,
-    window_start TIMESTAMPTZ NOT NULL,
-    attempt_count INT NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (ip, action)
-);
-
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_account_id
-    ON refresh_tokens (account_id, revoked_at);
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS link TEXT;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS recipient_role TEXT;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS recipient_account_id TEXT;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS season_id TEXT;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS category TEXT;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS type TEXT;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'normal';
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS payload JSONB;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS ack_required BOOLEAN NOT NULL DEFAULT FALSE;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ;
-
-ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS dedupe_key TEXT;
-
+-- =========================
+-- PHASE 0 REQUIRED
+-- Notification read / ack state
+-- =========================
 CREATE TABLE IF NOT EXISTS notification_reads (
     notification_id BIGINT NOT NULL,
     account_id TEXT NOT NULL,
@@ -220,21 +179,47 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     PRIMARY KEY (account_id, category)
 );
 
-ALTER TABLE notification_settings
-    ADD COLUMN IF NOT EXISTS push_enabled BOOLEAN NOT NULL DEFAULT FALSE;
-
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at
-    ON notifications (created_at);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_dedupe
-    ON notifications (dedupe_key, created_at);
-
-CREATE TABLE IF NOT EXISTS global_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+-- =========================
+-- PHASE 0 REQUIRED
+-- Admin bootstrap & auth safety
+-- =========================
+CREATE TABLE IF NOT EXISTS admin_bootstrap_tokens (
+    token_hash TEXT PRIMARY KEY,
+    used_at TIMESTAMPTZ,
+    used_by_account_id TEXT,
+    used_by_ip TEXT
 );
 
+CREATE TABLE IF NOT EXISTS admin_password_gates (
+    gate_id BIGSERIAL PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    gate_key TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    used_by_ip TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_password_gates_active
+    ON admin_password_gates (account_id)
+    WHERE used_at IS NULL;
+
+-- =========================
+-- PHASE 0 REQUIRED
+-- Auth rate limiting
+-- =========================
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    ip TEXT NOT NULL,
+    action TEXT NOT NULL,
+    window_start TIMESTAMPTZ NOT NULL,
+    attempt_count INT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (ip, action)
+);
+
+-- =========================
+-- PHASE 0 REQUIRED
+-- Password reset flow
+-- =========================
 CREATE TABLE IF NOT EXISTS password_resets (
     reset_id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,
@@ -244,16 +229,11 @@ CREATE TABLE IF NOT EXISTS password_resets (
     created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_player_ip_associations_ip
-    ON player_ip_associations (ip);
-
-CREATE TABLE IF NOT EXISTS player_faucet_claims (
-    player_id TEXT NOT NULL,
-    faucet_key TEXT NOT NULL,
-    last_claim_at TIMESTAMPTZ NOT NULL,
-    claim_count BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (player_id, faucet_key)
-);
+-- =========================
+-- POST-ALPHA / ECONOMY DETAIL
+-- Logs, calibration, ranking, telemetry
+-- =========================
+-- NOTE: Present for continuity; not all are active in Phase 0
 
 CREATE TABLE IF NOT EXISTS coin_earning_log (
     id BIGSERIAL PRIMARY KEY,
@@ -265,13 +245,6 @@ CREATE TABLE IF NOT EXISTS coin_earning_log (
     coins_before BIGINT NOT NULL,
     coins_after BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS player_star_variants (
-    player_id TEXT NOT NULL,
-    variant TEXT NOT NULL,
-    count BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (player_id, variant)
 );
 
 CREATE TABLE IF NOT EXISTS star_purchase_log (
@@ -313,98 +286,11 @@ CREATE TABLE IF NOT EXISTS season_calibration (
     created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS player_boosts (
-    player_id TEXT NOT NULL,
-    boost_type TEXT NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (player_id, boost_type)
-);
-
-CREATE TABLE IF NOT EXISTS season_end_snapshots (
-    season_id TEXT PRIMARY KEY,
-    ended_at TIMESTAMPTZ NOT NULL,
-    coins_in_circulation BIGINT NOT NULL,
-    stars_purchased BIGINT NOT NULL,
-    coins_distributed BIGINT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS season_final_rankings (
-    season_id TEXT NOT NULL,
-    player_id TEXT NOT NULL,
-    stars BIGINT NOT NULL,
-    coins BIGINT NOT NULL,
-    captured_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (season_id, player_id)
-);
-
-CREATE TABLE IF NOT EXISTS player_telemetry (
-    id BIGSERIAL PRIMARY KEY,
-    account_id TEXT,
-    player_id TEXT,
-    event_type TEXT NOT NULL,
-    payload JSONB,
-    created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS player_abuse_state (
-    player_id TEXT NOT NULL,
-    season_id TEXT NOT NULL,
-    score DOUBLE PRECISION NOT NULL DEFAULT 0,
-    severity INT NOT NULL DEFAULT 0,
-    last_signal_at TIMESTAMPTZ,
-    last_decay_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    persistent_until TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (player_id, season_id)
-);
-
-CREATE TABLE IF NOT EXISTS account_abuse_reputation (
-    account_id TEXT PRIMARY KEY,
-    score DOUBLE PRECISION NOT NULL DEFAULT 0,
-    severity INT NOT NULL DEFAULT 0,
-    last_signal_at TIMESTAMPTZ,
-    last_decay_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    persistent_until TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS abuse_events (
-    id BIGSERIAL PRIMARY KEY,
-    account_id TEXT,
-    player_id TEXT,
-    season_id TEXT,
-    event_type TEXT NOT NULL,
-    severity INT NOT NULL,
-    score_delta DOUBLE PRECISION NOT NULL DEFAULT 0,
-    details JSONB,
-    created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_abuse_events_created_at
-    ON abuse_events (created_at);
-
-CREATE INDEX IF NOT EXISTS idx_player_abuse_state_score
-    ON player_abuse_state (season_id, score);
-
-CREATE TABLE IF NOT EXISTS admin_audit_log (
-    id BIGSERIAL PRIMARY KEY,
-    admin_account_id TEXT NOT NULL,
-    action_type TEXT NOT NULL,
-    scope_type TEXT NOT NULL,
-    scope_id TEXT NOT NULL,
-    reason TEXT,
-    details JSONB,
-    created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created_at
-    ON admin_audit_log (created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_admin_audit_log_action
-    ON admin_audit_log (action_type);
-
--- POST-ALPHA / BETA-ONLY: TSA-01 Cinder Sigil (schema only)
--- NOTE: No Alpha code paths should reference these tables.
+-- =========================
+-- POST-ALPHA / BETA-ONLY
+-- Tradable Seasonal Assets (TSA)
+-- =========================
+-- No Alpha code paths may reference these tables.
 
 CREATE TABLE IF NOT EXISTS tsa_cinder_sigils (
     sigil_id TEXT PRIMARY KEY,
@@ -421,13 +307,6 @@ CREATE TABLE IF NOT EXISTS tsa_cinder_sigils (
     activated_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_tsa_cinder_sigils_season
-    ON tsa_cinder_sigils (season_id, status);
-
-CREATE INDEX IF NOT EXISTS idx_tsa_cinder_sigils_owner
-    ON tsa_cinder_sigils (owner_player_id, status);
-
--- Append-only TSA logs (Cinder Sigil only; no other TSA types exist).
 CREATE TABLE IF NOT EXISTS tsa_mint_log (
     id BIGSERIAL PRIMARY KEY,
     sigil_id TEXT NOT NULL,
@@ -444,9 +323,6 @@ CREATE TABLE IF NOT EXISTS tsa_mint_log (
     minted_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_tsa_mint_log_created_at
-    ON tsa_mint_log (minted_at DESC);
-
 CREATE TABLE IF NOT EXISTS tsa_trade_log (
     id BIGSERIAL PRIMARY KEY,
     sigil_id TEXT NOT NULL,
@@ -462,9 +338,6 @@ CREATE TABLE IF NOT EXISTS tsa_trade_log (
     executed_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_tsa_trade_log_executed_at
-    ON tsa_trade_log (executed_at DESC);
-
 CREATE TABLE IF NOT EXISTS tsa_activation_log (
     id BIGSERIAL PRIMARY KEY,
     sigil_id TEXT NOT NULL,
@@ -474,7 +347,3 @@ CREATE TABLE IF NOT EXISTS tsa_activation_log (
     activation_choice TEXT NOT NULL,
     activated_at TIMESTAMPTZ NOT NULL
 );
-
-CREATE INDEX IF NOT EXISTS idx_tsa_activation_log_activated_at
-    ON tsa_activation_log (activated_at DESC);
-
