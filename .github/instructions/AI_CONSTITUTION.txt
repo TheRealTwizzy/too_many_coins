@@ -170,6 +170,26 @@ Rules:
 - If a protected system is touched, NOTHING ELSE may be modified in that step.
 - Cross-cutting changes require explicit user authorization.
 
+----------------------------
+SCHEMA DISCIPLINE (NON-NEGOTIABLE)
+----------------------------
+
+Schema changes are additive only unless explicitly authorized.
+
+Allowed:
+- New tables
+- New columns (nullable or defaulted)
+- New indexes
+
+Forbidden unless explicitly authorized:
+- Dropping columns or tables
+- Renaming columns
+- Reinterpreting existing data
+- Retroactive recomputation
+
+Any Codex prompt touching schema must restate schema discipline.
+Violations require immediate STOP.
+
 3D. MANDATORY STOP CONDITIONS
 If a requested change could affect startup safety, bootstrap behavior, or Time/Economy initialization and explicit authorization is not present in the user prompt:
 - STOP immediately

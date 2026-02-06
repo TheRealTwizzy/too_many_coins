@@ -66,6 +66,74 @@ If this cannot be truthfully asserted, implementation must stop immediately.
 
 ---
 
+## Safe Patching & Schema Evolution
+
+Schema changes MUST be additive only during active development.
+
+Allowed:
+
+- New tables
+- New columns (nullable or defaulted)
+- New indexes
+
+Forbidden unless explicitly authorized:
+
+- Dropping columns or tables
+- Renaming columns
+- Reinterpreting existing data
+- Retroactive recomputation
+
+Old code must be able to run against new schema.  
+New code may assume new schema exists.
+
+---
+
+## Admin Bootstrap vs Schema Responsibilities
+
+Schema application occurs before runtime. Admin bootstrap:
+
+- Does NOT create tables
+- Does NOT migrate schema
+- Does NOT alter schema
+
+Bootstrap assumes schema correctness and only enforces safety invariants.
+
+Bootstrap must never depend on schema evolution logic.
+
+---
+
+## Codex Governance Rules (Non-Negotiable)
+
+Every Codex change must:
+
+- Declare STEP INTENT
+- List FILES AFFECTED explicitly
+- Pass STARTUP SAFETY CHECK
+- End with STOP & COMMIT POINT
+
+Additional constraints:
+
+- One logical unit per prompt
+- No opportunistic edits
+- No cross-system changes
+- No "while here" work
+
+Codex is an execution tool, not a design authority.
+
+---
+
+## Multi-Season Telemetry & Historical Integrity
+
+- All telemetry is season-scoped
+- Past seasons are immutable
+- Admin control changes are first-class telemetry
+- Telemetry from past seasons may inform future seasons
+- Past data is never rewritten or reinterpreted
+
+The system evolves forward by learning, never by editing history.
+
+---
+
 The game must be simple, transparent, and fair  
 All economy logic must be enforced server-side  
 Bulk buying must be technically allowed but economically discouraged  

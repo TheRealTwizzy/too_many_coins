@@ -228,6 +228,9 @@ Alpha admin bootstrap finalized: owner claim code, one‑shot, DB‑sealed. No g
 ## Phase 15 — Documentation Alignment (Continuous)
 - [x] [DONE] 15.1 Canon README set present
 - [ ] [ALPHA REQUIRED] 15.2 Keep docs aligned with code reality after every change
+- [x] [DONE] 15.3 Document safe patching & schema evolution rules
+- [x] [DONE] 15.4 Formalize Codex governance constraints in docs
+- [x] [DONE] 15.5 Document multi-season telemetry & historical integrity guarantees
 
 ---
 
