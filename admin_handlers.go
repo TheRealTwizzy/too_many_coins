@@ -286,6 +286,20 @@ type AdminSeasonAdvanceResponse struct {
 	TotalDays       int    `json:"totalDays,omitempty"`
 }
 
+type AdminSeasonRecoveryRequest struct {
+	Confirm string `json:"confirm"`
+}
+
+type AdminSeasonRecoveryResponse struct {
+	OK              bool   `json:"ok"`
+	Error           string `json:"error,omitempty"`
+	SeasonID        string `json:"seasonId,omitempty"`
+	SeasonStartTime string `json:"seasonStartTime,omitempty"`
+	SeasonEndTime   string `json:"seasonEndTime,omitempty"`
+	TotalDays       int    `json:"totalDays,omitempty"`
+	PriorSeasonID   string `json:"priorSeasonId,omitempty"`
+}
+
 type AdminSeasonControlRequest struct {
 	ControlName string          `json:"controlName"`
 	Value       json.RawMessage `json:"value"`
@@ -739,6 +753,98 @@ func adminSeasonAdvanceHandler(db *sql.DB) http.HandlerFunc {
 			SeasonStartTime: startTime.Format(time.RFC3339),
 			SeasonEndTime:   endTime.Format(time.RFC3339),
 			TotalDays:       totalDays,
+		})
+	}
+}
+
+func adminSeasonRecoveryHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
+			return
+		}
+		if CurrentPhase() != PhaseAlpha {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "INVALID_PHASE"})
+			return
+		}
+
+		var req AdminSeasonRecoveryRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "INVALID_REQUEST"})
+			return
+		}
+
+		// Require explicit confirmation text
+		if strings.TrimSpace(req.Confirm) != "I understand this is a recovery action" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "INVALID_CONFIRMATION"})
+			return
+		}
+
+		now := time.Now().UTC()
+
+		// Check that the current season exists and has ended
+		current, hasCurrent := ActiveSeasonState()
+		if !hasCurrent {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "NO_ACTIVE_SEASON"})
+			return
+		}
+
+		if !isSeasonEndedRaw(now) {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "SEASON_ACTIVE"})
+			return
+		}
+
+		// Call the existing advancement logic to trigger rollover
+		if err := AdvanceAlphaSeasonOverride(db, now); err != nil {
+			if errors.Is(err, ErrActiveSeason) {
+				w.WriteHeader(http.StatusConflict)
+				json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "SEASON_ACTIVE"})
+				return
+			}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		// Get the new season details
+		newSeason, ok := ActiveSeasonState()
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		totalDays := int(seasonLength().Hours() / 24)
+		if totalDays < 1 {
+			totalDays = 1
+		}
+		startTime := newSeason.StartUTC.UTC()
+		endTime := startTime.Add(seasonLength()).UTC()
+
+		// Log to admin audit log
+		_ = logAdminAction(db, adminAccount.AccountID, "season_recovery", "season", newSeason.SeasonID, "recovery-only", map[string]interface{}{
+			"recoveredFromSeasonId": current.SeasonID,
+			"recoveredFromEndTime":  current.StartUTC.Add(seasonLength()).Format(time.RFC3339),
+			"newSeasonId":           newSeason.SeasonID,
+			"newSeasonStartedAt":    startTime.Format(time.RFC3339),
+		})
+
+		json.NewEncoder(w).Encode(AdminSeasonRecoveryResponse{
+			OK:              true,
+			SeasonID:        newSeason.SeasonID,
+			SeasonStartTime: startTime.Format(time.RFC3339),
+			SeasonEndTime:   endTime.Format(time.RFC3339),
+			TotalDays:       totalDays,
+			PriorSeasonID:   current.SeasonID,
 		})
 	}
 }

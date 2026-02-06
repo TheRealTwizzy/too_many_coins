@@ -541,6 +541,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("/admin/anti-cheat", adminAntiCheatHandler(db))
 	mux.HandleFunc("/admin/economy", adminEconomyHandler(db))
 	mux.HandleFunc("/admin/seasons/advance", adminSeasonAdvanceHandler(db))
+	mux.HandleFunc("/admin/seasons/recovery", adminSeasonRecoveryHandler(db))
 	mux.HandleFunc("/admin/seasons/", adminSeasonControlsHandler(db))
 	mux.HandleFunc("/admin/player-search", adminPlayerSearchHandler(db))
 	mux.HandleFunc("/admin/audit-log", adminAuditLogHandler(db))
