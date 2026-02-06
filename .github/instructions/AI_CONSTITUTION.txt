@@ -125,13 +125,42 @@ Explicitly classify the unit as ONE of:
 Only SAFE BEFORE DEPLOY units may include redeployment guidance.
 
 3. CORE SYSTEM ISOLATION
-- Core systems are protected and may not be edited casually.
+
+3A. PROTECTED AND IMMUTABLE BY DEFAULT
+The following systems are protected and immutable. They must NOT be modified unless explicitly authorized by the user in the prompt as the primary logical unit.
+
+Immutable systems:
+- Admin bootstrap & server startup initialization logic
+- Bootstrap token generation and validation
+- Startup ordering and initialization sequences
+- Sealed bootstrap failure behavior and invariants
+
+Rules for immutable systems:
+- Any change must be isolated as a single, explicitly authorized, verified logical unit.
+- Startup ordering and sealed-bootstrap failure behavior must be re-verified after changes.
+- If a requested change could affect startup safety but is not explicitly named as the primary goal, STOP and report the risk.
+- Do NOT implement partial changes to startup logic.
+
+3B. PROTECTED BUT MUTABLE SYSTEMS
+The following systems are protected and may ONLY be modified when explicitly named as the primary logical unit in the user prompt:
+
+Mutable systems:
+- Time / Season Clock (day counter, season length, time milestones)
+- Economy Authority Core (coin emission, star pricing, faucet rate adjustments, market pressure calibration)
+
+Rules for mutable systems:
+- These systems MAY be modified ONLY when explicitly named as the primary goal in the user request.
+- Incidental, opportunistic, or cross-system edits to these systems are forbidden.
+- Only ONE mutable system may be modified per logical unit.
+- Admin bootstrap invariants must be explicitly confirmed as unaffected after any change.
+- Changes must be isolated and complete; partial changes are not permitted.
+- All changes must be re-verified against startup behavior.
+
+3C. CORE SYSTEM ISOLATION (GENERAL)
+Other core systems are protected and may not be edited casually.
 
 Protected systems include (but are not limited to):
-- Authentication
-- Authorization
-- Economy logic
-- Time / season logic
+- Authentication & authorization
 - Database schema & migrations
 - Global configuration
 - Shared interfaces or contracts
@@ -140,6 +169,13 @@ Rules:
 - Only ONE protected system may be touched per step.
 - If a protected system is touched, NOTHING ELSE may be modified in that step.
 - Cross-cutting changes require explicit user authorization.
+
+3D. MANDATORY STOP CONDITIONS
+If a requested change could affect startup safety, bootstrap behavior, or Time/Economy initialization and explicit authorization is not present in the user prompt:
+- STOP immediately
+- Report the risk clearly
+- Do NOT implement any part of the change
+- Ask for explicit authorization before proceeding
 
 4. FAILURE & LAG FAILSAFE
 - If response length grows large
@@ -270,6 +306,13 @@ CHANGE DESCRIPTION:
 - What is being changed and why.
 - No future work.
 - No speculative notes.
+
+STARTUP SAFETY CHECK:
+- If the change touches Time, Economy, Admin Bootstrap, or Startup logic:
+  Report whether Admin bootstrap invariants are confirmed as unaffected.
+  If you cannot truthfully assert this, STOP and do not proceed.
+  Required format: "STARTUP SAFETY CHECK: Admin bootstrap invariants confirmed unaffected"
+- If the change does not touch these systems, state: "STARTUP SAFETY CHECK: N/A (system unaffected)"
 
 STOP & COMMIT POINT:
 - Explicit statement that the step is complete.

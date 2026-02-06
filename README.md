@@ -27,7 +27,44 @@ Alpha is focused on the first playable economy loop:
 
 ---
 
-## Core Design Principles
+## Protected Systems & Constitutional Governance
+
+This repository uses explicit constitutional rules to protect critical systems from incidental or unauthorized changes.
+
+### Protected & Immutable By Default
+
+The following systems must **not** be modified unless explicitly authorized:
+
+- **Admin bootstrap & server startup initialization**: All bootstrap token generation, validation, and sealed-bootstrap failure behavior
+- **Startup ordering & initialization sequences**: The order and dependencies of server initialization
+
+Modifications to these systems are only permitted when:
+- Explicitly named as the primary logical unit in the user authorization
+- Isolated from all other changes
+- Re-verified for startup safety after implementation
+- Confirmed to preserve all bootstrap invariants
+
+### Protected But Mutable Systems
+
+The following systems **may** be modified, but only when explicitly authorized:
+
+- **Time / Season Clock**: Day counter, season length, time milestones, seasonal transitions
+- **Economy Authority Core**: Coin emission rates, star pricing formulas, faucet rates, market pressure calibration
+
+Modifications to mutable protected systems follow strict rules:
+- Must be explicitly named as the primary goal in the authorization prompt
+- Must be isolated (only one mutable system per logical unit)
+- Incidental, opportunistic, or cross-system edits to these systems are forbidden
+- Admin bootstrap invariants must be explicitly confirmed as unaffected
+- Must be complete; partial implementations are not permitted
+
+### Governance Enforcement
+
+All code-changing responses must verify: **"STARTUP SAFETY CHECK: Admin bootstrap invariants confirmed unaffected"**
+
+If this cannot be truthfully asserted, implementation must stop immediately.
+
+---
 
 The game must be simple, transparent, and fair  
 All economy logic must be enforced server-side  
