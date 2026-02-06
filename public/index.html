@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!--
+UI ACCEPTANCE CHECKLIST — SEASON MANAGER
+
+- UI is read-only by default
+- No lifecycle configuration controls
+- No Start/Reset buttons
+- No duration inputs
+- Emergency actions are collapsed and explicit
+- Phase is displayed
+- Backend remains authoritative
+-->
 <html lang="en">
 <head>
 	<meta charset="UTF-8" />
@@ -1178,6 +1189,18 @@
 								<div id="admin-season-list" class="section-stack" style="margin-top:0.75rem;"></div>
 								<div class="admin-empty" id="admin-season-empty" style="display:none;">No season data available.</div>
 							</div>
+							<div class="card" id="admin-season-status" style="display:none;">
+								<div class="label">SEASON STATUS</div>
+								<div class="admin-grid" style="margin-top:0.75rem;">
+									<div class="admin-metric"><div class="label">Phase</div><div class="stat-value">ALPHA</div></div>
+									<div class="admin-metric"><div class="label">Season</div><div class="stat-value" id="admin-season-status-id">--</div></div>
+									<div class="admin-metric"><div class="label">Status</div><div class="stat-value" id="admin-season-status-value">--</div></div>
+									<div class="admin-metric"><div class="label">Day</div><div class="stat-value" id="admin-season-status-day">--</div></div>
+									<div class="admin-metric"><div class="label">Ends</div><div class="stat-value" id="admin-season-status-ends">--</div></div>
+									<div class="admin-metric"><div class="label">Rollover</div><div class="stat-value">Automatic on natural end</div></div>
+								</div>
+								<div class="muted" id="admin-season-status-message" style="margin-top:0.75rem;"></div>
+							</div>
 							<div class="card" id="admin-season-detail" data-collapsible="true" style="display:none;">
 								<div class="card-toggle">
 									<div class="label">Season detail</div>
@@ -1279,7 +1302,7 @@
 						</section>
 
 						<section id="admin-emergency" class="admin-section">
-							<h3>Emergency Controls</h3>
+							<h3>EMERGENCY OVERRIDES (ALPHA)</h3>
 							<div class="card">
 								<div class="label">Acknowledgement required</div>
 								<div class="muted">“I understand this affects all players.”</div>
@@ -1478,6 +1501,12 @@ const adminOverviewThrottles = document.getElementById("admin-overview-throttles
 const adminOverviewFlags = document.getElementById("admin-overview-flags");
 const adminSeasonList = document.getElementById("admin-season-list");
 const adminSeasonEmpty = document.getElementById("admin-season-empty");
+const adminSeasonStatus = document.getElementById("admin-season-status");
+const adminSeasonStatusId = document.getElementById("admin-season-status-id");
+const adminSeasonStatusValue = document.getElementById("admin-season-status-value");
+const adminSeasonStatusDay = document.getElementById("admin-season-status-day");
+const adminSeasonStatusEnds = document.getElementById("admin-season-status-ends");
+const adminSeasonStatusMessage = document.getElementById("admin-season-status-message");
 const adminSeasonDetail = document.getElementById("admin-season-detail");
 const adminSeasonMetrics = document.getElementById("admin-season-metrics");
 const debugStatus = document.getElementById("debug-status");
@@ -2830,6 +2859,7 @@ async function loadAdminSeasons() {
 		if (!seasons.length) {
 			adminSeasonList.innerHTML = "";
 			if (adminSeasonEmpty) adminSeasonEmpty.style.display = "block";
+			if (adminSeasonStatus) adminSeasonStatus.style.display = "none";
 			if (adminSeasonDetail) adminSeasonDetail.style.display = "none";
 			return;
 		}
@@ -2860,6 +2890,31 @@ async function loadAdminSeasons() {
 		}).join("");
 
 		const first = seasons[0];
+		
+		// Populate Season Status block
+		if (first && adminSeasonStatus) {
+			const ended = seasonStatusValue(first) === "ended";
+			const secondsRemaining = first.secondsRemaining || 0;
+			const endTime = new Date(Date.now() + (secondsRemaining * 1000));
+			const endTimeFormatted = endTime.toLocaleString();
+			
+			if (adminSeasonStatusId) adminSeasonStatusId.innerText = first.seasonId || "--";
+			if (adminSeasonStatusValue) adminSeasonStatusValue.innerText = ended ? "ENDED" : "ACTIVE";
+			if (adminSeasonStatusDay) adminSeasonStatusDay.innerText = formatSeasonDay(first);
+			if (adminSeasonStatusEnds) adminSeasonStatusEnds.innerText = endTimeFormatted;
+			
+			adminSeasonStatus.style.display = "block";
+			
+			// Show status message if within 24 hours
+			if (adminSeasonStatusMessage) {
+				adminSeasonStatusMessage.innerText = "";
+				const hoursRemaining = secondsRemaining / 3600;
+				if (hoursRemaining > 0 && hoursRemaining <= 24) {
+					adminSeasonStatusMessage.innerHTML = "⚠ Season nearing completion<br>This Alpha season will automatically roll over.<br>No admin action required.";
+				}
+			}
+		}
+		
 		if (adminSeasonDetail && adminSeasonMetrics && first) {
 			const ended = seasonStatusValue(first) === "ended";
 			const marketPressure = formatPressureValue(economyData.marketPressure, ended);
@@ -2882,6 +2937,7 @@ async function loadAdminSeasons() {
 	} catch (e) {
 		if (adminSeasonList) adminSeasonList.innerHTML = "";
 		if (adminSeasonEmpty) adminSeasonEmpty.style.display = "block";
+		if (adminSeasonStatus) adminSeasonStatus.style.display = "none";
 		if (adminSeasonDetail) adminSeasonDetail.style.display = "none";
 	}
 }
