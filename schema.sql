@@ -350,3 +350,33 @@ CREATE TABLE IF NOT EXISTS tsa_activation_log (
     activation_choice TEXT NOT NULL,
     activated_at TIMESTAMPTZ NOT NULL
 );
+
+-- =========================
+-- POST-ALPHA / TELEMETRY
+-- Season admin controls and events (append-only)
+-- =========================
+CREATE TABLE IF NOT EXISTS season_controls (
+    season_id UUID NOT NULL,
+    control_name TEXT NOT NULL,
+    value JSONB NOT NULL,
+    expires_at TIMESTAMPTZ NULL,
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_modified_by UUID NOT NULL,
+    PRIMARY KEY (season_id, control_name)
+);
+
+CREATE TABLE IF NOT EXISTS season_control_events (
+    event_id UUID PRIMARY KEY,
+    season_id UUID NOT NULL,
+    control_name TEXT NOT NULL,
+    intent TEXT NOT NULL,
+    old_value JSONB,
+    new_value JSONB,
+    reason TEXT NOT NULL,
+    season_day_index INT NOT NULL,
+    coins_in_circulation_snapshot BIGINT NOT NULL,
+    active_players_snapshot INT NOT NULL,
+    market_pressure_snapshot DOUBLE PRECISION NOT NULL,
+    emission_pool_snapshot BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
