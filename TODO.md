@@ -148,7 +148,7 @@ Allowed to be rough or missing in Alpha:
 ---
 
 ## Phase 9 — Admin & Observability (Read‑Only in Alpha)
-- [x] [DONE] 9.1 Alpha admin bootstrap (ENV‑seeded, one‑shot, DB‑sealed)
+- [x] [DONE] 9.1 Alpha admin bootstrap (owner claim code, one‑shot, DB‑sealed)
 - [x] [DONE] 9.2 Moderator role support
 - [x] [DONE] 9.3 Economy monitoring endpoints
 - [x] [DONE] 9.4 Notifications system
@@ -156,7 +156,7 @@ Allowed to be rough or missing in Alpha:
 - [x] [DONE] 9.6 Update admin‑tools docs to reflect read‑only Alpha reality
 - [ ] [POST-ALPHA] 9.7 Admin safety tools (pause purchases, adjust emission, freeze season)
 
-Alpha admin bootstrap finalized: ENV‑seeded, one‑shot, DB‑sealed. No gate keys.
+Alpha admin bootstrap finalized: owner claim code, one‑shot, DB‑sealed. No gate keys.
 
 ---
 

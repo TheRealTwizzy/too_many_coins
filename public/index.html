@@ -1060,6 +1060,27 @@
 			</div>
 		</section>
 
+		<section id="view-admin-initialize" class="view">
+			<div class="section-stack" style="max-width: 560px;">
+				<div class="card hero-card">
+					<div class="label">Admin initialization</div>
+					<h2 style="margin:0.35rem 0 0;">Claim the admin account.</h2>
+					<div class="muted">Owner-only. Uses the rotating claim code.</div>
+				</div>
+				<div class="card" id="admin-init-card">
+					<div class="stack">
+						<input id="admin-claim-code" placeholder="Owner claim code" />
+						<input id="admin-claim-password" type="password" placeholder="New admin password" />
+						<input id="admin-claim-confirm" type="password" placeholder="Confirm password" />
+						<button class="primary" id="admin-claim-submit" type="button">Set admin password</button>
+						<div id="admin-claim-status" class="label"></div>
+						<div id="admin-claim-rotation" class="muted"></div>
+						<div class="label"><a href="#/home">Back to login</a></div>
+					</div>
+				</div>
+			</div>
+		</section>
+
 		<section id="view-admin" class="view">
 			<div class="section-stack">
 				<div class="card hero-card">
@@ -1461,6 +1482,13 @@ const adminSeasonDetail = document.getElementById("admin-season-detail");
 const adminSeasonMetrics = document.getElementById("admin-season-metrics");
 const debugStatus = document.getElementById("debug-status");
 const adminDebugToggle = document.getElementById("admin-debug-toggle");
+const adminClaimCode = document.getElementById("admin-claim-code");
+const adminClaimPassword = document.getElementById("admin-claim-password");
+const adminClaimConfirm = document.getElementById("admin-claim-confirm");
+const adminClaimSubmit = document.getElementById("admin-claim-submit");
+const adminClaimStatus = document.getElementById("admin-claim-status");
+const adminClaimRotation = document.getElementById("admin-claim-rotation");
+const adminInitCard = document.getElementById("admin-init-card");
 
 if (window.__INLINE_DEBUG__ && debugStatus) {
 	debugStatus.innerText = "App script running.";
@@ -1484,6 +1512,7 @@ const viewMap = {
 	leaderboard: "view-leaderboard",
 	signup: "view-signup",
 	reset: "view-reset",
+	"admin/initialize": "view-admin-initialize",
 	admin: "view-admin",
 	moderator: "view-moderator"
 };
@@ -1496,6 +1525,7 @@ let moderatorInitialized = false;
 let adminInitialized = false;
 let signupInitialized = false;
 let resetInitialized = false;
+let adminBootstrapInitialized = false;
 let leaderboardInitialized = false;
 let playerRefreshInterval = null;
 let seasonRefreshInterval = null;
@@ -3046,6 +3076,11 @@ async function route() {
 		}
 		return;
 	}
+	if (routeKey === "admin/initialize") {
+		if (!adminBootstrapInitialized) initAdminInitialize();
+		await refreshAdminInitializeView();
+		return;
+	}
 	if (routeKey === "moderator") {
 		if (!moderatorInitialized) initModerator();
 		await refreshModeratorView();
@@ -3241,6 +3276,94 @@ function initReset() {
 		status.innerText = "Password updated. You can log in now.";
 		location.hash = "#/home";
 	});
+}
+
+function setAdminClaimStatus(message, isError) {
+	if (!adminClaimStatus) return;
+	adminClaimStatus.innerText = message || "";
+	adminClaimStatus.style.color = isError ? "#fecaca" : "";
+}
+
+function updateAdminClaimRotation(secondsRemaining) {
+	if (!adminClaimRotation) return;
+	if (typeof secondsRemaining !== "number" || !isFinite(secondsRemaining)) {
+		adminClaimRotation.innerText = "";
+		return;
+	}
+	adminClaimRotation.innerText = secondsRemaining > 0
+		? `Code rotates in ${secondsRemaining}s.`
+		: "Code rotates soon.";
+}
+
+async function loadAdminBootstrapStatus() {
+	const result = await apiFetchJson("/admin/bootstrap/status", {}, 2500);
+	const data = result.data;
+	if (!data || typeof data.adminLocked !== "boolean") {
+		return null;
+	}
+	return data;
+}
+
+async function refreshAdminInitializeView() {
+	if (!adminInitCard) return;
+	adminInitCard.style.display = "none";
+	setAdminClaimStatus("Checking admin lock status...", false);
+	const status = await loadAdminBootstrapStatus();
+	if (!status) {
+		setAdminClaimStatus("Unable to load bootstrap status.", true);
+		return;
+	}
+	if (!status.adminLocked) {
+		location.hash = "#/admin";
+		return;
+	}
+	adminInitCard.style.display = "block";
+	setAdminClaimStatus("", false);
+	updateAdminClaimRotation(status.windowSecondsRemaining);
+}
+
+function initAdminInitialize() {
+	adminBootstrapInitialized = true;
+	if (adminClaimSubmit) {
+		adminClaimSubmit.addEventListener("click", async () => {
+			if (!adminClaimCode || !adminClaimPassword || !adminClaimConfirm) return;
+			const code = adminClaimCode.value.trim();
+			const newPassword = adminClaimPassword.value;
+			const confirmPassword = adminClaimConfirm.value;
+			if (!code) {
+				setAdminClaimStatus("Enter the owner claim code.", true);
+				return;
+			}
+			if (!newPassword || newPassword.length < 8) {
+				setAdminClaimStatus("Password must be at least 8 characters.", true);
+				return;
+			}
+			if (newPassword !== confirmPassword) {
+				setAdminClaimStatus("Passwords do not match.", true);
+				return;
+			}
+
+			setAdminClaimStatus("Submitting claim...", false);
+			try {
+				const res = await apiFetch("/admin/bootstrap/claim", {
+					method: "POST",
+					body: JSON.stringify({ code, newPassword })
+				});
+				const data = await res.json();
+				if (!data.ok) {
+					const message = data.error || "Claim failed.";
+					setAdminClaimStatus(message, true);
+					return;
+				}
+				setAdminClaimStatus("Admin unlocked. Redirecting to login...", false);
+				setTimeout(() => {
+					location.hash = "#/home";
+				}, 600);
+			} catch (e) {
+				setAdminClaimStatus("Claim failed (network error).", true);
+			}
+		});
+	}
 }
 
 function initModerator() {

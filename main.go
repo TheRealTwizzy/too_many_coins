@@ -523,6 +523,8 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("/auth/me", meHandler(db))
 	mux.HandleFunc("/auth/request-reset", requestPasswordResetHandler(db))
 	mux.HandleFunc("/auth/reset-password", resetPasswordHandler(db))
+	mux.HandleFunc("/admin/bootstrap/status", adminBootstrapStatusHandler(db))
+	mux.HandleFunc("/admin/bootstrap/claim", adminBootstrapClaimHandler(db))
 
 	mux.HandleFunc("/notifications", notificationsHandler(db))
 	mux.HandleFunc("/notifications/ack", notificationsAckHandler(db))

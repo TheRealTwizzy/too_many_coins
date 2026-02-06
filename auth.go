@@ -180,6 +180,9 @@ func authenticate(db *sql.DB, username, password string) (*Account, error) {
 	if !verifyPassword(passwordHash, password) {
 		return nil, errors.New("INVALID_CREDENTIALS")
 	}
+	if normalizeRole(role) == "admin" && mustChangePassword {
+		return nil, errors.New("ADMIN_BOOTSTRAP_REQUIRED")
+	}
 
 	_, _ = db.Exec(`UPDATE accounts SET last_login_at = NOW() WHERE account_id = $1`, account.AccountID)
 

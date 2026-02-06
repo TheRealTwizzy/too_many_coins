@@ -392,17 +392,18 @@ See the admin governance sections below. Admin creation is not a gameplay featur
 ## Admin Bootstrap (Alpha)
 
 - On first startup after a fresh DB reset, the server auto‑creates exactly one admin account (username `alpha-admin`).
-- The initial admin password is provided via the environment variable `ADMIN_BOOTSTRAP_PASSWORD`.
-- The admin account is created with `must_change_password = true`.
+- The admin account is created locked (`must_change_password = true`).
+- The owner sets `OWNER_CLAIM_SECRET` once as a Fly secret (not a login password).
+- The owner visits `/admin/initialize` and enters the rotating owner claim code to set the first admin password.
 - All admin endpoints are blocked until the password is changed.
 - Bootstrap is sealed in the database and cannot repeat unless the DB is wiped.
 - If bootstrap is sealed but no admin exists, the server refuses to start (safety invariant).
 
 Notes:
 
-- The ENV password is read once on first bootstrap only.
-- The plaintext password is never persisted or logged.
-- The ENV password is ignored after bootstrap.
+- The claim code rotates automatically (short time windows) and is derived from `OWNER_CLAIM_SECRET`.
+- The claim code is never stored and is not logged.
+- After the claim, future admin password changes use the standard reset flow.
 
 ## Admin Management During Alpha
 

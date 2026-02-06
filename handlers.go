@@ -1480,6 +1480,11 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "ACCOUNT_FROZEN"})
 				return
 			}
+			if err.Error() == "ADMIN_BOOTSTRAP_REQUIRED" {
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "ADMIN_BOOTSTRAP_REQUIRED"})
+				return
+			}
 			json.NewEncoder(w).Encode(AuthResponse{OK: false, Error: "INVALID_CREDENTIALS"})
 			return
 		}
