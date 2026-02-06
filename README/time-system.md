@@ -55,4 +55,10 @@ Trade eligibility bands, premiums, and burn rates are also based on the derived 
 
 Season end transitions the season to ended state and freezes economy actions.
 
+Alpha auto-advance (server-only):
+
+When the active Alpha season ends by time, the server finalizes snapshots and immediately starts a new Alpha season.
+Active season ID and start time are persisted so restarts resume the same season.
+Manual admin advance is override-only and not the normal flow.
+
 Clients receive all time-related values from the server and never calculate time-sensitive logic locally.

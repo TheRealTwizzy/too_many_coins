@@ -168,6 +168,11 @@ At season end (Alpha):
 - Live economy rates (emission, inflation/pressure cadence) are hidden; UI shows a frozen/final snapshot marker instead.
 - Ended seasons expose final snapshot fields only (final star price, final coins in circulation, ended at).
 
+Alpha auto-advance:
+
+- When the active Alpha season ends by time, the server finalizes snapshots and immediately starts a new Alpha season.
+- Gameplay resumes automatically without admin intervention; the ended season remains immutable.
+
 ---
 
 ## Currencies

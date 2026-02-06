@@ -5,7 +5,9 @@ import (
 	"crypto/sha1"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"os"
@@ -273,6 +275,15 @@ type AdminSeasonControlsResponse struct {
 	Error string                   `json:"error,omitempty"`
 	Items []AdminSeasonControlItem `json:"items,omitempty"`
 	Item  *AdminSeasonControlItem  `json:"item,omitempty"`
+}
+
+type AdminSeasonAdvanceResponse struct {
+	OK              bool   `json:"ok"`
+	Error           string `json:"error,omitempty"`
+	SeasonID        string `json:"seasonId,omitempty"`
+	SeasonStartTime string `json:"seasonStartTime,omitempty"`
+	SeasonEndTime   string `json:"seasonEndTime,omitempty"`
+	TotalDays       int    `json:"totalDays,omitempty"`
 }
 
 type AdminSeasonControlRequest struct {
@@ -651,6 +662,84 @@ func adminSeasonControlsHandler(db *sql.DB) http.HandlerFunc {
 		`, adminAccount.AccountID, "", "admin_season_control", telemetryBytes)
 
 		json.NewEncoder(w).Encode(AdminSeasonControlsResponse{OK: true, Item: &updated})
+	}
+}
+
+func adminSeasonAdvanceHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		adminAccount, ok := requireAdmin(db, w, r)
+		if !ok {
+			return
+		}
+		if CurrentPhase() != PhaseAlpha {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{OK: false, Error: "INVALID_PHASE"})
+			return
+		}
+		if r.Body != nil {
+			var payload interface{}
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&payload); err == nil || err != io.EOF {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{OK: false, Error: "INVALID_REQUEST"})
+				return
+			}
+		}
+
+		now := time.Now().UTC()
+		previous, hasPrevious := ActiveSeasonState()
+		if hasPrevious && !isSeasonEndedRaw(now) {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{OK: false, Error: "SEASON_ACTIVE"})
+			return
+		}
+
+		if err := AdvanceAlphaSeasonOverride(db, now); err != nil {
+			if errors.Is(err, ErrActiveSeason) {
+				w.WriteHeader(http.StatusConflict)
+				json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{OK: false, Error: "SEASON_ACTIVE"})
+				return
+			}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		current, ok := ActiveSeasonState()
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+
+		totalDays := int(seasonLength().Hours() / 24)
+		if totalDays < 1 {
+			totalDays = 1
+		}
+		startTime := current.StartUTC.UTC()
+		endTime := startTime.Add(seasonLength()).UTC()
+
+		_ = logAdminAction(db, adminAccount.AccountID, "season_advance", "season", current.SeasonID, "override", map[string]interface{}{
+			"previousSeasonId": func() string {
+				if hasPrevious {
+					return previous.SeasonID
+				}
+				return ""
+			}(),
+			"startedAt": startTime.Format(time.RFC3339),
+		})
+
+		json.NewEncoder(w).Encode(AdminSeasonAdvanceResponse{
+			OK:              true,
+			SeasonID:        current.SeasonID,
+			SeasonStartTime: startTime.Format(time.RFC3339),
+			SeasonEndTime:   endTime.Format(time.RFC3339),
+			TotalDays:       totalDays,
+		})
 	}
 }
 

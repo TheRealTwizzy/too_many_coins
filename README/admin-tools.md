@@ -13,6 +13,11 @@ Season monitoring (single season):
 - Active season status (active vs ended).
 - Season time remaining (via season snapshot).
 
+Alpha override (admin‑only, recovery):
+
+- Manual season advance when no active season exists or the current season has ended (POST /admin/seasons/advance).
+- No parameters are accepted; this is an override, not the normal flow.
+
 Alpha rule:
 
 - “Ending” is internal only; admin UI shows only **Active** or **Ended**.

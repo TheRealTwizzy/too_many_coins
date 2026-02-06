@@ -409,6 +409,7 @@ func main() {
 		log.Fatal("failed to ping database:", err)
 	}
 	log.Println("Connected to PostgreSQL")
+	BindSeasonStateDB(db)
 
 	// Schema (all environments)
 	if err := ensureSchema(db); err != nil {
@@ -434,14 +435,14 @@ func main() {
 		if err := ensureAlphaAdmin(ctx, db); err != nil {
 			log.Fatal("Alpha admin bootstrap failed:", err)
 		}
-		if err := ensureActiveSeason(ctx, db); err != nil {
-			log.Fatal("Failed to ensure active season:", err)
-		}
 	} else {
 		log.Println("Startup lock held by another instance; skipping leader-only initialization")
 	}
 	if !acquired && lockConn != nil {
 		_ = lockConn.Close()
+	}
+	if err := LoadSeasonState(db); err != nil {
+		log.Println("Failed to load season state:", err)
 	}
 
 	// Economy (safe for all instances; writes are idempotent)
@@ -539,6 +540,7 @@ func registerRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("/admin/overview", adminOverviewHandler(db))
 	mux.HandleFunc("/admin/anti-cheat", adminAntiCheatHandler(db))
 	mux.HandleFunc("/admin/economy", adminEconomyHandler(db))
+	mux.HandleFunc("/admin/seasons/advance", adminSeasonAdvanceHandler(db))
 	mux.HandleFunc("/admin/seasons/", adminSeasonControlsHandler(db))
 	mux.HandleFunc("/admin/player-search", adminPlayerSearchHandler(db))
 	mux.HandleFunc("/admin/audit-log", adminAuditLogHandler(db))
