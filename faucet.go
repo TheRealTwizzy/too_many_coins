@@ -10,6 +10,7 @@ const (
 	FaucetDaily    = "daily"
 	FaucetActivity = "activity"
 	FaucetLogin    = "login"
+	FaucetUBI      = "ubi"
 )
 
 func CanAccessFaucetByPriority(faucetType string, available int) bool {
@@ -136,4 +137,71 @@ func applyFaucetCooldownScaling(cooldown time.Duration, multiplier float64) time
 		return time.Second
 	}
 	return adjusted
+}
+
+// DistributeUniversalBasicIncome grants the minimum 0.001 coin (1 unit) to all eligible players.
+// UBI is foundation income: always-on, emission-backed, non-negotiable.
+// Failures per-player do not block UBI for other players.
+func DistributeUniversalBasicIncome(db *sql.DB, now time.Time) (ubiCount int, ubiTotal int, poolExhausted bool) {
+	const ubiPerTick = 1 // Represents 0.001 coins in decimal spec
+
+	if db == nil {
+		return 0, 0, false
+	}
+
+	seasonID := currentSeasonID()
+	if seasonID == "" {
+		return 0, 0, false
+	}
+
+	// Query all players in the current season
+	rows, err := db.Query(`
+		SELECT player_id
+		FROM players
+		ORDER BY player_id
+	`)
+	if err != nil {
+		return 0, 0, false
+	}
+	defer rows.Close()
+
+	granted := 0
+	total := 0
+
+	for rows.Next() {
+		var playerID string
+		if err := rows.Scan(&playerID); err != nil {
+			continue
+		}
+
+		// Check pool availability before attempting grant
+		available := economy.AvailableCoins()
+		if available < ubiPerTick {
+			poolExhausted = true
+			break
+		}
+
+		// Grant UBI with no daily cap (foundation income)
+		grantedAmount, err := GrantCoinsNoCap(db, playerID, ubiPerTick, now, FaucetUBI, nil)
+		if err != nil {
+			continue
+		}
+		if grantedAmount > 0 {
+			granted++
+			total += grantedAmount
+		}
+	}
+
+	if featureFlags.Telemetry && (granted > 0 || poolExhausted) {
+		emitServerTelemetry(db, nil, "", "ubi_tick", map[string]interface{}{
+			"seasonId":       seasonID,
+			"ubiPerTick":     ubiPerTick,
+			"playersGranted": granted,
+			"totalGranted":   total,
+			"poolExhausted":  poolExhausted,
+			"availableCoins": economy.AvailableCoins(),
+		})
+	}
+
+	return granted, total, poolExhausted
 }

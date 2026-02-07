@@ -92,10 +92,10 @@ Allowed to be rough or missing in Alpha:
 ---
 
 ## Phase 4 — Faucets & Daily Earnings
-- [ ] [ALPHA REQUIRED] 4.0 Universal Basic Income (UBI) Implementation
-  - [ ] [ALPHA REQUIRED] 4.0a Implement minimum 0.001 coin per tick payout to all active players
-  - [ ] [ALPHA REQUIRED] 4.0b Verify UBI draws from emission pool and respects pool throttling
-  - [ ] [ALPHA REQUIRED] 4.0c Confirm UBI is foundation (all other faucets are additive)
+- [x] [DONE] 4.0 Universal Basic Income (UBI) Implementation
+  - [x] [DONE] 4.0a Implement minimum 0.001 coin per tick payout to all active players
+  - [x] [DONE] 4.0b Verify UBI draws from emission pool and respects pool throttling
+  - [x] [DONE] 4.0c Confirm UBI is foundation (all other faucets are additive)
   - [ ] [ALPHA REQUIRED] 4.0d Document UBI in coin-faucets.md if not already present
   - [ ] [ALPHA REQUIRED] 4.0e Ensure star pricing tuning accounts for UBI + inflation interaction
 - [x] [DONE] 4.1 Daily login faucet (cooldown + log + emission cap)

@@ -355,6 +355,17 @@ func startTickLoop(db *sql.DB) {
 				})
 			}
 
+			// Distribute Universal Basic Income (UBI): foundation layer for all players
+			ubiGranted, ubiTotal, poolExhausted := DistributeUniversalBasicIncome(db, now)
+			if poolExhausted && featureFlags.Telemetry {
+				emitServerTelemetry(db, nil, "", "ubi_pool_exhausted", map[string]interface{}{
+					"seasonId":       currentSeasonID(),
+					"ubiGranted":     ubiGranted,
+					"ubiTotal":       ubiTotal,
+					"availableCoins": economy.AvailableCoins(),
+				})
+			}
+
 			pressureClamp := getMarketPressureClamp(seasonControls)
 			updateMarketPressureWithClamp(db, now, pressureClamp)
 			UpdateAbuseMonitoring(db, now)
