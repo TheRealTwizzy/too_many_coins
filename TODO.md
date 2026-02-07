@@ -369,17 +369,19 @@ Communication systems must evoke:
 - **Competitive tension**: Rivalries, alliances, betrayals
 - **Community identity**: Long-term relationships, reputation, history
 
-## Post‑Alpha — Bug Reporting & Feedback System
+## Bug Reporting & Feedback System (Alpha → Post‑Release)
 
-_Bug reporting and feedback intake must be available through and after release._
+_Bug reporting intake is always available from Alpha onward and persists after release._
 
-- [ ] [POST-ALPHA] Implement in‑game bug reporting interface.
-- [ ] [POST-ALPHA] Add feedback submission endpoint (user-facing).
+- [ ] [ALPHA REQUIRED] Implement in‑game bug report intake UI (footer/help entry).
+- [ ] [ALPHA REQUIRED] Persist bug reports as append‑only, immutable records (player_id optional, season_id, timestamp, client version if available).
+- [ ] [ALPHA REQUIRED] Add read‑only admin visibility for bug reports (view only; no edit/delete/respond).
+- [ ] [ALPHA REQUIRED] Confirm Alpha has no attachments and no player feedback loop.
 - [ ] [POST-ALPHA] Add admin/moderator bug triage interface.
 - [ ] [POST-ALPHA] Integrate bug reports with notifications (alerts for admins/moderators).
 - [ ] [POST-ALPHA] Support screenshots/logs attachment for bug reports.
 - [ ] [POST-ALPHA] Track bug report status (open, in-progress, resolved, closed).
-- [ ] [POST-ALPHA] Persist bug reporting beyond release (always available).
+- [ ] [POST-ALPHA] Define admin/moderator response workflows (if ever; not in Alpha).
 
 ---
 

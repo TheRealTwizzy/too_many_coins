@@ -126,6 +126,12 @@ Auditability (read‑only):
 - Star purchase log.
 - Admin audit log.
 
+Bug reports (read‑only):
+
+- View bug report list and details (title, description, category, player_id if present, season_id, timestamp, client version if available).
+- No editing, deletion, or player responses.
+- No attachments in Alpha; admin view is observational only.
+
 Not yet in Alpha (post‑alpha or pending implementation):
 
 - Global coin budget remaining for the day.
