@@ -111,6 +111,12 @@ Telemetry (current build):
 - Emitted event types include: emission_tick, market_pressure_tick, faucet_claim, star_purchase_attempt, star_purchase_success, notification_emitted.
 - Admin UI remains read‑only and currently exposes counts, not full raw payloads.
 
+Notification visibility (read‑only):
+
+- Admins can see notification emission events (counts and aggregates only).
+- Admins cannot send custom notifications in Alpha.
+- Admins cannot target individual players in Alpha.
+
 Player inspection (read‑only):
 
 - Player search by username/account/player ID.

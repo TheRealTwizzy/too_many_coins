@@ -214,9 +214,12 @@ Anti-cheat is **gradual, invisible, and corrective**, not punitive.
 - [x] [DONE] 9.4 Notifications system
 - [x] [DONE] 9.5 Add notification observability logging
 - [x] [DONE] 9.6 Update admin‑tools docs to reflect read‑only Alpha reality
+- [ ] [ALPHA REQUIRED] 9.6a Verify notification emission, persistence, and client rendering end‑to‑end
 - [ ] [ALPHA REQUIRED] 9.7 Verify admin UI clearly communicates "read-only" status in Alpha
 - [ ] [ALPHA REQUIRED] 9.8 Confirm admin manual season advance exists for recovery (POST /admin/seasons/advance)
 - [ ] [POST-ALPHA] 9.9 Admin safety tools (pause purchases, adjust emission, freeze season)
+- [ ] [POST-ALPHA] 9.9a Admin-triggered broadcast notifications
+- [ ] [POST-ALPHA] 9.9b Targeted notifications to individual players
 - [ ] [POST-ALPHA] 9.10 Trading visibility (premium, burn rate, eligibility tightness, trade logs)
 - [ ] [POST-ALPHA] 9.11 Enhanced player inspection (coin earning history, throttle status detail, IP clustering views)
 
