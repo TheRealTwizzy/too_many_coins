@@ -30,4 +30,18 @@ CREATE TABLE player_state (
     state JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
+-- =========================
+-- Season admin controls (key-value store)
+-- Required by tick.go and admin_handlers.go for runtime control queries
+-- =========================
+CREATE TABLE IF NOT EXISTS season_controls (
+    season_id UUID NOT NULL,
+    control_name TEXT NOT NULL,
+    value JSONB NOT NULL,
+    expires_at TIMESTAMPTZ NULL,
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_modified_by UUID NOT NULL,
+    PRIMARY KEY (season_id, control_name)
+);
+
 -- Alpha bootstrap uses ENV-seeded password; no gate key table.
