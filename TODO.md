@@ -376,10 +376,10 @@ Communication systems must evoke:
 
 _Bug reporting intake is always available from Alpha onward and persists after release._
 
-- [ ] [ALPHA REQUIRED] Implement in‑game bug report intake UI (footer/help entry).
-- [ ] [ALPHA REQUIRED] Persist bug reports as append‑only, immutable records (player_id optional, season_id, timestamp, client version if available).
-- [ ] [ALPHA REQUIRED] Add read‑only admin visibility for bug reports (view only; no edit/delete/respond).
-- [ ] [ALPHA REQUIRED] Confirm Alpha has no attachments and no player feedback loop.
+- [x] [DONE] Implement in-game bug report intake UI (footer/help entry).
+- [x] [DONE] Persist bug reports as append-only, immutable records (player_id optional, season_id, timestamp, client version if available).
+- [x] [DONE] Add read-only admin visibility for bug reports (view only; no edit/delete/respond).
+- [x] [DONE] Confirm Alpha has no attachments and no player feedback loop.
 - [ ] [POST-ALPHA] Add admin/moderator bug triage interface.
 - [ ] [POST-ALPHA] Integrate bug reports with notifications (alerts for admins/moderators).
 - [ ] [POST-ALPHA] Support screenshots/logs attachment for bug reports.

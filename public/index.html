@@ -1434,7 +1434,7 @@ UI ACCEPTANCE CHECKLIST — SEASON MANAGER
 				<div class="card hero-card">
 					<div class="label">Report a bug</div>
 					<h2 style="margin:0.35rem 0 0;">Help us improve Too Many Coins.</h2>
-					<div class="muted">Bug reports are read-only during Alpha. We'll review and fix issues as we discover them.</div>
+					<div class="muted">Bug reports are read-only during Alpha. You won't receive replies.</div>
 				</div>
 				<div class="card">
 					<div class="stack">
@@ -2920,7 +2920,8 @@ async function loadAdminBugReports() {
 	empty.style.display = "none";
 	results.innerHTML = items.map((item) => {
 		const playerInfo = item.playerId ? `Player ${escapeHtml(item.playerId)}` : "Anonymous";
-		const when = item.createdAt ? formatRelativeTime(item.createdAt) : "";
+		const when = item.createdAt ? `Created ${formatRelativeTime(item.createdAt)}` : "Created —";
+		const seasonLabel = item.seasonId ? `Season ${escapeHtml(item.seasonId)}` : "Season —";
 		const clientVer = item.clientVersion ? `v${escapeHtml(item.clientVersion)}` : "—";
 		return `
 			<div class="card">
@@ -2930,6 +2931,8 @@ async function loadAdminBugReports() {
 				</div>
 				<div class="label">${escapeHtml(item.description)}</div>
 				<div class="notice-meta" style="margin-top:0.5rem;">
+					<span class="muted">${seasonLabel}</span>
+					<span class="muted">·</span>
 					<span class="muted">${playerInfo}</span>
 					<span class="muted">·</span>
 					<span class="muted">${when}</span>

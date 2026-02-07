@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 // bugReportSubmitHandler is the player-facing POST /bugs/report endpoint
@@ -29,19 +28,20 @@ func bugReportSubmitHandler(db *sql.DB) http.HandlerFunc {
 			playerID = &acct.PlayerID
 		}
 
-		// Apply rate limiting on player/IP if authenticated
-		if account != nil {
-			remaining, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC())
-			if err == nil && remaining > 0 {
-				// Reuse faucet rate limit for bug reports
-				w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(CreateBugReportResponse{
-					OK:    false,
-					Error: "RATE_LIMITED",
-				})
-				return
-			}
+		ip := getClientIP(r)
+		limit, window := authRateLimitConfig("bug_report")
+		allowedRate, retryAfter, err := checkAuthRateLimit(db, ip, "bug_report", limit, window)
+		if err != nil {
+			log.Println("bug report: rate limit error:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(CreateBugReportResponse{OK: false, Error: "INTERNAL_ERROR"})
+			return
+		}
+		if !allowedRate {
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+			w.WriteHeader(http.StatusTooManyRequests)
+			json.NewEncoder(w).Encode(CreateBugReportResponse{OK: false, Error: "RATE_LIMIT"})
+			return
 		}
 
 		// Parse request
@@ -109,10 +109,7 @@ func bugReportSubmitHandler(db *sql.DB) http.HandlerFunc {
 		// Success response (no feedback loop about the report)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(CreateBugReportResponse{
-			OK:       true,
-			ReportID: reportID,
-		})
+		json.NewEncoder(w).Encode(CreateBugReportResponse{OK: true})
 	}
 }
 
