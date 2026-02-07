@@ -126,7 +126,7 @@ func adminBugReportsHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Require admin auth
-		account, ok := requireAdmin(db, w, r)
+		_, ok := requireAdmin(db, w, r)
 		if !ok {
 			return
 		}
