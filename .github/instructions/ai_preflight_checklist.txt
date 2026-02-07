@@ -1,0 +1,105 @@
+SCOPE & INTENT
+
+ I can state the change in one sentence (STEP INTENT).
+
+ The change is foundational, not cosmetic.
+
+ This prompt represents exactly one logical unit.
+
+ I am not asking Codex to “also” do anything else.
+
+If scope expands → STOP.
+
+CANON & AUTHORITY
+
+ I have reviewed AI_CONSTITUTION.txt.
+
+ This change does not violate any immutable systems.
+
+ If touching a protected mutable system (Time, Economy), it is explicitly named as the primary goal.
+
+ Canon documentation (README/TODO) allows this change at the current phase.
+
+If canon conflicts → STOP.
+
+FILE BOUNDARIES
+
+ I have an explicit FILES AFFECTED list.
+
+ No file outside this list may be edited.
+
+ Multiple systems are not mixed in this prompt.
+
+If file scope is unclear → STOP.
+
+SCHEMA DISCIPLINE (if applicable)
+
+ Schema changes are additive only.
+
+ No drops, renames, or semantic reinterpretation.
+
+ Old code can run on the new schema.
+
+ New code may assume the new schema exists.
+
+If any answer is “maybe” → STOP.
+
+RUNTIME SAFETY
+
+ I know whether a server restart is required.
+
+ Admin bootstrap invariants are confirmed unaffected.
+
+ No retroactive state changes are implied.
+
+ All effects are prospective only.
+
+If startup behavior is uncertain → STOP.
+
+TELEMETRY & AUDITABILITY
+
+ All meaningful changes are logged or observable.
+
+ No silent behavior changes.
+
+ Append-only logs remain append-only.
+
+ Past seasons/data remain immutable.
+
+If history can be altered → STOP.
+
+CODEX CONSTRAINTS
+
+ Prompt includes:
+
+STEP INTENT
+
+FILES AFFECTED
+
+CHANGE DESCRIPTION
+
+STARTUP SAFETY CHECK
+
+STOP & COMMIT POINT
+
+ Codex is not being asked to design policy.
+
+ Codex is executing a predefined contract.
+
+If Codex is deciding “what to do” → STOP.
+
+COMMIT READINESS
+
+ I will only commit if:
+
+Code compiles
+
+Behavior matches canon
+
+Docs/TODO reflect reality
+
+No known contradictions remain
+
+ I understand that a commit is a confidence marker, not progress.
+
+If not commit-ready → STOP.
