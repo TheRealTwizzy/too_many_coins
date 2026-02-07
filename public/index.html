@@ -1777,6 +1777,91 @@ function updateLiveStatus(state, message) {
 function updateSeasonSnapshot(season) {
 	if (!season) return;
 	currentSeasonSnapshot = season;
+	
+	// SINGLE SOURCE OF TRUTH: When a valid season is set, clear any stale error state
+	// and ensure the season card is rendered in the seasons container.
+	// This prevents contradictory UI states (snapshot visible + "unavailable" banner).
+	const seasonsContainer = document.getElementById("seasons");
+	if (seasonsContainer) {
+		// Clear error messages and old season card
+		const hasError = seasonsContainer.innerHTML.includes("unavailable") || 
+		                 seasonsContainer.innerHTML.includes("Unable to load");
+		const hasCard = seasonsContainer.querySelector(`[data-season-id="${season.seasonId}"]`);
+		
+		// If there's an error or no card, we need to render the season card
+		if (hasError || !hasCard) {
+			seasonsContainer.innerHTML = "";
+			
+			// Render the season card for the current season
+			const div = document.createElement("div");
+			const isJoined = Boolean(currentUser);
+			const ended = seasonStatusValue(season) === "ended";
+			const starPriceMicro = ended && typeof season.finalStarPrice === "number"
+				? season.finalStarPrice
+				: season.currentStarPrice;
+			const starPrice = starPriceMicro != null ? (starPriceMicro / 1000).toFixed(3) : null;
+			const remainingLabel = ended
+				? "Season ended — read-only."
+				: `${formatRemaining(season.secondsRemaining)} remaining`;
+			const starPriceLabel = ended ? "Final star price snapshot" : "Star price";
+
+			div.className = "card season-card";
+			div.dataset.seasonId = season.seasonId;
+
+			div.innerHTML = `
+				<div class="season-card-header">
+					<div>
+						<div class="label">Season 1</div>
+						<div class="stat-value" data-season-remaining>${remainingLabel}</div>
+					</div>
+				</div>
+				<div class="season-card-grid">
+					<div class="metric">
+						<div class="label" data-season-price-label>${starPriceLabel}</div>
+						<div class="stat-value" data-season-price>${starPrice !== null ? starPrice + ' coins' : '--'}</div>
+					</div>
+					<div class="metric">
+						<div class="label">Coins in circulation</div>
+						<div class="stat-value" data-season-coins>${formatCoinsInCirculationForSeason(season)}</div>
+					</div>
+					<div class="metric">
+						<div class="label">Inflation pressure</div>
+						<div class="stat-value" data-season-emission>${formatEmissionValue(season.coinEmissionPerMinute, ended)}</div>
+					</div>
+					<div class="metric">
+						<div class="label">Market pressure</div>
+						<div class="stat-value" data-season-pressure>${formatPressureValue(season.marketPressure, ended)}</div>
+					</div>
+				</div>
+				<div class="season-actions">
+					${isJoined
+						? (ended
+							? "<div class='label'>Season ended — read-only.</div>"
+							: `
+								<div class="row" style="margin-top:0.35rem;">
+									<label class="label">Qty</label>
+									<input class="bulk-qty" type="number" min="1" max="${bulkStarMax}" value="1" />
+									<button class="buy-star-btn primary">Buy Stars</button>
+								</div>
+								<div class="label bulk-quote"></div>
+								<div class="label bulk-warning"></div>
+								<div class="label bulk-breakdown"></div>
+							`)
+						: "<div class='label'>Log in to join the season.</div>"
+					}
+				</div>
+			`;
+
+			seasonsContainer.appendChild(div);
+			
+			// Attach Buy Stars event handler
+			const buyButton = div.querySelector(".buy-star-btn");
+			if (buyButton) {
+				attachBuyStarHandler(buyButton, div, season);
+			}
+		}
+	}
+	
 	const ended = seasonStatusValue(season) === "ended";
 	const starPriceValue = ended && typeof season.finalStarPrice === "number"
 		? season.finalStarPrice
@@ -2169,6 +2254,98 @@ async function loadProfile() {
 	profileAvatarImg.src = data.avatarUrl || "https://placehold.co/64x64?text=User";
 }
 
+function attachBuyStarHandler(buyButton, seasonCardDiv, season) {
+	if (!buyButton) return;
+	const qtyInput = seasonCardDiv.querySelector(".bulk-qty");
+	const quoteEl = seasonCardDiv.querySelector(".bulk-quote");
+	const warningEl = seasonCardDiv.querySelector(".bulk-warning");
+	const breakdownEl = seasonCardDiv.querySelector(".bulk-breakdown");
+	let lastQuote = null;
+	
+	const refreshQuote = async () => {
+		if (seasonStatusValue(currentSeasonSnapshot || season) === "ended") {
+			if (quoteEl) quoteEl.innerText = "Season ended.";
+			return;
+		}
+		if (!qtyInput) return;
+		const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+		if (quoteEl) quoteEl.innerText = "";
+		if (warningEl) warningEl.innerText = "";
+		if (breakdownEl) breakdownEl.innerText = "";
+		const res = await apiFetch("/buy-star/quote", {
+			method: "POST",
+			body: JSON.stringify({ seasonId: season.seasonId, quantity: qty })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			lastQuote = null;
+			if (quoteEl) quoteEl.innerText = data.error || "Quote failed";
+			return;
+		}
+		lastQuote = data;
+		const perStarPrice = typeof data.finalStarPrice === "number"
+			? (data.finalStarPrice / 1000).toFixed(3)
+			: (data.breakdown && data.breakdown.length > 0 ? (data.breakdown[data.breakdown.length - 1].finalPrice / 1000).toFixed(3) : null);
+		const totalCost = typeof data.totalCoinsSpent === "number" ? (data.totalCoinsSpent / 1000).toFixed(3) : null;
+		if (quoteEl) {
+			if (totalCost != null && perStarPrice != null) {
+				quoteEl.innerText = `Total cost: ${totalCost} coins · Per-star: ${perStarPrice} coins`;
+			} else if (totalCost != null) {
+				quoteEl.innerText = `Total cost: ${totalCost} coins`;
+			} else if (perStarPrice != null) {
+				quoteEl.innerText = `Per-star: ${perStarPrice} coins`;
+			} else {
+				quoteEl.innerText = "";
+			}
+		}
+		if (warningEl) warningEl.innerText = data.warning || "";
+		if (breakdownEl) breakdownEl.innerText = "";
+	};
+	
+	if (qtyInput) {
+		qtyInput.addEventListener("input", refreshQuote);
+		refreshQuote();
+	}
+
+	buyButton.addEventListener("click", async () => {
+		if (seasonStatusValue(currentSeasonSnapshot || season) === "ended") {
+			setToast("Season ended. Purchases are disabled.", "error");
+			return;
+		}
+		const qty = Math.max(1, parseInt(qtyInput?.value, 10) || 1);
+		await refreshQuote();
+		if (qty > 1) {
+			const totalCost = lastQuote && typeof lastQuote.totalCoinsSpent === "number" ? lastQuote.totalCoinsSpent : null;
+			const confirmMessage = totalCost != null
+				? `Confirm purchase of ${qty} stars for ${totalCost} coins?`
+				: `Confirm purchase of ${qty} stars?`;
+			if (!confirm(confirmMessage)) {
+				return;
+			}
+		}
+		const res = await apiFetch("/buy-star", {
+			method: "POST",
+			body: JSON.stringify({ seasonId: season.seasonId, quantity: qty })
+		});
+		const data = await res.json();
+		if (!data.ok) {
+			setToast(data.error || "Purchase failed", "error");
+			return;
+		}
+		playerCoins = data.playerCoins;
+		playerStars = data.playerStars;
+		coinsDiv.innerText = `Coins: ${playerCoins}`;
+		starsDiv.innerText = `Stars: ${playerStars}`;
+		statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
+		const label = data.starsPurchased && data.starsPurchased > 1
+			? `Bought ${data.starsPurchased} stars.`
+			: "Star purchased.";
+		setToast(label, "success");
+		track("buy_star", { seasonId: season.seasonId, quantity: data.starsPurchased || 1 });
+		refreshQuote();
+	});
+}
+
 async function loadSeasons() {
 	const container = document.getElementById("seasons");
 	if (!container) return;
@@ -2253,92 +2430,7 @@ async function loadSeasons() {
 
 		const buyButton = div.querySelector(".buy-star-btn");
 		if (buyButton) {
-			const qtyInput = div.querySelector(".bulk-qty");
-			const quoteEl = div.querySelector(".bulk-quote");
-			const warningEl = div.querySelector(".bulk-warning");
-			const breakdownEl = div.querySelector(".bulk-breakdown");
-			let lastQuote = null;
-			const refreshQuote = async () => {
-				if (seasonStatusValue(currentSeasonSnapshot || season) === "ended") {
-					if (quoteEl) quoteEl.innerText = "Season ended.";
-					return;
-				}
-				if (!qtyInput) return;
-				const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
-				if (quoteEl) quoteEl.innerText = "";
-				if (warningEl) warningEl.innerText = "";
-				if (breakdownEl) breakdownEl.innerText = "";
-				const res = await apiFetch("/buy-star/quote", {
-					method: "POST",
-					body: JSON.stringify({ seasonId: season.seasonId, quantity: qty })
-				});
-				const data = await res.json();
-				if (!data.ok) {
-					lastQuote = null;
-					if (quoteEl) quoteEl.innerText = data.error || "Quote failed";
-					return;
-				}
-				lastQuote = data;
-				const perStarPrice = typeof data.finalStarPrice === "number"
-					? (data.finalStarPrice / 1000).toFixed(3)
-					: (data.breakdown && data.breakdown.length > 0 ? (data.breakdown[data.breakdown.length - 1].finalPrice / 1000).toFixed(3) : null);
-				const totalCost = typeof data.totalCoinsSpent === "number" ? (data.totalCoinsSpent / 1000).toFixed(3) : null;
-				if (quoteEl) {
-					if (totalCost != null && perStarPrice != null) {
-						quoteEl.innerText = `Total cost: ${totalCost} coins · Per-star: ${perStarPrice} coins`;
-					} else if (totalCost != null) {
-						quoteEl.innerText = `Total cost: ${totalCost} coins`;
-					} else if (perStarPrice != null) {
-						quoteEl.innerText = `Per-star: ${perStarPrice} coins`;
-					} else {
-						quoteEl.innerText = "";
-					}
-				}
-				if (warningEl) warningEl.innerText = data.warning || "";
-				if (breakdownEl) breakdownEl.innerText = "";
-			};
-			if (qtyInput) {
-				qtyInput.addEventListener("input", refreshQuote);
-				refreshQuote();
-			}
-
-			buyButton.addEventListener("click", async () => {
-				if (seasonStatusValue(currentSeasonSnapshot || season) === "ended") {
-					setToast("Season ended. Purchases are disabled.", "error");
-					return;
-				}
-				const qty = Math.max(1, parseInt(qtyInput?.value, 10) || 1);
-				await refreshQuote();
-				if (qty > 1) {
-					const totalCost = lastQuote && typeof lastQuote.totalCoinsSpent === "number" ? lastQuote.totalCoinsSpent : null;
-					const confirmMessage = totalCost != null
-						? `Confirm purchase of ${qty} stars for ${totalCost} coins?`
-						: `Confirm purchase of ${qty} stars?`;
-					if (!confirm(confirmMessage)) {
-						return;
-					}
-				}
-				const res = await apiFetch("/buy-star", {
-					method: "POST",
-					body: JSON.stringify({ seasonId: season.seasonId, quantity: qty })
-				});
-				const data = await res.json();
-				if (!data.ok) {
-					setToast(data.error || "Purchase failed", "error");
-					return;
-				}
-				playerCoins = data.playerCoins;
-				playerStars = data.playerStars;
-				coinsDiv.innerText = `Coins: ${playerCoins}`;
-				starsDiv.innerText = `Stars: ${playerStars}`;
-				statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
-				const label = data.starsPurchased && data.starsPurchased > 1
-					? `Bought ${data.starsPurchased} stars.`
-					: "Star purchased.";
-				setToast(label, "success");
-				track("buy_star", { seasonId: season.seasonId, quantity: data.starsPurchased || 1 });
-				refreshQuote();
-			});
+			attachBuyStarHandler(buyButton, div, season);
 		}
 
 		container.appendChild(div);
