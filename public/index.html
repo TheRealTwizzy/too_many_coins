@@ -1786,6 +1786,24 @@ function updateLiveStatus(state, message) {
 	liveStatus.innerText = message || "Live updates";
 }
 
+function formatSeasonDisplayNumber(season) {
+	// Derive player-facing season number from server data
+	// Internal season IDs must NEVER be exposed to players
+	if (!season) return "Season 0";
+	
+	// If server provides an explicit season_number field, use it
+	if (typeof season.season_number === "number") {
+		return `Season ${season.season_number}`;
+	}
+	
+	// Alpha constraint: single active season only, defaults to Season 0
+	// (Future: if multi-season exists, server will provide season_number)
+	if (isDebugEnabled()) {
+		console.warn("Season object missing season_number field; defaulting to Season 0");
+	}
+	return "Season 0";
+}
+
 function updateSeasonSnapshot(season) {
 	if (!season) return;
 	currentSeasonSnapshot = season;
@@ -1803,7 +1821,7 @@ function updateSeasonSnapshot(season) {
 		: season.coinsInCirculation;
 	
 	// Update season snapshot panel (if visible)
-	if (seasonTitle) seasonTitle.innerText = season.seasonId || "--";
+	if (seasonTitle) seasonTitle.innerText = formatSeasonDisplayNumber(season);
 	if (seasonRemaining) seasonRemaining.innerText = ended ? "Season ended — read-only." : formatRemaining(season.secondsRemaining || 0);
 	if (seasonStarPrice) seasonStarPrice.innerText = formatMicrocoinsToCoinsDisplay(starPriceValue);
 	if (seasonCoins) seasonCoins.innerText = formatCoinsInCirculationForSeason({ ...season, coinsInCirculation: coinsValue });
@@ -1813,7 +1831,7 @@ function updateSeasonSnapshot(season) {
 	if (seasonScarcityMessage) seasonScarcityMessage.innerText = scarcityMessage(season.secondsRemaining || 0);
 	
 	// Update hero panel (top dashboard)
-	if (heroSeasonId) heroSeasonId.innerText = season.seasonId || "--";
+	if (heroSeasonId) heroSeasonId.innerText = formatSeasonDisplayNumber(season);
 	if (heroSeasonRemaining) heroSeasonRemaining.innerText = ended ? "Season ended — read-only." : formatRemaining(season.secondsRemaining || 0);
 	if (heroStarPrice) heroStarPrice.innerText = formatMicrocoinsToCoinsDisplay(starPriceValue);
 	if (heroInflation) heroInflation.innerText = formatEmissionValue(season.coinEmissionPerMinute, ended);
@@ -3145,7 +3163,7 @@ async function loadAdminSeasons() {
 			const endTime = new Date(Date.now() + (secondsRemaining * 1000));
 			const endTimeFormatted = endTime.toLocaleString();
 			
-			if (adminSeasonStatusId) adminSeasonStatusId.innerText = first.seasonId || "--";
+			if (adminSeasonStatusId) adminSeasonStatusId.innerText = formatSeasonDisplayNumber(first);
 			if (adminSeasonStatusValue) adminSeasonStatusValue.innerText = ended ? "ENDED" : "ACTIVE";
 			if (adminSeasonStatusDay) adminSeasonStatusDay.innerText = formatSeasonDay(first);
 			if (adminSeasonStatusEnds) adminSeasonStatusEnds.innerText = endTimeFormatted;
