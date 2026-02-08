@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -396,7 +397,8 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			if err != nil {
 				dampenedPrice = seasonPrice
 			}
-			effectivePrice := int(float64(dampenedPrice)*displayItem.BulkMultiplier*enforcement.PriceMultiplier + 0.9999)
+			// Round UP (ceil) for effective prices to ensure conservative charging with all multipliers
+			effectivePrice := int(math.Ceil(float64(dampenedPrice) * displayItem.BulkMultiplier * enforcement.PriceMultiplier))
 			effectiveBreakdown[i] = BulkStarBreakdown{
 				Index:          displayItem.Index,
 				BasePrice:      seasonPrice,
@@ -709,7 +711,8 @@ func buildBulkStarQuote(db *sql.DB, playerID string, quantity int) (bulkStarQuot
 		if multiplier > maxMultiplier {
 			maxMultiplier = multiplier
 		}
-		displayPrice := int(float64(seasonPrice)*multiplier + 0.9999)
+		// Round UP (ceil) for prices to ensure conservative charging
+		displayPrice := int(math.Ceil(float64(seasonPrice) * multiplier))
 		breakdown = append(breakdown, BulkStarBreakdown{
 			Index:          i + 1,
 			BasePrice:      seasonPrice,

@@ -270,7 +270,8 @@ func ComputeDampenedStarPrice(db *sql.DB, playerID string, basePrice int) (int, 
 		trustStatus = trustStatusNormal
 	}
 	multiplier := ipDampeningPriceMultiplier * trustStatusPriceMultiplier(trustStatus)
-	return int(float64(basePrice)*multiplier + 0.9999), nil
+	// Round UP (ceil) for prices to ensure conservative charging of anti-abuse multipliers
+	return int(math.Ceil(float64(basePrice) * multiplier)), nil
 }
 
 func ApplyIPDampeningReward(db *sql.DB, playerID string, reward int) (int, error) {
@@ -292,6 +293,7 @@ func ApplyIPDampeningReward(db *sql.DB, playerID string, reward int) (int, error
 		trustStatus = trustStatusNormal
 	}
 	multiplier := ipDampeningRewardMultiplier * trustStatusRewardMultiplier(trustStatus)
+	// Round DOWN (floor) for rewards to ensure conservative earning when throttled
 	adjusted := int(math.Floor(float64(reward) * multiplier))
 	if adjusted < 1 {
 		adjusted = 1

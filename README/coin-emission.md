@@ -1,3 +1,27 @@
+# Coin Emission
+
+## Currency Model: Integer Microcoins
+
+**Canonical Currency Unit: Microcoins (integer only)**
+
+The economy uses integer microcoins as the sole authoritative currency:
+
+- **1 Coin = 1000 microcoins**
+- All storage, math, comparisons, and logs use integer microcoins only
+- No floating-point coin values exist at runtime
+- Coins are a **display format only** derived from microcoins: `microcoins / 1000` with exactly 3 decimal places
+- The UI always displays coins with exactly 3 decimal places, never rounding up
+
+This ensures:
+- Perfect precision and auditability
+- No rounding errors in economy logic
+- Atomic integer operations for all purchases and transfers
+- Clean separation between canonical (integer) and display (decimal) representations
+
+---
+
+## Emission System
+
 Coins enter the game only through a server-controlled emission system.
 
 Each season has a global coin emission pool that refills continuously over time.

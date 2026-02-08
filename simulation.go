@@ -292,7 +292,8 @@ func bulkCost(params CalibrationParams, starsPurchased int, coinsInCirculation i
 			base = priceFloor
 		}
 		multiplier := 1 + params.Gamma*float64(i*i)
-		price := int(float64(base)*multiplier + 0.9999)
+		// Round UP (ceil) for prices to ensure conservative charging
+		price := int(math.Ceil(float64(base) * multiplier))
 		total += price
 	}
 	return total

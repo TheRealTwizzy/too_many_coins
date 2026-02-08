@@ -472,7 +472,9 @@ func ComputeStarPriceRawWithActive(
 		price = affordabilityCap
 	}
 
-	return int(price + 0.9999)
+	// Return price as microcoins (integer), using proper rounding
+	// price is in floating-point microcoins; math.Round converts to nearest integer
+	return int(math.Round(price))
 }
 
 func EffectiveDailyEmissionTargetForParams(params CalibrationParams, secondsRemaining int64, coinsInCirculation int64) int {

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS season_economy (
     market_pressure DOUBLE PRECISION NOT NULL DEFAULT 1.0,
     price_floor BIGINT NOT NULL DEFAULT 0,
     current_star_price NUMERIC(12,3) NULL,
+    current_star_price_micro BIGINT NOT NULL DEFAULT 0,
     last_updated TIMESTAMPTZ NOT NULL
 );
 
@@ -412,8 +413,15 @@ CREATE INDEX IF NOT EXISTS idx_bug_reports_created_at
 -- Additive changes to existing tables
 -- =========================
 
--- Migration: Add current_star_price to season_economy
--- Required for star price persistence
--- Safe for existing deployments (nullable, no defaults)
+-- Migration: Add current_star_price to season_economy (legacy decimal format)
+-- DEPRECATED: Use current_star_price_micro instead
+-- Retained for backward compatibility only; not used in Alpha or later
 ALTER TABLE season_economy
 ADD COLUMN IF NOT EXISTS current_star_price NUMERIC(12,3);
+
+-- Migration: Add current_star_price_micro to season_economy
+-- Authoritative integer microcoin storage for star prices
+-- current_star_price_micro is the ONLY authoritative price column used by economy logic
+-- To display: current_star_price_micro / 1000 (3 decimal places in UI)
+ALTER TABLE season_economy
+ADD COLUMN IF NOT EXISTS current_star_price_micro BIGINT NOT NULL DEFAULT 0;

@@ -1,3 +1,27 @@
+# Star Purchases
+
+## Currency Model: Integer Microcoins
+
+**Canonical Currency Unit: Microcoins (integer only)**
+
+Star purchases are always validated and paid using integer microcoins:
+
+- **1 Coin = 1000 microcoins**
+- All star prices are stored and calculated as integer microcoins
+- All purchase validations compare integer microcoin balances atomically
+- No floating-point price comparisons exist at runtime
+- Coins are a **display format only** derived from microcoins: `microcoins / 1000` with exactly 3 decimal places
+
+This ensures:
+- Perfect fairness and auditability
+- Atomic purchase transactions with no rounding surprises
+- Identical pricing displayed to all players (integer precision removes floating-point divergence)
+- Clean separation between canonical (integer) and display (decimal) representations
+
+---
+
+## Star Purchasing System
+
 Stars may only be obtained by purchasing them from the system using coins.
 
 Stars are minted only by the system. Brokered trading may transfer existing Stars between players but never creates new Stars and never bypasses scarcity.

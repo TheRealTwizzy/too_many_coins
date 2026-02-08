@@ -55,6 +55,17 @@ Allowed to be rough or missing in Alpha:
 
 ---
 
+## Phase 0.9 — Currency Normalization (Canonical Authority)
+- [x] [DONE] 0.9 Normalize economy to integer microcoins as sole authoritative currency
+  - [x] [DONE] 0.9a Schema: Add current_star_price_micro BIGINT column (additive, Alpha-safe)
+  - [x] [DONE] 0.9b Economy math: Replace `price + 0.9999` rounding with math.Ceil for prices (conservative charging) and math.Floor for rewards (conservative earning)
+  - [x] [DONE] 0.9c API: All coin/price fields exposed as integer microcoins (no decimal types)
+  - [x] [DONE] 0.9d Frontend: Confirm formatMicrocoinsToCoins formatter correctly converts to 3-decimal display
+  - [x] [DONE] 0.9e Documentation: Update coin-emission.md, coin-faucets.md, star-purchases.md with microcoin canonical model
+  - [x] [DONE] 0.9f Confirm: All coin math is integer-only; no floating-point coin comparisons remain
+
+---
+
 ## Phase 1 — Backend Foundations (Authoritative Core)
 - [x] [DONE] 1.1 Go + net/http backend
 - [x] [DONE] 1.2 PostgreSQL persistence

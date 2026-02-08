@@ -1,12 +1,36 @@
+# Coin Faucets
+
+## Currency Model: Integer Microcoins
+
+**Canonical Currency Unit: Microcoins (integer only)**
+
+The economy uses integer microcoins as the sole authoritative currency:
+
+- **1 Coin = 1000 microcoins**
+- All faucet rewards are expressed and stored as integer microcoins
+- All faucet logic (cooldowns, rate-limiting, caps) uses integer microcoins only
+- No floating-point faucet amounts exist at runtime
+- Coins are a **display format only** derived from microcoins: `microcoins / 1000` with exactly 3 decimal places
+
+This ensures:
+- Perfect precision in reward calculations
+- No rounding errors in daily caps or accumulation
+- Consistent earning semantics across all faucets
+- Clean audit trail for reward verification
+
+---
+
+## Players Earn Coins Through Faucets
+
 Players earn coins through a limited set of server-controlled faucets.
 
 ## Universal Basic Income (UBI) — Minimum Payout
 
 Every player receives coins every game tick (continuous income).
 
-**Minimum payout per tick: 0.001 coin**
+**Minimum payout per tick: 1 microcoin (0.001 coin)**
 
-**Coins support decimal precision to thousandths** (three decimal places).
+**Coins are displayed with exactly 3 decimal places** (thousandths precision).
 
 This ensures:
 
@@ -28,7 +52,7 @@ Daily Login:
 
 Available once per 20 hours per season.
 
-Grants a small, fixed amount of coins.
+Grants a small, fixed amount of coins (stored as microcoins, displayed with 3 decimals).
 
 Designed to reward consistency, not grinding.
 
@@ -38,7 +62,7 @@ Post‑alpha only.
 
 A small set of simple tasks refreshed at daily reset.
 
-Tasks grant moderate coin rewards.
+Tasks grant moderate coin rewards (stored as microcoins).
 
 Completing all tasks does not exceed the player daily earning cap.
 
