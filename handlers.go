@@ -314,18 +314,6 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 				maxQty = scaled
 			}
 		}
-		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
-		if err != nil {
-			log.Println("account age scaling failed:", err)
-		} else if ageScaling.MaxBulkMultiplier < 1.0 {
-			scaled := int(float64(maxQty)*ageScaling.MaxBulkMultiplier + 0.0001)
-			if scaled < 1 {
-				scaled = 1
-			}
-			if scaled < maxQty {
-				maxQty = scaled
-			}
-		}
 		if quantity < 1 || quantity > maxQty {
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INVALID_QUANTITY"})
 			return
@@ -1690,11 +1678,6 @@ func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 			log.Println("account age scaling failed:", err)
 		}
 
-		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
-		if err != nil {
-			log.Println("account age scaling failed:", err)
-		}
-
 		params := economy.Calibration()
 		reward := params.DailyLoginReward
 		cooldown := time.Duration(params.DailyLoginCooldownHours) * time.Hour
@@ -1840,6 +1823,11 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 		if err != nil || player == nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "PLAYER_NOT_REGISTERED"})
 			return
+		}
+
+		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
+		if err != nil {
+			log.Println("account age scaling failed:", err)
 		}
 
 		params := economy.Calibration()
