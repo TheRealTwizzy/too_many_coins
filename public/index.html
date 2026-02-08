@@ -1730,14 +1730,27 @@ function formatNextEmissionValue(value, ended) {
 	return `${value}s`;
 }
 
+// Canonical formatters: convert server microcoins to display coins
+// Server always returns microcoins (1 coin = 1000 microcoins)
+// These formatters ensure consistent display across all UI contexts
+function formatMicrocoinsToCoins(microcoins) {
+	if (typeof microcoins !== "number" || !isFinite(microcoins)) {
+		return null;
+	}
+	return (microcoins / 1000).toFixed(3);
+}
+
+function formatMicrocoinsToCoinsDisplay(microcoins) {
+	const formatted = formatMicrocoinsToCoins(microcoins);
+	return formatted !== null ? `${formatted} coins` : "--";
+}
+
 function formatCoinsInCirculationForSeason(season) {
 	const ended = seasonStatusValue(season) === "ended";
 	const rawCoins = ended && typeof season?.finalCoinsInCirculation === "number"
 		? season.finalCoinsInCirculation
 		: season?.coinsInCirculation;
-	const count = typeof rawCoins === "number" && isFinite(rawCoins)
-		? (rawCoins / 1000).toFixed(3)
-		: null;
+	const count = formatMicrocoinsToCoins(rawCoins);
 	if (ended) {
 		return count === null ? "Final snapshot recorded" : `Final snapshot: ${count} coins`;
 	}
@@ -1799,12 +1812,7 @@ function updateSeasonSnapshot(season) {
 			const starPriceMicro = ended && typeof season.finalStarPrice === "number"
 				? season.finalStarPrice
 				: season.currentStarPrice;
-			const starPrice = starPriceMicro != null ? (starPriceMicro / 1000).toFixed(3) : null;
-			const remainingLabel = ended
-				? "Season ended — read-only."
-				: `${formatRemaining(season.secondsRemaining)} remaining`;
-			const starPriceLabel = ended ? "Final star price snapshot" : "Star price";
-
+		const starPrice = formatMicrocoinsToCoins(starPriceMicro);
 			div.className = "card season-card";
 			div.dataset.seasonId = season.seasonId;
 
@@ -1871,7 +1879,7 @@ function updateSeasonSnapshot(season) {
 		: season.coinsInCirculation;
 	if (seasonTitle) seasonTitle.innerText = "Season 1";
 	if (seasonRemaining) seasonRemaining.innerText = ended ? "Season ended — read-only." : formatRemaining(season.secondsRemaining || 0);
-	if (seasonStarPrice) seasonStarPrice.innerText = typeof starPriceValue === "number" ? `${(starPriceValue / 1000).toFixed(3)} coins` : "--";
+	if (seasonStarPrice) seasonStarPrice.innerText = formatMicrocoinsToCoinsDisplay(starPriceValue);
 	if (seasonCoins) seasonCoins.innerText = formatCoinsInCirculationForSeason({ ...season, coinsInCirculation: coinsValue });
 	if (seasonEmission) seasonEmission.innerText = formatEmissionValue(season.coinEmissionPerMinute, ended);
 	if (seasonPressure) seasonPressure.innerText = formatPressureValue(season.marketPressure, ended);
@@ -1879,7 +1887,7 @@ function updateSeasonSnapshot(season) {
 	if (seasonScarcityMessage) seasonScarcityMessage.innerText = scarcityMessage(season.secondsRemaining || 0);
 	if (heroSeasonId) heroSeasonId.innerText = "Season 1";
 	if (heroSeasonRemaining) heroSeasonRemaining.innerText = ended ? "Season ended — read-only." : formatRemaining(season.secondsRemaining || 0);
-	if (heroStarPrice) heroStarPrice.innerText = typeof starPriceValue === "number" ? `${(starPriceValue / 1000).toFixed(3)} coins` : "--";
+	if (heroStarPrice) heroStarPrice.innerText = formatMicrocoinsToCoinsDisplay(starPriceValue);
 	if (heroInflation) heroInflation.innerText = formatEmissionValue(season.coinEmissionPerMinute, ended);
 	if (heroPressure) heroPressure.innerText = formatPressureValue(season.marketPressure, ended);
 	if (seasonStatus) {
@@ -1919,7 +1927,7 @@ function updateSeasonCard(season) {
 			? "Season ended — read-only."
 			: `${formatRemaining(season.secondsRemaining || 0)} remaining`;
 	}
-	if (priceEl) priceEl.innerText = typeof starPriceValue === "number" ? `${starPriceValue} coins` : "--";
+	if (priceEl) priceEl.innerText = formatMicrocoinsToCoinsDisplay(starPriceValue);
 	if (priceLabelEl) priceLabelEl.innerText = ended ? "Final star price snapshot" : "Star price";
 	if (coinsEl) coinsEl.innerText = formatCoinsInCirculationForSeason({ ...season, coinsInCirculation: coinsValue });
 	if (emissionEl) emissionEl.innerText = formatEmissionValue(season.coinEmissionPerMinute, ended);
@@ -1957,9 +1965,10 @@ function applyLiveSnapshot(payload) {
 	if (payload.authenticated && typeof payload.playerCoins === "number" && typeof payload.playerStars === "number") {
 		playerCoins = payload.playerCoins;
 		playerStars = payload.playerStars;
-		coinsDiv.innerText = `Coins: ${playerCoins}`;
+		const displayCoins = formatMicrocoinsToCoins(playerCoins);
+		coinsDiv.innerText = `Coins: ${displayCoins}`;
 		starsDiv.innerText = `Stars: ${playerStars}`;
-		statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
+		statPill.innerText = `${displayCoins} coins · ${playerStars} stars`;
 	}
 }
 
@@ -2232,7 +2241,7 @@ async function refreshPlayer() {
 	const data = await res.json();
 	playerCoins = data.playerCoins || 0;
 	playerStars = data.playerStars || 0;
-	const displayCoins = (playerCoins / 1000).toFixed(3);
+	const displayCoins = formatMicrocoinsToCoins(playerCoins);
 	coinsDiv.innerText = `Coins: ${displayCoins}`;
 	starsDiv.innerText = `Stars: ${playerStars}`;
 	statPill.innerText = `${displayCoins} coins · ${playerStars} stars`;
@@ -2284,9 +2293,9 @@ function attachBuyStarHandler(buyButton, seasonCardDiv, season) {
 		}
 		lastQuote = data;
 		const perStarPrice = typeof data.finalStarPrice === "number"
-			? (data.finalStarPrice / 1000).toFixed(3)
-			: (data.breakdown && data.breakdown.length > 0 ? (data.breakdown[data.breakdown.length - 1].finalPrice / 1000).toFixed(3) : null);
-		const totalCost = typeof data.totalCoinsSpent === "number" ? (data.totalCoinsSpent / 1000).toFixed(3) : null;
+			? formatMicrocoinsToCoins(data.finalStarPrice)
+			: (data.breakdown && data.breakdown.length > 0 ? formatMicrocoinsToCoins(data.breakdown[data.breakdown.length - 1].finalPrice) : null);
+		const totalCost = formatMicrocoinsToCoins(data.totalCoinsSpent);
 		if (quoteEl) {
 			if (totalCost != null && perStarPrice != null) {
 				quoteEl.innerText = `Total cost: ${totalCost} coins · Per-star: ${perStarPrice} coins`;
@@ -2315,7 +2324,8 @@ function attachBuyStarHandler(buyButton, seasonCardDiv, season) {
 		const qty = Math.max(1, parseInt(qtyInput?.value, 10) || 1);
 		await refreshQuote();
 		if (qty > 1) {
-			const totalCost = lastQuote && typeof lastQuote.totalCoinsSpent === "number" ? lastQuote.totalCoinsSpent : null;
+			const totalCostMicro = lastQuote && typeof lastQuote.totalCoinsSpent === "number" ? lastQuote.totalCoinsSpent : null;
+			const totalCost = formatMicrocoinsToCoins(totalCostMicro);
 			const confirmMessage = totalCost != null
 				? `Confirm purchase of ${qty} stars for ${totalCost} coins?`
 				: `Confirm purchase of ${qty} stars?`;
@@ -2334,9 +2344,10 @@ function attachBuyStarHandler(buyButton, seasonCardDiv, season) {
 		}
 		playerCoins = data.playerCoins;
 		playerStars = data.playerStars;
-		coinsDiv.innerText = `Coins: ${playerCoins}`;
+		const displayCoins = formatMicrocoinsToCoins(playerCoins);
+		coinsDiv.innerText = `Coins: ${displayCoins}`;
 		starsDiv.innerText = `Stars: ${playerStars}`;
-		statPill.innerText = `${playerCoins} coins · ${playerStars} stars`;
+		statPill.innerText = `${displayCoins} coins · ${playerStars} stars`;
 		const label = data.starsPurchased && data.starsPurchased > 1
 			? `Bought ${data.starsPurchased} stars.`
 			: "Star purchased.";
@@ -2370,7 +2381,7 @@ async function loadSeasons() {
 		const starPriceMicro = ended && typeof season.finalStarPrice === "number"
 			? season.finalStarPrice
 			: season.currentStarPrice;
-		const starPrice = starPriceMicro != null ? (starPriceMicro / 1000).toFixed(3) : null;
+		const starPrice = formatMicrocoinsToCoins(starPriceMicro);
 		const remainingLabel = ended
 			? "Season ended — read-only."
 			: `${formatRemaining(season.secondsRemaining)} remaining`;
@@ -3185,7 +3196,7 @@ async function loadAdminSeasons() {
 						<span class="${badgeClass}">${status}</span>
 					</div>
 					<div class="label" style="margin-top:0.5rem;">Day ${formatSeasonDay(season)}</div>
-					<div class="label">Base price ${typeof economyData.baseStarPrice === 'number' ? (economyData.baseStarPrice / 1000).toFixed(3) : "--"} · Effective ${typeof season.currentStarPrice === 'number' ? (season.currentStarPrice / 1000).toFixed(3) : "--"}</div>
+					<div class="label">Base price ${formatMicrocoinsToCoinsDisplay(economyData.baseStarPrice)} · Effective ${formatMicrocoinsToCoinsDisplay(season.currentStarPrice)}</div>
 					<div class="label">Market pressure ${marketPressure}</div>
 					<div class="label">Emission target ${emissionTarget}</div>
 				</div>
@@ -3229,8 +3240,8 @@ async function loadAdminSeasons() {
 				<div class="admin-metric"><div class="label">Season ID</div><div class="stat-value">${first.seasonId}</div></div>
 				<div class="admin-metric"><div class="label">Day</div><div class="stat-value">${formatSeasonDay(first)}</div></div>
 				<div class="admin-metric"><div class="label">Status</div><div class="stat-value">${seasonStatusLabelAdmin(first)}</div></div>
-				<div class="admin-metric"><div class="label">Base price</div><div class="stat-value">${typeof economyData.baseStarPrice === 'number' ? (economyData.baseStarPrice / 1000).toFixed(3) : "--"}</div></div>
-				<div class="admin-metric"><div class="label">Effective price</div><div class="stat-value">${typeof first.currentStarPrice === 'number' ? (first.currentStarPrice / 1000).toFixed(3) : "--"}</div></div>
+				<div class="admin-metric"><div class="label">Base price</div><div class="stat-value">${formatMicrocoinsToCoinsDisplay(economyData.baseStarPrice)}</div></div>
+				<div class="admin-metric"><div class="label">Effective price</div><div class="stat-value">${formatMicrocoinsToCoinsDisplay(first.currentStarPrice)}</div></div>
 				<div class="admin-metric"><div class="label">Market pressure</div><div class="stat-value">${marketPressure}</div></div>
 				<div class="admin-metric"><div class="label">Emission state</div><div class="stat-value">${emissionTarget}</div></div>
 				<div class="admin-metric"><div class="label">Coins in circulation</div><div class="stat-value">${formatCoinsInCirculationForSeason(first)}</div></div>
