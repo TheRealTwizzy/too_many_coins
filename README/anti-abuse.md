@@ -70,7 +70,8 @@ Account creation is rate-limited.
 
 CAPTCHA and verification are post‑alpha.
 
-New accounts must wait a short cooldown period before joining a season.
+Account age is a soft signal only. Hard gating first-session play is forbidden.
+New accounts may face softer throttles (cooldown multipliers, reward dampening, bulk limits), but never hard blocks.
 
 Throttles:
 
@@ -115,7 +116,7 @@ Implemented (confirmed in code):
 
 - Whitelisting removed; alpha relies on throttles only.
 - Auth rate limits for signup/login (IP‑based windows).
-- New‑account cooldown before sensitive actions (account age gate).
+- Account age used as a soft throttling signal (cooldown/reward/bulk multipliers), never a hard gate.
 - IP association tracking and dampening (delay + reward/price multipliers when multiple accounts share an IP).
 - Abuse scoring with throttles (earn multiplier, price multiplier, bulk max, cooldown jitter) driven by detected signals.
 - Abuse signals include purchase bursts, regular purchase cadence, activity cadence, tick‑reaction patterns, and IP clustering.

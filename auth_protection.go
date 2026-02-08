@@ -113,33 +113,6 @@ func checkAuthRateLimit(db *sql.DB, ip string, action string, limit int, window 
 	return true, 0, nil
 }
 
-func accountCooldownRemaining(db *sql.DB, accountID string, now time.Time) (time.Duration, error) {
-	cooldownMinutes := parseEnvInt("NEW_ACCOUNT_COOLDOWN_MINUTES", 30)
-	if cooldownMinutes <= 0 {
-		return 0, nil
-	}
-
-	var createdAt time.Time
-	if err := db.QueryRow(`
-		SELECT created_at
-		FROM accounts
-		WHERE account_id = $1
-	`, accountID).Scan(&createdAt); err != nil {
-		return 0, err
-	}
-
-	cooldown := time.Duration(cooldownMinutes) * time.Minute
-	elapsed := now.Sub(createdAt)
-	if elapsed >= cooldown {
-		return 0, nil
-	}
-	remaining := cooldown - elapsed
-	if remaining < 0 {
-		return 0, nil
-	}
-	return remaining, nil
-}
-
 func parseEnvInt(key string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -150,4 +123,65 @@ func parseEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return parsed
+}
+
+type AccountAgeScaling struct {
+	EarnMultiplier     float64
+	CooldownMultiplier float64
+	MaxBulkMultiplier  float64
+}
+
+func accountAgeScaling(db *sql.DB, accountID string, now time.Time) (AccountAgeScaling, error) {
+	// Account age is a soft signal only. Hard gating first-session play is forbidden.
+	scaling := AccountAgeScaling{
+		EarnMultiplier:     1.0,
+		CooldownMultiplier: 1.0,
+		MaxBulkMultiplier:  1.0,
+	}
+
+	softWindowMinutes := parseEnvInt("NEW_ACCOUNT_COOLDOWN_MINUTES", 30)
+	if softWindowMinutes <= 0 {
+		return scaling, nil
+	}
+
+	var createdAt time.Time
+	if err := db.QueryRow(`
+		SELECT created_at
+		FROM accounts
+		WHERE account_id = $1
+	`, accountID).Scan(&createdAt); err != nil {
+		return scaling, err
+	}
+
+	window := time.Duration(softWindowMinutes) * time.Minute
+	elapsed := now.Sub(createdAt)
+	if elapsed <= 0 {
+		elapsed = 0
+	}
+	if elapsed >= window {
+		return scaling, nil
+	}
+
+	progress := elapsed.Seconds() / window.Seconds()
+	if progress < 0 {
+		progress = 0
+	} else if progress > 1 {
+		progress = 1
+	}
+
+	scaling.EarnMultiplier = 0.7 + (0.3 * progress)
+	scaling.CooldownMultiplier = 1.6 - (0.6 * progress)
+	scaling.MaxBulkMultiplier = 0.25 + (0.75 * progress)
+
+	if scaling.EarnMultiplier < 0.5 {
+		scaling.EarnMultiplier = 0.5
+	}
+	if scaling.CooldownMultiplier < 1.0 {
+		scaling.CooldownMultiplier = 1.0
+	}
+	if scaling.MaxBulkMultiplier < 0.2 {
+		scaling.MaxBulkMultiplier = 0.2
+	}
+
+	return scaling, nil
 }

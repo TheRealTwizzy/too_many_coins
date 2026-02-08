@@ -75,22 +75,6 @@ func playerHandler(db *sql.DB) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if remainingCooldown, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remainingCooldown > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remainingCooldown.Seconds())))
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "ACCOUNT_COOLDOWN", NextAvailableInSeconds: int64(remainingCooldown.Seconds())})
-			return
-		}
-		if remaining, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remaining > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "ACCOUNT_COOLDOWN"})
-			return
-		}
 		playerID := account.PlayerID
 
 		player, err := LoadOrCreatePlayer(db, playerID)
@@ -297,22 +281,6 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if remainingCooldown, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remainingCooldown > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remainingCooldown.Seconds())))
-			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "ACCOUNT_COOLDOWN", NextAvailableInSeconds: int64(remainingCooldown.Seconds())})
-			return
-		}
-		if remaining, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remaining > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-			json.NewEncoder(w).Encode(BuyStarQuoteResponse{OK: false, Error: "ACCOUNT_COOLDOWN"})
-			return
-		}
 
 		var req BuyStarRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -334,6 +302,30 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		maxQty := abuseMaxBulkQty(db, playerID, bulkStarMaxQty())
+		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
+		if err != nil {
+			log.Println("account age scaling failed:", err)
+		} else if ageScaling.MaxBulkMultiplier < 1.0 {
+			scaled := int(float64(maxQty)*ageScaling.MaxBulkMultiplier + 0.0001)
+			if scaled < 1 {
+				scaled = 1
+			}
+			if scaled < maxQty {
+				maxQty = scaled
+			}
+		}
+		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
+		if err != nil {
+			log.Println("account age scaling failed:", err)
+		} else if ageScaling.MaxBulkMultiplier < 1.0 {
+			scaled := int(float64(maxQty)*ageScaling.MaxBulkMultiplier + 0.0001)
+			if scaled < 1 {
+				scaled = 1
+			}
+			if scaled < maxQty {
+				maxQty = scaled
+			}
+		}
 		if quantity < 1 || quantity > maxQty {
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INVALID_QUANTITY"})
 			return
@@ -575,14 +567,6 @@ func buyStarQuoteHandler(db *sql.DB) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if remaining, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remaining > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "ACCOUNT_COOLDOWN"})
-			return
-		}
 
 		var req BuyStarRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -750,14 +734,6 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if remaining, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remaining > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-			json.NewEncoder(w).Encode(BuyBoostResponse{OK: false, Error: "ACCOUNT_COOLDOWN"})
-			return
-		}
 
 		var req BuyVariantStarRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -884,14 +860,6 @@ func buyBoostHandler(db *sql.DB) http.HandlerFunc {
 
 		account, ok := requireSession(db, w, r)
 		if !ok {
-			return
-		}
-		if remaining, err := accountCooldownRemaining(db, account.AccountID, time.Now().UTC()); err != nil {
-			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
-		} else if remaining > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-			json.NewEncoder(w).Encode(BurnCoinsResponse{OK: false, Error: "ACCOUNT_COOLDOWN"})
 			return
 		}
 
@@ -1717,15 +1685,26 @@ func dailyClaimHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
+		if err != nil {
+			log.Println("account age scaling failed:", err)
+		}
+
+		ageScaling, err := accountAgeScaling(db, account.AccountID, time.Now().UTC())
+		if err != nil {
+			log.Println("account age scaling failed:", err)
+		}
+
 		params := economy.Calibration()
 		reward := params.DailyLoginReward
 		cooldown := time.Duration(params.DailyLoginCooldownHours) * time.Hour
 		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
-		reward = abuseAdjustedReward(reward, enforcement.EarnMultiplier)
+		reward = abuseAdjustedReward(reward, enforcement.EarnMultiplier*ageScaling.EarnMultiplier)
 		cooldown += abuseCooldownJitter(cooldown, enforcement.CooldownJitterFactor)
 		scaling := currentFaucetScaling(time.Now().UTC())
 		reward = applyFaucetRewardScaling(reward, scaling.RewardMultiplier)
 		cooldown = applyFaucetCooldownScaling(cooldown, scaling.CooldownMultiplier)
+		cooldown = applyFaucetCooldownScaling(cooldown, ageScaling.CooldownMultiplier)
 		reward, err = ApplyIPDampeningReward(db, playerID, reward)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
@@ -1874,11 +1853,12 @@ func activityClaimHandler(db *sql.DB) http.HandlerFunc {
 			reward += 1
 		}
 		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
-		reward = abuseAdjustedReward(reward, enforcement.EarnMultiplier)
+		reward = abuseAdjustedReward(reward, enforcement.EarnMultiplier*ageScaling.EarnMultiplier)
 		cooldown += abuseCooldownJitter(cooldown, enforcement.CooldownJitterFactor)
 		scaling := currentFaucetScaling(time.Now().UTC())
 		reward = applyFaucetRewardScaling(reward, scaling.RewardMultiplier)
 		cooldown = applyFaucetCooldownScaling(cooldown, scaling.CooldownMultiplier)
+		cooldown = applyFaucetCooldownScaling(cooldown, ageScaling.CooldownMultiplier)
 		reward, err = ApplyIPDampeningReward(db, playerID, reward)
 		if err != nil {
 			json.NewEncoder(w).Encode(FaucetClaimResponse{OK: false, Error: "INTERNAL_ERROR"})
