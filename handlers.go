@@ -206,9 +206,11 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 		marketPressure := &pressure
 		next := nextEmissionSeconds(now)
 		nextEmission := &next
-		price := ComputeStarPrice(coins, remaining)
-		if account, _, err := getSessionAccount(db, r); err == nil && account != nil {
-			price = computePlayerStarPrice(db, account.PlayerID, coins, remaining)
+		// Season-authoritative star price (shared by all players)
+		price := economy.CurrentStarPrice()
+		if price == 0 {
+			// Fallback: compute if not yet set by tick
+			price = ComputeStarPrice(coins, remaining)
 		}
 		currentPrice := &price
 		liveCoins := &coins
@@ -281,16 +283,6 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 			"seasons":             response,
 		})
 	}
-}
-
-func computePlayerStarPrice(db *sql.DB, playerID string, coinsInCirculation int64, secondsRemaining int64) int {
-	basePrice := ComputeStarPrice(coinsInCirculation, secondsRemaining)
-	dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePrice)
-	if err != nil {
-		return basePrice
-	}
-	enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
-	return int(float64(dampenedPrice)*enforcement.PriceMultiplier + 0.9999)
 }
 
 func buyStarHandler(db *sql.DB) http.HandlerFunc {
@@ -388,17 +380,45 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		// Compute effective prices with anti-abuse multipliers (applied at transaction time)
+		// These may differ from displayed prices but are not revealed to the user
+		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
+		effectiveBreakdown := make([]BulkStarBreakdown, len(quote.Breakdown))
+		var effectiveTotal int64
+		coinsInCirculation := economy.CoinsInCirculation()
+		secondsRemaining := seasonSecondsRemaining(time.Now().UTC())
+		baseStars := economy.StarsPurchased()
+
+		for i, displayItem := range quote.Breakdown {
+			seasonPrice := ComputeStarPriceWithStars(baseStars+i, coinsInCirculation, secondsRemaining)
+			dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, seasonPrice)
+			if err != nil {
+				dampenedPrice = seasonPrice
+			}
+			effectivePrice := int(float64(dampenedPrice)*displayItem.BulkMultiplier*enforcement.PriceMultiplier + 0.9999)
+			effectiveBreakdown[i] = BulkStarBreakdown{
+				Index:          displayItem.Index,
+				BasePrice:      seasonPrice,
+				BulkMultiplier: displayItem.BulkMultiplier,
+				FinalPrice:     effectivePrice,
+			}
+			effectiveTotal += int64(effectivePrice)
+		}
+
 		purchaseType := "base"
 		if quantity > 1 {
 			purchaseType = "bulk"
 		}
 		emitServerTelemetry(db, &account.AccountID, playerID, "star_purchase_attempt", map[string]interface{}{
-			"seasonId":        currentSeasonID(),
-			"quantity":        quantity,
-			"purchaseType":    purchaseType,
-			"totalCoinsSpent": quote.TotalCoinsSpent,
-			"finalStarPrice":  quote.FinalStarPrice,
-			"maxQty":          maxQty,
+			"seasonId":            currentSeasonID(),
+			"quantity":            quantity,
+			"purchaseType":        purchaseType,
+			"displayedTotal":      quote.TotalCoinsSpent,
+			"effectiveTotal":      effectiveTotal,
+			"seasonPriceBase":     quote.Breakdown[0].BasePrice,
+			"displayFinalPrice":   quote.FinalStarPrice,
+			"effectiveFinalPrice": effectiveBreakdown[len(effectiveBreakdown)-1].FinalPrice,
+			"maxQty":              maxQty,
 		})
 
 		tx, err := db.BeginTx(r.Context(), nil)
@@ -424,22 +444,25 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if coinsBefore < quote.TotalCoinsSpent {
+		// Check affordability against EFFECTIVE price (with anti-abuse multipliers)
+		if coinsBefore < effectiveTotal {
 			activityWindow := ActiveActivityWindow()
 			if time.Since(lastActive) <= activityWindow {
 				emitServerTelemetryWithCooldown(db, &account.AccountID, playerID, "star_purchase_unaffordable_despite_activity", map[string]interface{}{
-					"quantity":       quantity,
-					"requiredCoins":  quote.TotalCoinsSpent,
-					"playerCoins":    coinsBefore,
-					"finalStarPrice": quote.FinalStarPrice,
-					"activityWindow": int64(activityWindow.Seconds()),
+					"quantity":            quantity,
+					"requiredCoins":       effectiveTotal,
+					"displayedRequired":   quote.TotalCoinsSpent,
+					"playerCoins":         coinsBefore,
+					"effectiveFinalPrice": effectiveBreakdown[len(effectiveBreakdown)-1].FinalPrice,
+					"activityWindow":      int64(activityWindow.Seconds()),
 				}, 10*time.Minute)
 			}
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
 			return
 		}
 
-		coinsAfter := coinsBefore - quote.TotalCoinsSpent
+		// Charge EFFECTIVE price (may differ from displayed price due to anti-abuse)
+		coinsAfter := coinsBefore - effectiveTotal
 		starsAfter := starsBefore + int64(quantity)
 
 		_, err = tx.ExecContext(r.Context(), `
@@ -449,7 +472,7 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 				burned_coins = burned_coins + $4,
 				last_active_at = NOW()
 			WHERE player_id = $1
-		`, playerID, coinsAfter, starsAfter, quote.TotalCoinsSpent)
+		`, playerID, coinsAfter, starsAfter, effectiveTotal)
 
 		if err != nil {
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
@@ -462,7 +485,9 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 		}
 		runningCoins := coinsBefore
 		runningStars := starsBefore
-		for _, item := range quote.Breakdown {
+		// Log EFFECTIVE prices paid (including anti-abuse multipliers)
+		// Season price snapshots are logged in telemetry for audit
+		for _, item := range effectiveBreakdown {
 			price := item.FinalPrice
 			coinsAfterStep := runningCoins - int64(price)
 			starsAfterStep := runningStars + 1
@@ -490,16 +515,20 @@ func buyStarHandler(db *sql.DB) http.HandlerFunc {
 			json.NewEncoder(w).Encode(BuyStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
 		}
+		// Log season price snapshot and effective price for audit purposes
 		emitServerTelemetry(db, &account.AccountID, playerID, "star_purchase_success", map[string]interface{}{
-			"seasonId":        currentSeasonID(),
-			"quantity":        quantity,
-			"purchaseType":    purchaseType,
-			"totalCoinsSpent": quote.TotalCoinsSpent,
-			"finalStarPrice":  quote.FinalStarPrice,
-			"coinsBefore":     coinsBefore,
-			"coinsAfter":      coinsAfter,
-			"starsBefore":     starsBefore,
-			"starsAfter":      starsAfter,
+			"seasonId":            currentSeasonID(),
+			"quantity":            quantity,
+			"purchaseType":        purchaseType,
+			"displayedTotal":      quote.TotalCoinsSpent,
+			"effectiveTotal":      effectiveTotal,
+			"seasonPriceSnapshot": quote.Breakdown[0].BasePrice,
+			"effectivePricePaid":  effectiveBreakdown[len(effectiveBreakdown)-1].FinalPrice,
+			"displayedFinalPrice": quote.FinalStarPrice,
+			"coinsBefore":         coinsBefore,
+			"coinsAfter":          coinsAfter,
+			"starsBefore":         starsBefore,
+			"starsAfter":          starsAfter,
 		})
 		for i := 0; i < quantity; i++ {
 			economy.IncrementStars()
@@ -662,7 +691,8 @@ func buildBulkStarQuote(db *sql.DB, playerID string, quantity int) (bulkStarQuot
 	if quantity < 1 {
 		return bulkStarQuote{}, nil
 	}
-	enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
+	// Display the season-authoritative price (same for all players)
+	// Anti-abuse multipliers are applied at transaction time, not in quote display
 	coinsInCirculation := economy.CoinsInCirculation()
 	secondsRemaining := seasonSecondsRemaining(time.Now().UTC())
 	baseStars := economy.StarsPurchased()
@@ -672,23 +702,20 @@ func buildBulkStarQuote(db *sql.DB, playerID string, quantity int) (bulkStarQuot
 	var total int64
 	maxMultiplier := 1.0
 	for i := 0; i < quantity; i++ {
-		basePrice := ComputeStarPriceWithStars(baseStars+i, coinsInCirculation, secondsRemaining)
-		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePrice)
-		if err != nil {
-			return bulkStarQuote{}, err
-		}
+		// Use season-authoritative price for display
+		seasonPrice := ComputeStarPriceWithStars(baseStars+i, coinsInCirculation, secondsRemaining)
 		multiplier := 1 + gamma*float64(i*i)
 		if multiplier > maxMultiplier {
 			maxMultiplier = multiplier
 		}
-		finalPrice := int(float64(dampenedPrice)*multiplier*enforcement.PriceMultiplier + 0.9999)
+		displayPrice := int(float64(seasonPrice)*multiplier + 0.9999)
 		breakdown = append(breakdown, BulkStarBreakdown{
 			Index:          i + 1,
-			BasePrice:      dampenedPrice,
+			BasePrice:      seasonPrice,
 			BulkMultiplier: multiplier,
-			FinalPrice:     finalPrice,
+			FinalPrice:     displayPrice,
 		})
-		total += int64(finalPrice)
+		total += int64(displayPrice)
 	}
 	finalStarPrice := 0
 	if len(breakdown) > 0 {
@@ -810,26 +837,26 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 		coinsBefore := player.Coins
 		starsBefore := player.Stars
 
-		basePrice := ComputeStarPrice(
-			economy.CoinsInCirculation(),
-			28*24*3600,
-		)
+		// Use season-authoritative base price
+		coinsInCirculation := economy.CoinsInCirculation()
+		secondsRemaining := seasonSecondsRemaining(time.Now().UTC())
+		basePriceDisplay := ComputeStarPrice(coinsInCirculation, secondsRemaining)
+		displayPrice := int(float64(basePriceDisplay)*variantMultiplier + 0.9999)
 
-		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePrice)
+		// Compute effective price with anti-abuse multipliers (internal, not displayed)
+		dampenedPrice, err := ComputeDampenedStarPrice(db, playerID, basePriceDisplay)
 		if err != nil {
-			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
-			return
+			dampenedPrice = basePriceDisplay
 		}
-
 		enforcement := abuseEffectiveEnforcement(db, playerID, bulkStarMaxQty())
-		baseVariantPrice := int(float64(dampenedPrice)*variantMultiplier + 0.9999)
-		price := abuseAdjustedPrice(baseVariantPrice, enforcement.PriceMultiplier)
-		if player.Coins < int64(price) {
+		effectivePrice := int(float64(dampenedPrice)*variantMultiplier*enforcement.PriceMultiplier + 0.9999)
+
+		if player.Coins < int64(effectivePrice) {
 			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "NOT_ENOUGH_COINS"})
 			return
 		}
 
-		player.Coins -= int64(price)
+		player.Coins -= int64(effectivePrice)
 		if err := UpdatePlayerBalances(db, player.PlayerID, player.Coins, player.Stars); err != nil {
 			json.NewEncoder(w).Encode(BuyVariantStarResponse{OK: false, Error: "INTERNAL_ERROR"})
 			return
@@ -846,17 +873,27 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 			currentSeasonID(),
 			"variant",
 			req.Variant,
-			price,
+			effectivePrice,
 			coinsBefore,
 			player.Coins,
 			starsBefore,
 			player.Stars,
 		)
 
+		// Log season price snapshot and effective price for audit
+		emitServerTelemetry(db, &account.AccountID, player.PlayerID, "variant_star_purchase", map[string]interface{}{
+			"seasonId":           currentSeasonID(),
+			"variant":            req.Variant,
+			"seasonPriceBase":    basePriceDisplay,
+			"displayPrice":       displayPrice,
+			"effectivePricePaid": effectivePrice,
+			"variantMultiplier":  variantMultiplier,
+		})
+
 		json.NewEncoder(w).Encode(BuyVariantStarResponse{
 			OK:          true,
 			Variant:     req.Variant,
-			PricePaid:   price,
+			PricePaid:   displayPrice, // Return displayed price to maintain fairness perception
 			PlayerCoins: int(player.Coins),
 		})
 	}
