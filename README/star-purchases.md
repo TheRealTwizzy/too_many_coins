@@ -77,15 +77,39 @@ All star purchases are validated server-side and recorded in an append-only log.
 The current star price is persisted in the season economy table and updated each emission tick (every 60 seconds).
 
 This ensures:
+- Star price remains **identically consistent** across all players at any given moment
 - Star price remains consistent across server restarts
 - Price continuity is maintained during unexpected downtime
 - The season-authoritative star price is recoverable from database state
 
-The price is computed from:
-- Current coins in circulation
+### Star Price Computation (Season-Level Authority)
+
+The star price is computed from **season-level inputs only**. All players see the **identical price** at any given moment in the season.
+
+Season-level inputs:
+- Time progression within the season
+- Total coins in circulation (across all players)
 - Stars purchased this season
-- Market pressure
-- Time remaining in season
-- Active player metrics
+- Market pressure (aggregate purchase activity)
+- Late-season spike (time-based multiplier)
+- Affordability guardrail (derived from total coins / expected player base)
+
+**Active player metrics are NOT a direct input** to star price computation. Player activity influences pricing only indirectly through market pressure (purchase activity).
+
+The computation is performed **once per server tick** and stored in the database. The same value is broadcast to all players via SSE and API endpoints.
 
 If the persisted price is NULL on startup (new season or legacy data), it will be populated by the next emission tick.
+
+### Price Displayed vs. Price Paid
+
+The displayed to all players is the season-authoritative price.
+
+Purchase flow:
+- Player sees the authoritative star price
+- Anti-abuse logic may affect:
+  - Purchase allowance (buying limits)
+  - Effective price paid (through cooldowns or other mechanisms)
+  - But NOT the displayed price
+- Star purchase log records both:
+  - season_price_snapshot (authoritative)
+  - effective_price_paid (actual cost including anti-abuse adjustments)

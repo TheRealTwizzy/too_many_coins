@@ -137,7 +137,7 @@ func verifyDailyPlayability(db *sql.DB, playerID string, accountID *string) {
 
 	coinsInCirculation := economy.CoinsInCirculation()
 	secondsRemaining := seasonSecondsRemaining(now)
-	currentPrice := ComputeStarPrice(coinsInCirculation, secondsRemaining)
+	currentPrice := ComputeSeasonAuthorityStarPrice(coinsInCirculation, secondsRemaining)
 	canBuyStar := featureFlags.SinksEnabled && coins >= int64(currentPrice)
 
 	canClaimDaily := false

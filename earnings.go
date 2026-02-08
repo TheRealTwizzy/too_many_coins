@@ -283,7 +283,7 @@ func EnsurePlayableBalanceOnLogin(db *sql.DB, playerID string, accountID *string
 	params := economy.Calibration()
 	coinsInCirculation := economy.CoinsInCirculation()
 	secondsRemaining := seasonSecondsRemaining(now)
-	currentPrice := ComputeStarPrice(coinsInCirculation, secondsRemaining)
+	currentPrice := ComputeSeasonAuthorityStarPrice(coinsInCirculation, secondsRemaining)
 	buffer := maxInt(1, params.ActivityReward)
 	minBalance := currentPrice + buffer
 	if minBalance < params.P0 {

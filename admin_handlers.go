@@ -246,7 +246,7 @@ func adminEconomyHandler(db *sql.DB) http.HandlerFunc {
 				OK:                  true,
 				DailyEmissionTarget: economy.DailyEmissionTarget(),
 				BaseStarPrice:       params.P0,
-				CurrentStarPrice:    ComputeStarPrice(coins, remaining),
+				CurrentStarPrice:    ComputeSeasonAuthorityStarPrice(coins, remaining),
 				MarketPressure:      economy.MarketPressure(),
 				DailyCapEarly:       params.DailyCapEarly,
 				DailyCapLate:        params.DailyCapLate,

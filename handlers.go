@@ -210,7 +210,7 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 		price := economy.CurrentStarPrice()
 		if price == 0 {
 			// Fallback: compute if not yet set by tick
-			price = ComputeStarPrice(coins, remaining)
+			price = ComputeSeasonAuthorityStarPrice(coins, remaining)
 		}
 		currentPrice := &price
 		liveCoins := &coins
@@ -249,9 +249,10 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 			} else {
 				_ = snapshotDistributed
 			}
+			// Compute final price using ONLY season-level inputs (no active player metrics)
 			params := economy.Calibration()
 			pressureFinal := economy.MarketPressure()
-			final := ComputeStarPriceRawWithActive(params, int(snapshotStars), snapshotCoins, activeCoins, economy.ActivePlayers(), 0, pressureFinal)
+			final := ComputeStarPriceRaw(params, int(snapshotStars), snapshotCoins, 0, pressureFinal)
 			finalPrice = &final
 			finalCoins = &snapshotCoins
 			endedValue := snapshotEnded.UTC().Format(time.RFC3339)
@@ -840,7 +841,7 @@ func buyVariantStarHandler(db *sql.DB) http.HandlerFunc {
 		// Use season-authoritative base price
 		coinsInCirculation := economy.CoinsInCirculation()
 		secondsRemaining := seasonSecondsRemaining(time.Now().UTC())
-		basePriceDisplay := ComputeStarPrice(coinsInCirculation, secondsRemaining)
+		basePriceDisplay := ComputeSeasonAuthorityStarPrice(coinsInCirculation, secondsRemaining)
 		displayPrice := int(float64(basePriceDisplay)*variantMultiplier + 0.9999)
 
 		// Compute effective price with anti-abuse multipliers (internal, not displayed)

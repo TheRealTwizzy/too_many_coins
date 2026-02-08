@@ -357,6 +357,28 @@ func ComputeStarPriceWithStars(
 	return economy.ApplyPriceFloor(price)
 }
 
+func ComputeSeasonAuthorityStarPrice(
+	coinsInCirculation int64,
+	secondsRemaining int64,
+) int {
+	// Season-authoritative star price computation.
+	// Uses ONLY season-level inputs; MUST NOT read active player metrics.
+	// Inputs:
+	// - time progression (secondsRemaining)
+	// - market pressure (from season economy state)
+	// - late-season spike (derived from time)
+	// - affordability guardrail (derived from total coins / expected players)
+	// Output:
+	// - authoritative star price shared identically by all players
+	params := economy.Calibration()
+	starsPurchased := economy.StarsPurchased()
+	marketPressure := economy.MarketPressure()
+	// Call raw computation with activePlayers=0 to bypass active-player-based logic.
+	// This ensures all players see the same price.
+	price := ComputeStarPriceRaw(params, starsPurchased, coinsInCirculation, secondsRemaining, marketPressure)
+	return economy.ApplyPriceFloor(price)
+}
+
 func ComputeStarPriceRaw(
 	params CalibrationParams,
 	starsPurchased int,

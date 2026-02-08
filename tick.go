@@ -293,10 +293,12 @@ func startTickLoop(db *sql.DB) {
 
 			refreshCoinsInWallets(db)
 
-			// Compute and persist current star price
+			// Compute and persist season-authoritative star price
+			// This price is computed ONCE per tick using ONLY season-level inputs.
+			// The same price is shared identically across all players.
 			coins := economy.CoinsInCirculation()
 			remaining := seasonSecondsRemaining(now)
-			currentPrice := ComputeStarPrice(coins, remaining)
+			currentPrice := ComputeSeasonAuthorityStarPrice(coins, remaining)
 			economy.SetCurrentStarPrice(currentPrice)
 
 			activeCoins := economy.ActiveCoinsInCirculation()
