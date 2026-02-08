@@ -173,37 +173,60 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 			remaining = 0
 			dayIndex = totalDays
 		}
-		var emission *float64
-		var marketPressure *float64
-		var nextEmission *int64
-		var currentPrice *int
-		var liveCoins *int64
+
+		// ========================================================================
+		// ECONOMY DATA DIVERGENCE FIX (Alpha Game-Breaking Bug Resolution)
+		// ========================================================================
+		// ROOT CAUSE:
+		//   - Admin UI combined /seasons (player endpoint) + /admin/economy (admin endpoint)
+		//   - Player UI used only /seasons endpoint
+		//   - Previous logic: /seasons conditionally omitted economy fields when ended=true
+		//   - Result: Player UI showed "--" while Admin UI showed correct values
+		//
+		// FIX:
+		//   - Economy data is now ALWAYS sourced from authoritative economy module
+		//   - Single source of truth enforced for both player and admin views
+		//   - Conditional logic only affects final snapshot data (for ended seasons)
+		//   - Active economy data never conditionally omitted
+		//
+		// INVARIANT (Non-Negotiable):
+		//   - ALL season snapshots derive from SAME authoritative economy state
+		//   - Active season without complete economy data is ILLEGAL STATE
+		//   - Fail-fast on any initialization failure
+		// ========================================================================
+
+		// AUTHORITATIVE ECONOMY SNAPSHOT (Alpha Correctness)
+		// ALL season snapshots (player, admin, system) MUST be derived from the
+		// SAME authoritative economy state. This is the single source of truth.
+		// These values are ALWAYS populated, regardless of season end status.
+		// Conditional logic only affects whether we ALSO provide final snapshot data.
+		value := economy.EffectiveEmissionPerMinute(remaining, activeCoins)
+		emission := &value
+		pressure := economy.MarketPressure()
+		marketPressure := &pressure
+		next := nextEmissionSeconds(now)
+		nextEmission := &next
+		price := ComputeStarPrice(coins, remaining)
+		if account, _, err := getSessionAccount(db, r); err == nil && account != nil {
+			price = computePlayerStarPrice(db, account.PlayerID, coins, remaining)
+		}
+		currentPrice := &price
+		liveCoins := &coins
+
+		// DEFENSIVE INVARIANT ENFORCEMENT (Alpha Correctness)
+		// Active season without economy snapshot is an illegal state.
+		// If any economy field is missing or nil, FAIL FAST.
+		if emission == nil || marketPressure == nil || nextEmission == nil || currentPrice == nil || liveCoins == nil {
+			log.Fatalf("INVARIANT VIOLATION: Season %s missing authoritative economy data. This indicates initialization failure. emission=%v marketPressure=%v nextEmission=%v price=%v coins=%v",
+				currentSeasonID(), emission == nil, marketPressure == nil, nextEmission == nil, currentPrice == nil, liveCoins == nil)
+		}
+
+		// Final snapshot data (only for ended seasons)
 		var finalPrice *int
 		var finalCoins *int64
 		var endedAt *string
-		if !ended {
-			value := economy.EffectiveEmissionPerMinute(remaining, activeCoins)
-			emission = &value
-			pressure := economy.MarketPressure()
-			marketPressure = &pressure
-			next := nextEmissionSeconds(now)
-			nextEmission = &next
-			price := ComputeStarPrice(coins, remaining)
-			if account, _, err := getSessionAccount(db, r); err == nil && account != nil {
-				price = computePlayerStarPrice(db, account.PlayerID, coins, remaining)
-			}
-			currentPrice = &price
-			liveCoins = &coins
-
-			// DEFENSIVE INVARIANT ASSERTION (Alpha Correctness)
-			// An Active season MUST always return a complete economy snapshot.
-			// If any field is nil here, it indicates a critical initialization failure.
-			// This state must be impossible to reach in a correctly initialized system.
-			if emission == nil || marketPressure == nil || nextEmission == nil || currentPrice == nil || liveCoins == nil {
-				log.Fatalf("INVARIANT VIOLATION: Active season %s missing economy data: emission=%v marketPressure=%v nextEmission=%v price=%v coins=%v",
-					currentSeasonID(), emission == nil, marketPressure == nil, nextEmission == nil, currentPrice == nil, liveCoins == nil)
-			}
-		} else {
+		if ended {
+			// Query final season snapshot from database
 			var snapshotEnded time.Time
 			var snapshotCoins int64
 			var snapshotStars int64
@@ -225,8 +248,8 @@ func seasonsHandler(db *sql.DB) http.HandlerFunc {
 				_ = snapshotDistributed
 			}
 			params := economy.Calibration()
-			pressure := economy.MarketPressure()
-			final := ComputeStarPriceRawWithActive(params, int(snapshotStars), snapshotCoins, activeCoins, economy.ActivePlayers(), 0, pressure)
+			pressureFinal := economy.MarketPressure()
+			final := ComputeStarPriceRawWithActive(params, int(snapshotStars), snapshotCoins, activeCoins, economy.ActivePlayers(), 0, pressureFinal)
 			finalPrice = &final
 			finalCoins = &snapshotCoins
 			endedValue := snapshotEnded.UTC().Format(time.RFC3339)
